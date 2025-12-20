@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J-Folder Merge - Oscar Series</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <h1>J-Folder Merge - Oscar Series</h1>
+            <button id="theme-toggle" class="icon-btn">🌙</button>
+        </header>
+
+        <div class="controls glass-panel">
+            <div class="input-group">
+                <label for="left-path">Left Folder</label>
+                <div class="path-row">
+                    <input type="text" id="left-path" placeholder="/path/to/folder/A"
+                        value="/home/juitem/ContainerFolder/FolderComp">
+                    <button class="icon-btn browse-btn" data-target="left-path">📂</button>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="right-path">Right Folder</label>
+                <div class="path-row">
+                    <input type="text" id="right-path" placeholder="/path/to/folder/B"
+                        value="/home/juitem/ContainerFolder/FolderComp/backend">
+                    <button class="icon-btn browse-btn" data-target="right-path">📂</button>
+                </div>
+            </div>
+            <button id="compare-btn" class="primary-btn">Compare</button>
+        </div>
+
+        <div class="filters glass-panel">
+            <span class="filter-label">Show:</span>
+            <label class="checkbox-container">
+                <input type="checkbox" id="show-added" checked> <span class="checkmark added"></span> Added
+            </label>
+            <label class="checkbox-container">
+                <input type="checkbox" id="show-removed" checked> <span class="checkmark removed"></span> Removed
+            </label>
+            <label class="checkbox-container">
+                <input type="checkbox" id="show-modified" checked> <span class="checkmark modified"></span> Modified
+            </label>
+            <label class="checkbox-container">
+                <input type="checkbox" id="show-same" checked> <span class="checkmark same"></span> Same
+            </label>
+
+            <div class="exclude-settings">
+                <div class="exclude-group">
+                    <label for="exclude-folders">Exclude Folders:</label>
+                    <input type="text" id="exclude-folders" value=".gitignore, download, __pycache__">
+                </div>
+                <div class="exclude-group">
+                    <label for="exclude-files">Exclude Files:</label>
+                    <input type="text" id="exclude-files" value=".tmp">
+                </div>
+            </div>
+        </div>
+
+
+        <div class="main-view">
+            <div class="tree-container glass-panel">
+                <div class="tree-header">
+                    <span>Structure</span>
+                    <div class="legend">
+                        <span class="status-dot added"></span> Added
+                        <span class="status-dot removed"></span> Removed
+                        <span class="status-dot modified"></span> Modified
+                    </div>
+                </div>
+                <div id="tree-root" class="tree-content">
+                    <div class="placeholder-text">Enter paths and click Compare to start.</div>
+                </div>
+            </div>
+
+            <div id="diff-panel" class="diff-panel glass-panel hidden">
+                <div class="diff-header">
+                    <span id="diff-filename">Filename.txt</span>
+                    <button id="close-diff" class="icon-btn">×</button>
+                </div>
+                <div id="diff-content" class="diff-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Browse Modal -->
+    <div id="browse-modal" class="modal hidden">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h2>Browse Folders</h2>
+                <button class="icon-btn close-modal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="current-path-display">
+                    <button id="nav-up" class="icon-btn">⬆</button>
+                    <input type="text" id="modal-path-input" readonly>
+                </div>
+                <div id="folder-list" class="folder-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="select-folder-btn" class="primary-btn">Select Folder</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
