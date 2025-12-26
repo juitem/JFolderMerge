@@ -30,7 +30,22 @@ body {
     height: 100%;
     padding: 1rem;
     box-sizing: border-box;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.toolbar {
+    flex-shrink: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.main-view {
+    flex: 1;
+    width: 100%;
+    display: flex;
     gap: 1rem;
+    overflow: hidden;
 }
 
 header {
@@ -45,6 +60,7 @@ h1 {
     font-weight: 600;
     margin: 0;
     background: linear-gradient(to right, #60a5fa, #a855f7);
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -126,6 +142,13 @@ input[type="text"]:focus {
     padding: 0.25rem;
     border-radius: 4px;
     transition: color 0.2s, background-color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-btn svg {
+    display: block;
 }
 
 .icon-btn:hover {
@@ -146,6 +169,64 @@ input[type="text"]:focus {
     flex-direction: column;
     overflow: hidden;
 }
+
+.tree-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 500;
+    display: flex;
+    justify-content: space-between;
+}
+
+.split-tree-header {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.tree-col-header {
+    flex: 1;
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.split-tree-view {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    /* Scroll handled by columns */
+}
+
+.tree-column {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.5rem 0;
+}
+
+.tree-column:first-child {
+    border-right: 1px solid var(--border-color);
+}
+
+/* Hide scrollbars for cleaner look if synced, but keep function */
+.tree-column::-webkit-scrollbar {
+    width: 6px;
+}
+
+.tree-column::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.tree-row.spacer {
+    height: 28px;
+    /* Must match tree-row height (padding + content) */
+    /* opacity: 0.1; background: repeating-linear-gradient(...) option */
+}
+
 
 .tree-header {
     padding: 1rem;
@@ -200,10 +281,25 @@ input[type="text"]:focus {
     border-radius: 4px;
     transition: background-color 0.1s;
     gap: 0.5rem;
+    height: 32px;
+    /* Enforce fixed height for alignment */
+    box-sizing: border-box;
+    white-space: nowrap;
+    /* Prevent wrapping */
 }
 
 .tree-row:hover {
     background-color: rgba(255, 255, 255, 0.05);
+}
+
+.tree-row.selected {
+    background-color: rgba(59, 130, 246, 0.15);
+}
+
+.tree-row.spacer {
+    height: 32px;
+    /* Matches tree-row */
+    /* transparent */
 }
 
 .tree-row.selected {
@@ -287,6 +383,18 @@ input[type="text"]:focus {
     font-weight: 500;
 }
 
+
+
+.checkbox-container.small {
+    font-size: 0.8rem;
+    gap: 0.25rem;
+}
+
+.checkbox-container.small .checkmark {
+    width: 10px;
+    height: 10px;
+}
+
 .diff-content {
     flex: 1;
     overflow: auto;
@@ -306,6 +414,24 @@ input[type="text"]:focus {
     color: var(--success);
 }
 
+/* Window Controls */
+.window-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* Expanded Mode logic */
+.tree-container.collapsed {
+    display: none;
+}
+
+.diff-panel.expanded {
+    width: 100%;
+    margin-left: 0;
+    flex: 1;
+}
+
 .diff-line.removed {
     background-color: rgba(239, 68, 68, 0.1);
     color: var(--danger);
@@ -313,23 +439,75 @@ input[type="text"]:focus {
     opacity: 0.8;
 }
 
+.diff-line.modified {
+    background-color: rgba(245, 158, 11, 0.15);
+    /* Slightly stronger for visibility */
+    color: var(--warning);
+}
+
+/* Intra-line diff highlights */
+.diff-span-added {
+    background-color: rgba(16, 185, 129, 0.4);
+    border-radius: 2px;
+}
+
+.diff-span-removed {
+    background-color: rgba(239, 68, 68, 0.4);
+    border-radius: 2px;
+    text-decoration: line-through;
+}
+
 .diff-line.header {
     color: var(--text-secondary);
     opacity: 0.7;
 }
 
-/* Filters */
-.filters {
-    padding: 0.5rem 1rem;
+/* Toolbar & Filters */
+.toolbar {
     display: flex;
-    gap: 1.5rem;
+    flex-wrap: wrap;
     align-items: center;
-    font-size: 0.875rem;
+    margin-bottom: 0;
+    gap: 0.5rem;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.filters-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.separator {
+    width: 1px;
+    height: 24px;
+    background-color: var(--border-color);
+}
+
+.view-toggles {
+    display: flex;
+    gap: 4px;
+}
+
+.exclude-settings-compact {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.exclude-settings-compact input {
+    width: 150px;
+    padding: 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    font-size: 0.85rem;
 }
 
 .filter-label {
-    color: var(--text-secondary);
+    font-size: 0.9rem;
     font-weight: 500;
+    color: var(--text-secondary);
 }
 
 .checkbox-container {
@@ -338,19 +516,30 @@ input[type="text"]:focus {
     gap: 0.5rem;
     cursor: pointer;
     user-select: none;
+    font-size: 0.9rem;
+    position: relative;
+    padding-left: 24px;
 }
 
 .checkbox-container input {
-    display: none;
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
 }
 
 .checkmark {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    height: 16px;
+    width: 16px;
+    background-color: var(--input-bg);
     border: 1px solid var(--border-color);
-    background: rgba(0, 0, 0, 0.2);
-    position: relative;
+    border-radius: 3px;
+    transition: background-color 0.2s, border-color 0.2s;
 }
 
 .checkmark.added {
@@ -430,6 +619,9 @@ input[type="text"]:focus {
     cursor: pointer;
     font-size: 0.7rem;
     padding: 2px 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .merge-btn:hover {
@@ -521,4 +713,102 @@ input[type="text"]:focus {
     border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: flex-end;
+}
+
+/* Toggle Switch */
+.view-toggles {
+    display: flex;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    padding: 2px;
+    margin-right: 1rem;
+}
+
+.toggle-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.toggle-btn.active {
+    background: var(--accent-color);
+    color: white;
+    font-weight: 500;
+}
+
+.toggle-btn:hover:not(.active) {
+    color: var(--text-primary);
+}
+
+/* Split View */
+.diff-split-view {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 1px;
+    /* border between */
+    border-top: 1px solid var(--border-color);
+    background: var(--border-color);
+    /* Separator color */
+}
+
+.diff-split-view.hidden,
+.hidden,
+.hidden-by-filter {
+    display: none !important;
+}
+
+.split-pane {
+    flex: 1;
+    background: var(--panel-bg);
+    overflow-x: auto;
+    overflow-y: scroll;
+    padding: 1rem 0;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre;
+}
+
+/* Scrollbar for split panes */
+.split-pane::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.split-pane::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.split-pane::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.split-pane .diff-line {
+    padding: 0 1rem;
+    min-height: 1.5em;
+}
+
+/* Split View Specific Colors */
+.split-pane.left .diff-line.removed {
+    background-color: rgba(239, 68, 68, 0.15);
+    text-decoration: none;
+}
+
+.split-pane.right .diff-line.added {
+    background-color: rgba(16, 185, 129, 0.15);
+}
+
+.split-pane .diff-line.empty {
+    background: repeating-linear-gradient(45deg,
+            transparent,
+            transparent 10px,
+            rgba(255, 255, 255, 0.03) 10px,
+            rgba(255, 255, 255, 0.03) 20px);
 }

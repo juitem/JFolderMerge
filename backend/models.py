@@ -20,6 +20,7 @@ class ContentRequest(BaseModel):
 class DiffRequest(BaseModel):
     left_path: str
     right_path: str
+    mode: Literal["unified", "side-by-side"] = "unified"
 
 class CopyRequest(BaseModel):
     source_path: str
@@ -28,3 +29,7 @@ class CopyRequest(BaseModel):
 
 class ListDirRequest(BaseModel):
     path: str
+
+class SaveRequest(BaseModel):
+    path: str
+    content: str

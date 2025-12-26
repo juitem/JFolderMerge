@@ -1,0 +1,30 @@
+flowchart TD
+    Start([User Start: ./run.sh]) --> Init[Shell: Detect OS/IP & Launch Backend]
+    Init --> Server[Backend: FastAPI Server Start :8000]
+    Server --> |Serve Static| Client[Frontend: Load index.html & Modules]
+    
+    Client --> |GET /api/config| FetchConfig[Load Default Paths]
+    FetchConfig --> RenderInputs[Render Input Fields]
+    
+    subgraph Comparison Flow
+        UserCompare[User Clicks 'Compare'] --> |POST /api/compare| APICompare[Backend: Scan & Compare Folders]
+        APICompare --> |JSON: Tree Structure| RenderTree[Frontend: Render Dual Tree View]
+        RenderTree --> Filter[Apply Filters (Added/Removed/Mod)]
+    end
+    
+    subgraph Diff Flow
+        UserSelect[User Clicks File] --> |GET /api/content| FetchContent[Backend: Read File Contents]
+        FetchContent --> |GET /api/diff| FetchDiff[Backend: Generate Diff (Unified/Side)]
+        FetchDiff --> RenderDiff[Frontend: Render Diff Panel]
+        RenderDiff --> FilterDiff[Apply Diff Filters]
+    end
+    
+    subgraph Merge Flow
+        UserMerge[User Clicks Merge Arrow] --> |Update Memory| UpdateLines[Frontend: Update Line Array]
+        UpdateLines --> |POST /api/save-file| APISave[Backend: Atomic Write to Disk]
+        APISave --> Refresh[Frontend: Auto-Refresh Diff View]
+    end
+    
+    RenderInputs --> UserCompare
+    RenderTree --> UserSelect
+    RenderDiff --> UserMerge

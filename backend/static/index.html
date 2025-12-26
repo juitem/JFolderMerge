@@ -15,56 +15,115 @@
     <div class="app-container">
         <header>
             <h1>J-Folder Merge - Oscar Series</h1>
-            <button id="theme-toggle" class="icon-btn">🌙</button>
+            <button id="theme-toggle" class="icon-btn" title="Toggle Theme">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
         </header>
 
         <div class="controls glass-panel">
             <div class="input-group">
-                <label for="left-path">Left Folder</label>
+
                 <div class="path-row">
-                    <input type="text" id="left-path" placeholder="/path/to/folder/A"
-                        value="/home/juitem/ContainerFolder/FolderComp">
-                    <button class="icon-btn browse-btn" data-target="left-path">📂</button>
+                    <input type="text" id="left-path" placeholder="/path/to/folder/A">
+                    <button class="icon-btn browse-btn" data-target="left-path" title="Browse">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z">
+                            </path>
+                        </svg>
+                    </button>
                 </div>
             </div>
             <div class="input-group">
-                <label for="right-path">Right Folder</label>
+
                 <div class="path-row">
-                    <input type="text" id="right-path" placeholder="/path/to/folder/B"
-                        value="/home/juitem/ContainerFolder/FolderComp/backend">
-                    <button class="icon-btn browse-btn" data-target="right-path">📂</button>
+                    <input type="text" id="right-path" placeholder="/path/to/folder/B">
+                    <button class="icon-btn browse-btn" data-target="right-path" title="Browse">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z">
+                            </path>
+                        </svg>
+                    </button>
                 </div>
             </div>
             <button id="compare-btn" class="primary-btn">Compare</button>
         </div>
 
-        <div class="filters glass-panel">
-            <span class="filter-label">Show:</span>
-            <label class="checkbox-container">
-                <input type="checkbox" id="show-added" checked> <span class="checkmark added"></span> Added
-            </label>
-            <label class="checkbox-container">
-                <input type="checkbox" id="show-removed" checked> <span class="checkmark removed"></span> Removed
-            </label>
-            <label class="checkbox-container">
-                <input type="checkbox" id="show-modified" checked> <span class="checkmark modified"></span> Modified
-            </label>
-            <label class="checkbox-container">
-                <input type="checkbox" id="show-same" checked> <span class="checkmark same"></span> Same
-            </label>
+        <div class="toolbar glass-panel">
+            <!-- Folder Filters -->
+            <div class="filters-group">
+                <span class="filter-label">Folder:</span>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="folder-show-added" checked> <span class="checkmark added"></span>
+                </label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="folder-show-removed" checked> <span class="checkmark removed"></span>
+                </label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="folder-show-modified" checked> <span class="checkmark modified"></span>
+                </label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="folder-show-same" checked> <span class="checkmark same"></span>
+                </label>
+            </div>
 
-            <div class="exclude-settings">
-                <div class="exclude-group">
-                    <label for="exclude-folders">Exclude Folders:</label>
-                    <input type="text" id="exclude-folders" value=".gitignore, download, __pycache__">
-                </div>
-                <div class="exclude-group">
-                    <label for="exclude-files">Exclude Files:</label>
-                    <input type="text" id="exclude-files" value=".tmp">
-                </div>
+            <div class="separator"></div>
+
+            <!-- Diff Filters -->
+            <div class="filters-group">
+                <span class="filter-label">Diff:</span>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="diff-show-added" checked> <span class="checkmark added"></span>
+                </label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="diff-show-removed" checked> <span class="checkmark removed"></span>
+                </label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="diff-show-modified" checked> <span class="checkmark modified"></span>
+                </label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="diff-show-same" checked> <span class="checkmark same"></span>
+                </label>
+            </div>
+
+            <div class="separator"></div>
+
+            <!-- View Toggles -->
+            <div class="view-toggles">
+                <button id="view-unified-btn" class="toggle-btn active" title="Unified Diff View">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <button id="view-split-btn" class="toggle-btn" title="Side-by-Side Diff View">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="12" y1="3" x2="12" y2="21"></line>
+                    </svg>
+                </button>
+                <button id="view-both-btn" class="toggle-btn" title="Both Views">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="12" y1="12" x2="12" y2="21"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="separator"></div>
+
+            <!-- Excludes -->
+            <div class="exclude-settings-compact">
+                <input type="text" id="exclude-folders" value=".gitignore, download, __pycache__"
+                    placeholder="Exclude Folders">
+                <input type="text" id="exclude-files" value=".tmp" placeholder="Exclude Files">
             </div>
         </div>
-
 
         <div class="main-view">
             <div class="tree-container glass-panel">
@@ -76,42 +135,67 @@
                         <span class="status-dot modified"></span> Modified
                     </div>
                 </div>
-                <div id="tree-root" class="tree-content">
-                    <div class="placeholder-text">Enter paths and click Compare to start.</div>
+                <div class="split-tree-header">
+                    <div class="tree-col-header">Left Folder</div>
+                    <div class="tree-col-header">Right Folder</div>
+                </div>
+                <div class="split-tree-view">
+                    <div id="tree-left" class="tree-column">
+                        <div class="placeholder-text">Enter paths and click Compare.</div>
+                    </div>
+                    <div id="tree-right" class="tree-column">
+                        <div class="placeholder-text"></div>
+                    </div>
                 </div>
             </div>
 
             <div id="diff-panel" class="diff-panel glass-panel hidden">
                 <div class="diff-header">
-                    <span id="diff-filename">Filename.txt</span>
-                    <button id="close-diff" class="icon-btn">×</button>
+                    <div class="window-controls">
+                        <button id="expand-diff" class="icon-btn" title="Toggle Full Screen (ESC)">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <polyline points="9 21 3 21 3 15"></polyline>
+                                <line x1="21" y1="3" x2="14" y2="10"></line>
+                                <line x1="3" y1="21" x2="10" y2="14"></line>
+                            </svg>
+                        </button>
+                        <button id="close-diff" class="icon-btn" title="Close">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <span id="diff-filename">Select a file to compare</span>
                 </div>
-                <div id="diff-content" class="diff-content"></div>
+                <pre id="diff-content" class="diff-content hidden"></pre>
+                <div id="diff-split" class="diff-split-view hidden">
+                    <div id="diff-left" class="split-pane"></div>
+                    <div id="diff-right" class="split-pane"></div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Browse Modal -->
     <div id="browse-modal" class="modal hidden">
-        <div class="modal-content glass-panel">
+        <div class="modal-content">
+            <h3>Select Folder</h3>
             <div class="modal-header">
-                <h2>Browse Folders</h2>
-                <button class="icon-btn close-modal">×</button>
+                <button id="nav-up" class="icon-btn">↑</button>
+                <input type="text" id="modal-path-input" readonly>
             </div>
-            <div class="modal-body">
-                <div class="current-path-display">
-                    <button id="nav-up" class="icon-btn">⬆</button>
-                    <input type="text" id="modal-path-input" readonly>
-                </div>
-                <div id="folder-list" class="folder-list"></div>
-            </div>
+            <div id="folder-list" class="folder-list"></div>
             <div class="modal-footer">
                 <button id="select-folder-btn" class="primary-btn">Select Folder</button>
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script type="module" src="js/main.js"></script>
 </body>
 
 </html>
