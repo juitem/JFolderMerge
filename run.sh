@@ -7,9 +7,10 @@ cd "$DIR"
 
 # Default values
 DEFAULT_PORT=8000
-DEFAULT_LEFT="$DIR/test/A"
-DEFAULT_RIGHT="$DIR/test/B"
-
+DEFAULT_LEFT="/Users/juitem/Docker/ContainerFolder/FolderComp"
+[[ ! -d $DEFAULT_LEFT ]] && DEFAULT_LEFT="$DIR/test/A"
+DEFAULT_RIGHT="/Users/juitem/Docker/ContainerFolder/JF"
+[[ ! -d $DEFAULT_RIGHT ]] && DEFAULT_RIGHT="$DIR/test/B"
 # Argument parsing logic
 # usage: ./run.sh [LEFT] [RIGHT] [PORT]
 if [ "$#" -eq 1 ]; then

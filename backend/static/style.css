@@ -539,29 +539,58 @@ input[type="text"]:focus {
     background-color: var(--input-bg);
     border: 1px solid var(--border-color);
     border-radius: 3px;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.checkmark.added::after {
+    content: '+';
+}
+
+.checkmark.removed::after {
+    content: '-';
+}
+
+.checkmark.modified::after {
+    content: '!';
+}
+
+.checkmark.same::after {
+    content: '=';
     transition: background-color 0.2s, border-color 0.2s;
 }
 
 .checkmark.added {
     border-color: var(--success);
+    color: var(--success);
 }
 
 .checkmark.removed {
     border-color: var(--danger);
+    color: var(--danger);
 }
 
 .checkmark.modified {
     border-color: var(--warning);
+    color: var(--warning);
 }
 
 .checkmark.same {
     border-color: var(--text-secondary);
+    color: var(--text-secondary);
 }
 
 .checkbox-container input:checked+.checkmark {
     background-color: currentColor;
+    color: white;
+    /* Default white text on colored bg */
 }
 
+/* Specific overrides for checked state colors */
 .checkbox-container input:checked+.checkmark.added {
     background-color: var(--success);
 }
@@ -570,8 +599,10 @@ input[type="text"]:focus {
     background-color: var(--danger);
 }
 
+/* Dark text for yellow/orange warning background */
 .checkbox-container input:checked+.checkmark.modified {
     background-color: var(--warning);
+    color: #0f172a;
 }
 
 .checkbox-container input:checked+.checkmark.same {
@@ -668,6 +699,20 @@ input[type="text"]:focus {
 .modal-header h2 {
     margin: 0;
     font-size: 1.25rem;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+}
+
+.close-modal:hover {
+    color: var(--text-primary);
 }
 
 .modal-body {

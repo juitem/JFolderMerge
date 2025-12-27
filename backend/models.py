@@ -3,6 +3,8 @@ from typing import List, Optional, Literal
 
 class FileNode(BaseModel):
     name: str
+    left_name: Optional[str] = None
+    right_name: Optional[str] = None
     path: str
     type: Literal["file", "directory"]
     status: Literal["same", "modified", "added", "removed"]

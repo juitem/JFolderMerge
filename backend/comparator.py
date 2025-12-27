@@ -30,6 +30,12 @@ def _compare_recursive(left_root: str, right_root: str, rel_path: str, exclude_f
 
     name = os.path.basename(rel_path) if rel_path else os.path.basename(left_root)
     
+    left_name = None
+    right_name = None
+    if not rel_path:
+        left_name = os.path.basename(left_root)
+        right_name = os.path.basename(right_root)
+
     if not left_exists and not right_exists:
         # Should not happen if driven by parent listing
         return FileNode(name=name, path=rel_path, type="file", status="removed") # Fallback
@@ -42,6 +48,8 @@ def _compare_recursive(left_root: str, right_root: str, rel_path: str, exclude_f
 
     node = FileNode(
         name=name,
+        left_name=left_name,
+        right_name=right_name,
         path=rel_path,
         type="directory" if is_dir else "file",
         status="same"

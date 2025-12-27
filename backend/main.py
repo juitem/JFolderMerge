@@ -259,6 +259,9 @@ def list_dirs(req: ListDirRequest):
         # If empty, try to start from home or root
         path = os.path.expanduser("~")
     
+    # Ensure absolute path to allow proper parent traversal
+    path = os.path.abspath(path)
+    
     if not os.path.exists(path) or not os.path.isdir(path):
         raise HTTPException(status_code=400, detail="Invalid directory path")
     

@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import * as api from './api.js';
-import { showDiff } from './diffView.js';
+import { showDiff, refreshDiffView } from './diffView.js';
 
 const treeLeft = document.getElementById('tree-left');
 const treeRight = document.getElementById('tree-right');
@@ -9,17 +9,35 @@ const modalPathInput = document.getElementById('modal-path-input');
 
 // Filtering
 export function applyFilters() {
-    document.querySelectorAll('.tree-item').forEach(item => {
-        const status = item.dataset.status || 'same';
-        const shouldShow = state.folderFilters[item.dataset.status] !== false; // Check state.folderFilters
-        // Note: state.folderFilters keys match status strings 'added', 'removed', 'modified', 'same'
+    const filterTree = (container) => {
+        if (!container) return false;
+        let hasVisible = false;
+        const items = Array.from(container.children).filter(c => c.classList.contains('tree-item'));
 
-        if (shouldShow) {
-            item.classList.remove('hidden-by-filter');
-        } else {
-            item.classList.add('hidden-by-filter');
-        }
-    });
+        items.forEach(item => {
+            const childrenContainer = item.querySelector('.tree-children');
+            let childVisible = false;
+            if (childrenContainer) {
+                childVisible = filterTree(childrenContainer);
+            }
+            const status = item.dataset.status || 'same'; // e.g. 'same'
+            // state.folderFilters keys match status strings 'added', 'removed', 'modified', 'same'
+            const isFilterActive = state.folderFilters[status] !== false;
+
+            // Show if self matches filter OR if has visible children
+            // This ensures that a folder (status='same') remains visible if it contains modified children
+            if (isFilterActive || childVisible) {
+                item.classList.remove('hidden-by-filter');
+                hasVisible = true;
+            } else {
+                item.classList.add('hidden-by-filter');
+            }
+        });
+        return hasVisible;
+    };
+
+    filterTree(document.getElementById('tree-left'));
+    filterTree(document.getElementById('tree-right'));
 }
 
 export function renderTree(data) {
@@ -166,13 +184,13 @@ function appendMergeActions(row, node, isRightSide) {
         const btn = document.createElement('button');
         btn.className = 'merge-btn';
         btn.innerHTML = 'Copy <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>';
-        btn.onclick = (e) => { e.stopPropagation(); api.copyItem(fullLeft, fullRight, node.type === 'directory').then(() => document.getElementById('compare-btn').click()); };
+        btn.onclick = (e) => { e.stopPropagation(); api.copyItem(fullLeft, fullRight, node.type === 'directory').then(() => { document.getElementById('compare-btn').click(); refreshDiffView(); }); };
         actions.appendChild(btn);
     } else if (node.status === 'added') {
         const btn = document.createElement('button');
         btn.className = 'merge-btn';
         btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Copy';
-        btn.onclick = (e) => { e.stopPropagation(); api.copyItem(fullRight, fullLeft, node.type === 'directory').then(() => document.getElementById('compare-btn').click()); };
+        btn.onclick = (e) => { e.stopPropagation(); api.copyItem(fullRight, fullLeft, node.type === 'directory').then(() => { document.getElementById('compare-btn').click(); refreshDiffView(); }); };
         actions.appendChild(btn);
     } else if (node.status === 'modified') {
         const btn = document.createElement('button');
@@ -186,8 +204,8 @@ function appendMergeActions(row, node, isRightSide) {
         btn.onclick = (e) => {
             e.stopPropagation();
             if (confirm(`Overwrite ${isRightSide ? 'Left' : 'Right'}?`)) {
-                if (isRightSide) api.copyItem(fullRight, fullLeft, node.type === 'directory').then(() => document.getElementById('compare-btn').click());
-                else api.copyItem(fullLeft, fullRight, node.type === 'directory').then(() => document.getElementById('compare-btn').click());
+                if (isRightSide) api.copyItem(fullRight, fullLeft, node.type === 'directory').then(() => { document.getElementById('compare-btn').click(); refreshDiffView(); });
+                else api.copyItem(fullLeft, fullRight, node.type === 'directory').then(() => { document.getElementById('compare-btn').click(); refreshDiffView(); });
             }
         };
         actions.appendChild(btn);
