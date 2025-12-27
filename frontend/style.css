@@ -524,12 +524,12 @@ input[type="text"]:focus {
 }
 
 .exclude-settings-compact input {
-    width: 150px;
+    width: 100px; /* More compact */
     padding: 6px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
     background-color: var(--input-bg);
-    color: var(--text-color);
+    color: var(--text-primary); /* Fixed var name */
     font-size: 0.85rem;
 }
 

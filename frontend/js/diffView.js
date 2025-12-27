@@ -1,5 +1,8 @@
 import { state } from './state.js';
 import * as api from './api.js?v=2';
+import { updateFileStatus } from './folderView.js?v=7'; // Import helper
+
+
 
 // DOM Elements (We will grab them fresh or cache them if they are static)
 const diffPanel = document.getElementById('diff-panel');
@@ -111,6 +114,18 @@ export async function refreshDiffView() {
 
         // Apply Filters immediately after render
         applyFilters();
+
+        // Check if identical (all rows same) and update folder view status
+        if ((mode === 'side-by-side' || mode === 'both') && splitData) {
+            const isIdentical = splitData.left_rows.every(r => r.type === 'same' || r.type === 'empty') &&
+                splitData.right_rows.every(r => r.type === 'same' || r.type === 'empty');
+
+            // Also ensure we actually have content (not just empty error)
+            // If isIdentical is true, update status to 'same'
+            if (isIdentical && relPath) {
+                updateFileStatus(relPath, 'same');
+            }
+        }
 
     } catch (e) {
         diffContent.textContent = "Error: " + e.message;

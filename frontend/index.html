@@ -124,9 +124,11 @@
             </div>
 
             <!-- Excludes -->
-            <div class="exclude-settings-compact" style="display:flex; flex-direction:column; gap:0.5rem;">
+            <!-- Excludes -->
+            <div class="exclude-settings-compact" style="display:flex; gap:0.5rem; align-items:center;">
                 <div class="path-row" style="display:flex; gap:0.5rem; align-items:center;">
-                    <input type="text" id="exclude-folders" value="" placeholder="Exclude Folders (comma separated)">
+                    <input type="text" id="exclude-folders" value="" placeholder="Excl. Folders"
+                        title="Exclude Folders (comma separated)">
                     <button id="import-ignore-folder-btn" class="icon-btn" title="Import from IgnoreFolders/default">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
@@ -136,7 +138,8 @@
                     </button>
                 </div>
                 <div class="path-row" style="display:flex; gap:0.5rem; align-items:center;">
-                    <input type="text" id="exclude-files" value="" placeholder="Exclude Files (comma separated)">
+                    <input type="text" id="exclude-files" value="" placeholder="Excl. Files"
+                        title="Exclude Files (comma separated)">
                     <button id="import-ignore-file-btn" class="icon-btn" title="Import from IgnoreFiles/default">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
@@ -207,7 +210,7 @@
 
     <!-- Modals are now generated dynamically by modal.js -->
 
-    <script type="module" src="js/main.js?v=21"></script>
+    <script type="module" src="js/main.js?v=25"></script>
 </body>
 
 </html>

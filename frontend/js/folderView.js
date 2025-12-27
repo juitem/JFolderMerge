@@ -98,10 +98,13 @@ function buildDualNode(node, leftParent, rightParent) {
     const leftContainer = document.createElement('div');
     leftContainer.className = 'tree-item';
     leftContainer.dataset.status = status;
+    leftContainer.dataset.path = node.path; // Store path for lookup
 
     const rightContainer = document.createElement('div');
     rightContainer.className = 'tree-item';
     rightContainer.dataset.status = status;
+    rightContainer.dataset.path = node.path; // Store path for lookup
+
 
     const leftRow = document.createElement('div');
     const rightRow = document.createElement('div');
@@ -307,6 +310,31 @@ function appendMergeActions(row, node, isRightSide) {
     actions.appendChild(delBtn);
 
     row.appendChild(actions);
+}
+
+export function updateFileStatus(relPath, newStatus) {
+    const items = document.querySelectorAll(`.tree-item[data-path="${relPath}"]`);
+    items.forEach(item => {
+        item.dataset.status = newStatus;
+
+        // Update Status Dot/Label if exists
+        const row = item.querySelector('.tree-row');
+        if (row) {
+            const statusSpan = row.querySelector('.item-status');
+            if (statusSpan) {
+                if (newStatus === 'same') {
+                    statusSpan.remove(); // Remove status label for same
+                } else {
+                    statusSpan.className = `item-status ${newStatus}`;
+                    statusSpan.textContent = newStatus;
+                }
+            } else if (newStatus !== 'same') {
+                // Create if missing but needed (unlikely case for merge same->mod, usually mod->same)
+            }
+        }
+    });
+    // Re-apply filters to hide/show based on new status
+    applyFilters();
 }
 
 
