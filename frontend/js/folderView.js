@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import * as api from './api.js';
+import * as api from './api.js?v=2';
 import { showDiff, refreshDiffView } from './diffView.js';
 
 const treeLeft = document.getElementById('tree-left');
@@ -220,10 +220,11 @@ function appendMergeActions(row, node, isRightSide) {
         e.stopPropagation();
         if (confirm(`Delete ${isRightSide ? 'Right' : 'Left'} item: ${node.name}?`)) {
             const target = isRightSide ? fullRight : fullLeft;
+            console.log("Attempting to delete:", target);
             api.deleteItem(target).then(() => {
                 document.getElementById('compare-btn').click();
                 refreshDiffView();
-            });
+            }).catch(e => alert("Delete failed: " + e.message));
         }
     };
     actions.appendChild(delBtn);

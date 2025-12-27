@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import * as api from './api.js';
+import * as api from './api.js?v=2';
 
 // DOM Elements (We will grab them fresh or cache them if they are static)
 const diffPanel = document.getElementById('diff-panel');

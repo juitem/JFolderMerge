@@ -254,15 +254,20 @@ def save_file(req: SaveRequest):
 
 @app.post("/api/delete")
 def delete_item(req: DeleteRequest):
+    print(f"DEBUG: DELETE request for path: {req.path}")
     if not os.path.exists(req.path):
+        print(f"DEBUG: Path not found: {req.path}")
         raise HTTPException(status_code=404, detail="Path does not exist")
     try:
         if os.path.isdir(req.path):
+            print(f"DEBUG: Removing directory: {req.path}")
             shutil.rmtree(req.path)
         else:
+            print(f"DEBUG: Removing file: {req.path}")
             os.remove(req.path)
         return {"status": "success"}
     except Exception as e:
+        print(f"DEBUG: Error deleting: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/list-dirs")
@@ -300,7 +305,7 @@ def get_config():
         "right": args.right
     }
 
-app.mount("/", StaticFiles(directory="backend/static", html=True), name="static")
+app.mount("/", StaticFiles(directory="frontend", html=True), name="static")
 
 if __name__ == "__main__":
     # If run directly as a script, start uvicorn

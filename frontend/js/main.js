@@ -1,6 +1,6 @@
 import { state } from './state.js';
-import * as api from './api.js';
-import * as folderView from './folderView.js?v=6';
+import * as api from './api.js?v=2';
+import * as folderView from './folderView.js?v=7';
 import * as diffView from './diffView.js';
 import { initBrowseModal } from './browseModal.js';
 
