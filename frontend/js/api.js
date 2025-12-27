@@ -111,16 +111,40 @@ export async function saveFile(path, content) {
 }
 
 export async function deleteItem(path) {
-    const response = await fetch('/api/delete', {
+    const res = await fetch(`/api/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path })
     });
+    if (!res.ok) throw new Error("Delete failed");
+    return res.json();
+}
 
-    if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.detail || "Delete failed");
+export async function getHistory() {
+    const res = await fetch(`/api/history`);
+    if (!res.ok) return [];
+    return res.json();
+}
+
+export async function saveHistory(leftPath, rightPath) {
+    await fetch(`/api/history`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ left_path: leftPath, right_path: rightPath })
+    });
+}
+
+export async function openExternal(leftPath, rightPath, tool = "default") {
+    const res = await fetch(`/api/open-external`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ left_path: leftPath, right_path: rightPath, tool })
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Launch failed");
     }
+    return res.json();
 }
 
 export async function copyItem(src, dest, isDir) {

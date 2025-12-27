@@ -1,7 +1,7 @@
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from .models import CompareRequest, ContentRequest, DiffRequest, FileNode, CopyRequest, ListDirRequest, SaveRequest, DeleteRequest
+from .models import CompareRequest, ContentRequest, DiffRequest, FileNode, CopyRequest, ListDirRequest, SaveRequest, DeleteRequest, HistoryRequest, ExternalToolRequest
 from .comparator import compare_folders
 import os
 import difflib
@@ -334,6 +334,111 @@ def load_config():
 @app.get("/api/config")
 def get_config():
     return load_config()
+
+# History API
+HISTORY_FILE = "settings/history.json"
+
+@app.get("/api/history")
+def get_history():
+    if not os.path.exists(HISTORY_FILE):
+        return []
+    try:
+        with open(HISTORY_FILE, 'r') as f:
+            content = f.read()
+            if not content:
+                return []
+            return json.loads(content)
+    except Exception as e:
+        print(f"Error loading history: {e}")
+        return []
+
+@app.post("/api/history")
+def save_history(req: HistoryRequest):
+    history = get_history()
+    
+    # Create new entry
+    import datetime
+    new_entry = {
+         "left_path": req.left_path,
+         "right_path": req.right_path,
+         "timestamp": datetime.datetime.now().isoformat()
+    }
+    
+    # Remove duplicate if exists (same left/right)
+    # Filter out existing entries that match
+    history = [h for h in history if not (h["left_path"] == req.left_path and h["right_path"] == req.right_path)]
+    
+    # Add to top
+    history.insert(0, new_entry)
+    
+    # Keep max 10
+    history = history[:10]
+    
+    try:
+        with open(HISTORY_FILE, 'w') as f:
+            json.dump(history, f, indent=2)
+        return {"status": "success", "history": history}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/open-external")
+def open_external(req: ExternalToolRequest):
+    import subprocess
+    import platform
+    
+    # Basic Validation
+    if not os.path.exists(req.left_path) or not os.path.exists(req.right_path):
+        raise HTTPException(status_code=404, detail="One or more files not found")
+
+    cmd = []
+    
+    # Tool Selection Strategy
+    system = platform.system()
+    
+    # If the user provided a specific tool command (advanced), we might respect it.
+    # But for now, let's map "meld" and "default".
+    
+    tool = req.tool.lower()
+    
+    if tool == "meld":
+        # Check if meld is in path?
+        # On Mac, 'meld' might be an alias or not installed.
+        # User might have installed via brew.
+        cmd = ["meld", req.left_path, req.right_path]
+        
+    elif tool == "code" or tool == "vscode":
+        cmd = ["code", "--diff", req.left_path, req.right_path]
+        
+    elif tool == "opendiff" or tool == "filemerge" or (tool == "default" and system == "Darwin"):
+        cmd = ["opendiff", req.left_path, req.right_path]
+        
+    else:
+        # Fallback to system open? 
+        # Opening two files separately isn't a diff.
+        # Try to guess based on OS
+        if shutil.which("meld"):
+             cmd = ["meld", req.left_path, req.right_path]
+        elif shutil.which("code"):
+             cmd = ["code", "--diff", req.left_path, req.right_path]
+        elif system == "Darwin":
+             cmd = ["opendiff", req.left_path, req.right_path]
+        elif system == "Windows":
+             raise HTTPException(status_code=501, detail="Windows external tool not yet configured")
+        else:
+             raise HTTPException(status_code=501, detail="No suitable diff tool found (Meld, VSCode, FileMerge)")
+
+    print(f"Executing: {cmd}")
+    
+    try:
+        # Use Popen to run non-blocking (detach)
+        subprocess.Popen(cmd)
+        return {"status": "success", "command": " ".join(cmd)}
+    except FileNotFoundError:
+        # If the specific tool wasn't found
+        raise HTTPException(status_code=500, detail=f"Tool not found: {cmd[0]}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 app.mount("/", StaticFiles(directory="frontend", html=True), name="static")
 

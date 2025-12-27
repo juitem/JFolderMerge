@@ -1,0 +1,68 @@
+# Task List
+
+- [/] Folder Comparison Tool Enhancements
+    - [x] Intra-line Diff Highlighting <!-- id: 0 -->
+    - [x] Rename views to "Unified Diff" and "Side-by-Side Diff" <!-- id: 1 -->
+    - [x] Implement "Expand/Full Screen" mode for Diff Panel (with ESC support) <!-- id: 2 -->
+    - [/] Refactor Exclude Logic (Ignore Files) <!-- id: 50 -->
+        - [x] Backend: Create `IgnoreFolders/default` and `IgnoreFiles/default` <!-- id: 51 -->
+        - [x] Backend: Update `compare` endpoint to accept lists (revert from file path) <!-- id: 52 -->
+        - [x] Frontend: Implement "Import from file" workflow for Excludes <!-- id: 53 -->
+        - [x] Frontend: Fix Initialization/Syntax Crashes <!-- id: 54 -->
+        - [x] Frontend: Polish Modal UI (Titles, Labels, Cancel Button) <!-- id: 55 -->
+- [x] Line-level Merging <!-- id: 3 -->
+    - [x] Backend: Create `/api/save-file` endpoint <!-- id: 4 -->
+    - [x] Frontend: Store file content lines in memory <!-- id: 5 -->
+    - [x] Frontend: Implement Merge Button logic (update memory + auto-save) <!-- id: 6 -->
+    - [x] Frontend: Re-render diff after merge <!-- id: 7 -->
+- [x] Frontend Refactoring & UI Polish <!-- id: 8 -->
+    - [x] Refactor: Split `script.js` into ES Modules (`folderView.js`, `diffView.js`, etc.) <!-- id: 9 -->
+    - [x] UI: Move Window Controls (Expand/Close) to Top-Left <!-- id: 10 -->
+    - [x] UI: Implement 3-way View Toggle (Unified, Split, Both) with Icons <!-- id: 11 -->
+    - [x] UI: Fix Side-by-Side layout spacing (remove emptyunified space) <!-- id: 12 -->
+    - [x] Verify: Ensure all features (Expand, Merge, Nav) work after refactor <!-- id: 13 -->
+- [x] Implement Diff View Filters <!-- id: 14 -->
+    - [x] Update `diffView.js` to handle `state.filters` <!-- id: 15 -->
+    - [x] Update `main.js` to trigger diff filters on change <!-- id: 16 -->
+- [x] Documentation <!-- id: 17 -->
+    - [x] Create `docs/requirements_and_lessons.md` <!-- id: 18 -->
+    - [x] Create `docs/flowchart.mermaid` <!-- id: 19 -->
+    - [x] Create `docs/sequence_diagram.mermaid` <!-- id: 20 -->
+- [x] Separate Folder and Diff Filters <!-- id: 21 -->
+    - [x] State: Split `filters` into `folderFilters` and `diffFilters` in `state.js` <!-- id: 22 -->
+    - [x] UI: Update `index.html` to have separate filter controls <!-- id: 23 -->
+    - [x] Logic: Update `main.js` to bind new events <!-- id: 24 -->
+    - [x] Logic: Update `folderView.js` and `diffView.js` to use respective states <!-- id: 25 -->
+- [x] Refine Layout <!-- id: 31 -->
+    - [x] Remove duplicate/redundant UI elements <!-- id: 32 -->
+    - [x] Merge Folder Filters and Exclude Settings into single Toolbar <!-- id: 33 -->
+    - [x] Restore View Toggles to Diff Panel <!-- id: 34 -->
+    - [x] Unified Toolbar: Move Diff Filters and View Toggles to Global Toolbar <!-- id: 36 -->
+    - [x] Verify Layout: Left Tree, Right Diff Panel <!-- id: 37 -->
+- [x] About Modal & Credits <!-- id: 38 -->
+    - [x] Replace Moon Icon with User/Info Icon (reused Moon icon as requested) <!-- id: 39 -->
+    - [x] Implement About Modal with Author Info <!-- id: 40 -->
+    - [x] Fix Repo Link Text <!-- id: 41 -->
+- [x] **Implement Recent History** (Priority: High)
+  - [x] Backend: Add `settings/history.json` and API endpoints.
+  - [x] Frontend: Add "Recent History" icon/button to input groups.
+  - [x] Logic: Save history on compare, retrieve on click.
+- [x] **Process Advanced View Options**
+  - [x] Backend Support: `/api/open-external` endpoint.
+  - [x] Frontend State: Update `state.js` with `viewOpts`.
+  - [x] UI: Add toggle buttons (Default, Auto-Expand, External).
+  - [x] Logic: Handle file click based on current mode.
+- [x] Feature: Delete Logic <!-- id: 42 -->
+    - [x] Backend: `/api/delete` endpoint <!-- id: 43 -->
+    - [x] Frontend: `deleteItem` API <!-- id: 44 -->
+    - [x] UI: Add Trash Icon to Merge Actions <!-- id: 45 -->
+- [x] Refactor: Unified Modal & Feedback System <!-- id: 60 -->
+    - [x] UI: Create `toast.js` and styles for notifications <!-- id: 61 -->
+    - [x] UI: Create `modal.js` (Generic Class) <!-- id: 62 -->
+    - [x] Refactor: Convert `browseModal.js` to use `modal.js` <!-- id: 63 -->
+    - [x] Refactor: Convert "About Modal" to use `modal.js` <!-- id: 64 -->
+    - [x] Refactor: Replace `alert()` with `toast.error()` in `main.js` <!-- id: 65 -->
+    - [x] Cleanup: Remove hardcoded modals from `index.html` <!-- id: 66 -->
+- [ ] Feature: Advanced Actions <!-- id: 70 -->
+    - [ ] Folder: Allow Deleting 'Same' (Identical) items <!-- id: 71 -->
+    - [ ] UX: Clarify Merge vs Delete buttons <!-- id: 72 -->

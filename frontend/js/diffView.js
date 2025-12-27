@@ -1,6 +1,6 @@
 import { state } from './state.js';
-import * as api from './api.js?v=2';
-import { updateFileStatus } from './folderView.js?v=7'; // Import helper
+import * as api from './api.js?v=29';
+import { EventBus, EVENTS } from './events.js'; // Use EventBus instead of folderView
 
 
 
@@ -123,7 +123,7 @@ export async function refreshDiffView() {
             // Also ensure we actually have content (not just empty error)
             // If isIdentical is true, update status to 'same'
             if (isIdentical && relPath) {
-                updateFileStatus(relPath, 'same');
+                EventBus.emit(EVENTS.FILE_MERGED, { path: relPath, status: 'same' });
             }
         }
 

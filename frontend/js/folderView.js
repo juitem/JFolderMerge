@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import * as api from './api.js?v=2';
+import * as api from './api.js?v=29';
 import { showDiff, refreshDiffView } from './diffView.js';
 
 const treeLeft = document.getElementById('tree-left');
@@ -131,7 +131,39 @@ function buildDualNode(node, leftParent, rightParent) {
 
                 const leftRoot = document.getElementById('left-path').value;
                 const rightRoot = document.getElementById('right-path').value;
-                showDiff(leftRoot, rightRoot, node.path);
+
+                // CHECK VIEW OPTIONS
+                if (state.viewOpts.useExternal) {
+                    // Launch External
+                    const fullLeft = leftRoot + '/' + node.path;
+                    const fullRight = rightRoot + '/' + node.path;
+
+                    // We need to handle cases where file doesn't exist on one side (Status: Added/Removed)
+                    // But external diff tools basically need 2 paths.
+                    // If one doesn't exist, maybe we shouldn't open? Or pass what we have?
+                    // Meld handles missing files gracefully often, or we might need to handle it.
+                    // Simple check:
+                    if (node.status === 'added' || node.status === 'removed') {
+                        // Alert user or try anyway? 
+                        // Let's try anyway, user knows what they are doing.
+                    }
+
+                    api.openExternal(fullLeft, fullRight).catch(e => alert(e.message));
+                } else {
+                    // Internal Diff
+                    showDiff(leftRoot, rightRoot, node.path).then(() => {
+                        // CHECK AUTO-EXPAND
+                        if (state.viewOpts.autoExpand) {
+                            // We need to trigger expand if not already.
+                            const diffPanel = document.getElementById('diff-panel');
+                            if (diffPanel && !diffPanel.classList.contains('expanded')) {
+                                // Use toggle function from diffView if accessible, or trigger button click.
+                                const expandBtn = document.getElementById('expand-diff');
+                                if (expandBtn) expandBtn.click();
+                            }
+                        }
+                    });
+                }
             });
             return null;
         }
@@ -335,6 +367,15 @@ export function updateFileStatus(relPath, newStatus) {
     });
     // Re-apply filters to hide/show based on new status
     applyFilters();
+}
+
+// Initial Listener Setup
+import { EventBus, EVENTS } from './events.js';
+
+export function initFolderViewEvents() {
+    EventBus.on(EVENTS.FILE_MERGED, ({ path, status }) => {
+        updateFileStatus(path, status);
+    });
 }
 
 

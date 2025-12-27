@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import * as api from './api.js?v=2';
+import * as api from './api.js?v=29';
 import * as folderView from './folderView.js?v=7';
 import * as diffView from './diffView.js?v=2';
 import { openBrowseModal } from './browseModal.js?v=7';
@@ -73,6 +73,9 @@ let appConfig = {};
 
         await loadIgnoreConfig(`${ignoreFoldersPath}/${defaultFolder}`, 'exclude-folders');
         await loadIgnoreConfig(`${ignoreFilesPath}/${defaultFile}`, 'exclude-files');
+
+        // Init Events
+        folderView.initFolderViewEvents();
 
     } catch (e) {
         console.error("Main Init Error", e);
@@ -155,6 +158,10 @@ compareBtn.addEventListener('click', async () => {
         const data = await api.compareFolders(leftPath, rightPath, excludeFiles, excludeFolders);
         folderView.renderTree(data);
         Toast.success("Comparison Complete");
+
+        // Save History
+        await api.saveHistory(leftPath, rightPath);
+
     } catch (e) {
         Toast.error("Error: " + e.message);
     } finally {
@@ -162,6 +169,61 @@ compareBtn.addEventListener('click', async () => {
         compareBtn.disabled = false;
     }
 });
+
+// History Logic
+const historyLeftBtn = document.getElementById('history-left-btn');
+const historyRightBtn = document.getElementById('history-right-btn');
+
+async function showHistoryModal(side) {
+    const history = await api.getHistory();
+    if (!history || history.length === 0) {
+        Toast.info("No recent history.");
+        return;
+    }
+
+    // Filter unique paths for the requested side
+    const paths = new Set();
+    history.forEach(h => {
+        if (side === 'left' && h.left_path) paths.add(h.left_path);
+        if (side === 'right' && h.right_path) paths.add(h.right_path);
+    });
+
+    const uniquePaths = Array.from(paths);
+
+    if (uniquePaths.length === 0) {
+        Toast.info("No recent paths for this side.");
+        return;
+    }
+
+    const listHtml = uniquePaths.map((path, index) => `
+        <div class="history-item" data-path="${path}" style="padding: 8px; border-bottom: 1px solid var(--border-color); cursor: pointer;">
+            <div style="font-weight: 500; font-size: 0.9em; word-break: break-all;">${path}</div>
+        </div>
+    `).join('');
+
+    const modal = new Modal({
+        title: `Recent ${side === 'left' ? 'Left' : 'Right'} Folders`,
+        content: `<div style="max-height: 400px; overflow-y: auto;">${listHtml}</div>`,
+        buttons: [{ text: 'Close', onClick: (e, m) => m.close() }]
+    });
+
+    modal.open();
+
+    modal.content.querySelectorAll('.history-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const path = item.dataset.path;
+            if (side === 'left') leftInput.value = path;
+            else rightInput.value = path;
+            modal.close();
+        });
+        item.addEventListener('mouseenter', () => item.style.backgroundColor = 'var(--hover-bg)');
+        item.addEventListener('mouseleave', () => item.style.backgroundColor = 'transparent');
+    });
+}
+
+if (historyLeftBtn) historyLeftBtn.addEventListener('click', () => showHistoryModal('left'));
+if (historyRightBtn) historyRightBtn.addEventListener('click', () => showHistoryModal('right'));
+
 
 // Filters & Toggles (Existing code remains similar, mostly binding)
 const folderFilterChecks = {
@@ -225,6 +287,50 @@ if (viewBothBtn) viewBothBtn.addEventListener('click', () => updateViewMode('bot
 
 if (expandDiffBtn) expandDiffBtn.addEventListener('click', diffView.toggleFullScreen);
 if (closeDiffBtn) closeDiffBtn.addEventListener('click', diffView.closeDiffView);
+
+// Advanced Options
+const optDefault = document.getElementById('opt-default');
+const optAutoExpand = document.getElementById('opt-auto-expand');
+const optExternalTool = document.getElementById('opt-external-tool');
+
+function updateOptUI() {
+    if (optDefault) optDefault.classList.toggle('active', !state.viewOpts.autoExpand && !state.viewOpts.useExternal);
+    if (optAutoExpand) optAutoExpand.classList.toggle('active', state.viewOpts.autoExpand);
+    if (optExternalTool) optExternalTool.classList.toggle('active', state.viewOpts.useExternal);
+}
+
+if (optDefault) {
+    optDefault.addEventListener('click', () => {
+        state.viewOpts.autoExpand = false;
+        state.viewOpts.useExternal = false;
+        updateOptUI();
+        Toast.info("View: Default");
+    });
+}
+if (optAutoExpand) {
+    optAutoExpand.addEventListener('click', () => {
+        // Toggle Auto Expand vs Default
+        // If External is on, turn it off? Or allow mixed? 
+        // User implied "3 icons", likely mutually exclusive or at least distinct modes.
+        // Let's make them mutually exclusive for simplicity: Default | Auto-Expand | External
+        const startState = state.viewOpts.autoExpand;
+        state.viewOpts.autoExpand = !startState;
+        if (state.viewOpts.autoExpand) state.viewOpts.useExternal = false;
+
+        updateOptUI();
+        Toast.info(`View: ${state.viewOpts.autoExpand ? 'Auto-Expand' : 'Default'}`);
+    });
+}
+if (optExternalTool) {
+    optExternalTool.addEventListener('click', () => {
+        const startState = state.viewOpts.useExternal;
+        state.viewOpts.useExternal = !startState;
+        if (state.viewOpts.useExternal) state.viewOpts.autoExpand = false;
+
+        updateOptUI();
+        Toast.info(`View: ${state.viewOpts.useExternal ? 'External Tool' : 'Default'}`);
+    });
+}
 
 document.addEventListener('keydown', (e) => {
     // Ignore input fields

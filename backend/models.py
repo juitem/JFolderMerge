@@ -32,6 +32,17 @@ class CopyRequest(BaseModel):
 class DeleteRequest(BaseModel):
     path: str
 
+class HistoryRequest(BaseModel):
+    left_path: str
+    right_path: str
+    timestamp: str = None  # Optional, can be set by server
+
+class ExternalToolRequest(BaseModel):
+    tool: str = "meld" # or "vscode", "idea", "opendiff", etc.
+    left_path: str
+    right_path: str
+
+
 class ListDirRequest(BaseModel):
     path: str
     include_files: bool = False

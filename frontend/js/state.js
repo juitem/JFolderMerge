@@ -6,7 +6,12 @@ export const state = {
     currentLeftLines: [],
     currentRightLines: [],
     searchQuery: "",
-    focusedIndex: -1,
+
+    // View Options
+    viewOpts: {
+        autoExpand: false, // If true, diff view opens in full screen
+        useExternal: false // If true, clicking a file opens external tool instead of internal diff
+    },
 
     // Filter State
     // Filters

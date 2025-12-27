@@ -99,9 +99,13 @@ h1 {
 
 .input-group {
     display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    flex-direction: row;
+    /* Ensure items are in a row */
+    gap: 0;
+    /* Remove gap as buttons are attached */
     flex: 1;
+    align-items: center;
+    /* Center Vertically */
 }
 
 label {
@@ -112,13 +116,16 @@ label {
 input[type="text"] {
     background: var(--input-bg);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    /* Only round left corners */
     padding: 0.75rem;
     color: var(--text-primary);
     font-family: inherit;
     transition: border-color 0.2s;
     flex: 1;
     /* Expand in path-row */
+    border-right: none;
+    /* Merge with buttons */
 }
 
 .path-row {
@@ -152,20 +159,70 @@ input[type="text"]:focus {
 
 .icon-btn {
     background: transparent;
-    border: none;
+    border: 1px solid var(--border-color);
     color: var(--text-secondary);
     cursor: pointer;
     font-size: 1.25rem;
-    padding: 0.25rem;
-    border-radius: 4px;
+    padding: 0 0.5rem;
+    /* Adjust padding */
+    height: 100%;
+    /* Match input height */
+    /* border-radius removed if used inside group directly or handled specifically */
     transition: color 0.2s, background-color 0.2s;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    min-width: 40px;
+    /* Ensure click area */
+    box-sizing: border-box;
+    /* Important for height matching */
+}
+
+/* Special class for attached browse/history buttons */
+/* Special class for attached browse/history buttons */
+.input-group .icon-btn {
+    /* background-color: transparent; (default) */
+    border: 1px solid var(--border-color);
+    /* border-left is allowed now to separate from input */
+    border-radius: 0;
+    width: 42px;
+    min-width: 42px;
+    height: 100%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 !important;
+}
+
+/* Ensure Input has no right border, and Button has left border */
+/* Input style already has border-right: none from previous steps if we didn't overwritten it? */
+/* Let's double check input style in previous context, assuming it is handled. */
+/* Just in case, explicit rule: */
+.input-group input {
+    border-right: none;
+}
+
+/* History button (first) needs left border to close input */
+.input-group input+.icon-btn {
+    border-left: 1px solid var(--border-color);
+}
+
+/* Last button (Browse) rounds off the group */
+.input-group .icon-btn:last-child {
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
 .icon-btn svg {
     display: block;
+    width: 20px;
+    height: 20px;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.icon-btn:hover svg {
+    opacity: 1;
 }
 
 .icon-btn:hover {
@@ -524,12 +581,14 @@ input[type="text"]:focus {
 }
 
 .exclude-settings-compact input {
-    width: 100px; /* More compact */
+    width: 100px;
+    /* More compact */
     padding: 6px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
     background-color: var(--input-bg);
-    color: var(--text-primary); /* Fixed var name */
+    color: var(--text-primary);
+    /* Fixed var name */
     font-size: 0.85rem;
 }
 
