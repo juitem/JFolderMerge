@@ -4,8 +4,7 @@ import { showDiff, refreshDiffView } from './diffView.js';
 
 const treeLeft = document.getElementById('tree-left');
 const treeRight = document.getElementById('tree-right');
-const folderList = document.getElementById('folder-list'); // For browse modal
-const modalPathInput = document.getElementById('modal-path-input');
+
 
 // Filtering
 export function applyFilters() {
@@ -210,31 +209,26 @@ function appendMergeActions(row, node, isRightSide) {
         };
         actions.appendChild(btn);
     }
+    // Delete Button
+    const delBtn = document.createElement('button');
+    delBtn.className = 'merge-btn delete-btn';
+    delBtn.title = isRightSide ? "Delete Right" : "Delete Left";
+    delBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+    delBtn.style.marginLeft = '4px';
+    delBtn.style.color = '#ef5350'; // Red color
+    delBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm(`Delete ${isRightSide ? 'Right' : 'Left'} item: ${node.name}?`)) {
+            const target = isRightSide ? fullRight : fullLeft;
+            api.deleteItem(target).then(() => {
+                document.getElementById('compare-btn').click();
+                refreshDiffView();
+            });
+        }
+    };
+    actions.appendChild(delBtn);
+
     row.appendChild(actions);
 }
 
-// Browse List Rendering
-export function renderBrowseList(data, callbackSelect, callbackOpen) {
-    if (!folderList) return;
-    folderList.innerHTML = '';
 
-    // We assume backend returns { current, parent, dirs }
-    // Update inputs handled by caller of this render usually? 
-    // Or we handle input updates here?
-    // Let's keep this simple: Render list options.
-
-    data.dirs.forEach(dir => {
-        const div = document.createElement('div');
-        div.className = 'folder-item';
-        div.innerHTML = '<span class="file-icon" style="display:inline-flex; vertical-align:middle; margin-right:4px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg></span> ' + dir;
-        div.addEventListener('click', () => {
-            document.querySelectorAll('.folder-item').forEach(i => i.classList.remove('selected'));
-            div.classList.add('selected');
-            callbackSelect(dir);
-        });
-        div.addEventListener('dblclick', () => {
-            callbackOpen(dir);
-        });
-        folderList.appendChild(div);
-    });
-}

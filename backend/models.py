@@ -29,6 +29,9 @@ class CopyRequest(BaseModel):
     dest_path: str
     is_dir: bool
 
+class DeleteRequest(BaseModel):
+    path: str
+
 class ListDirRequest(BaseModel):
     path: str
 

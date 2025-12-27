@@ -110,6 +110,19 @@ export async function saveFile(path, content) {
     if (!res.ok) throw new Error("Save Failed");
 }
 
+export async function deleteItem(path) {
+    const response = await fetch('/api/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path })
+    });
+
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || "Delete failed");
+    }
+}
+
 export async function copyItem(src, dest, isDir) {
     const response = await fetch('/api/copy', {
         method: 'POST',

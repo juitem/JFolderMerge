@@ -1,7 +1,7 @@
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from .models import CompareRequest, ContentRequest, DiffRequest, FileNode, CopyRequest, ListDirRequest, SaveRequest
+from .models import CompareRequest, ContentRequest, DiffRequest, FileNode, CopyRequest, ListDirRequest, SaveRequest, DeleteRequest
 from .comparator import compare_folders
 import os
 import difflib
@@ -250,6 +250,19 @@ def save_file(req: SaveRequest):
                 os.remove(req.path + ".tmp")
             except:
                 pass
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/delete")
+def delete_item(req: DeleteRequest):
+    if not os.path.exists(req.path):
+        raise HTTPException(status_code=404, detail="Path does not exist")
+    try:
+        if os.path.isdir(req.path):
+            shutil.rmtree(req.path)
+        else:
+            os.remove(req.path)
+        return {"status": "success"}
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/list-dirs")
