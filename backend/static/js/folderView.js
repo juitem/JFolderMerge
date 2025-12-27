@@ -80,18 +80,18 @@ function buildDualNode(node, leftParent, rightParent) {
     if (status === 'added') {
         createSpacer(leftRow);
         rightChevron = createRowContent(rightRow, true);
-        appendNameAndStatus(rightRow, node);
+        appendNameAndStatus(rightRow, node, true);
         appendMergeActions(rightRow, node, true);
     } else if (status === 'removed') {
         leftChevron = createRowContent(leftRow, false);
         createSpacer(rightRow);
-        appendNameAndStatus(leftRow, node);
+        appendNameAndStatus(leftRow, node, false);
         appendMergeActions(leftRow, node, false);
     } else {
         leftChevron = createRowContent(leftRow, false);
         rightChevron = createRowContent(rightRow, true);
-        appendNameAndStatus(leftRow, node);
-        appendNameAndStatus(rightRow, node);
+        appendNameAndStatus(leftRow, node, false);
+        appendNameAndStatus(rightRow, node, true);
         if (status === 'modified') {
             appendMergeActions(leftRow, node, false);
             appendMergeActions(rightRow, node, true);
@@ -137,10 +137,11 @@ function buildDualNode(node, leftParent, rightParent) {
     }
 }
 
-function appendNameAndStatus(row, node) {
+function appendNameAndStatus(row, node, isRight) {
     const nameSpan = document.createElement('span');
     nameSpan.className = 'item-name';
-    nameSpan.textContent = node.name;
+    const displayName = isRight ? (node.right_name || node.name) : (node.left_name || node.name);
+    nameSpan.textContent = displayName;
     row.appendChild(nameSpan);
 
     if (node.status !== 'same') {

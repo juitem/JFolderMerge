@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import * as api from './api.js';
-import * as folderView from './folderView.js';
+import * as folderView from './folderView.js?v=2';
 import * as diffView from './diffView.js';
 
 // Elements

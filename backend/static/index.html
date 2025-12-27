@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 
 <body>
@@ -119,7 +119,7 @@
 
             <!-- Excludes -->
             <div class="exclude-settings-compact">
-                <input type="text" id="exclude-folders" value=".gitignore, download, __pycache__"
+                <input type="text" id="exclude-folders" value=".git,.tmp,__pycache__,.vscode,.idea,.venv,venv,ROOTFS"
                     placeholder="Exclude Folders">
                 <input type="text" id="exclude-files" value=".tmp" placeholder="Exclude Files">
             </div>
@@ -184,6 +184,7 @@
     <div id="browse-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Select Folder</h3>
+            <button class="close-modal" style="position: absolute; top: 16px; right: 16px;">&times;</button>
             <div class="modal-header">
                 <button id="nav-up" class="icon-btn">↑</button>
                 <input type="text" id="modal-path-input" readonly>
@@ -195,7 +196,7 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/main.js?v=2"></script>
 </body>
 
 </html>
