@@ -1,7 +1,8 @@
 import { state } from './state.js';
 import * as api from './api.js';
-import * as folderView from './folderView.js?v=4';
+import * as folderView from './folderView.js?v=5';
 import * as diffView from './diffView.js';
+import { initBrowseModal } from './browseModal.js';
 
 // Elements
 const leftInput = document.getElementById('left-path');
@@ -19,6 +20,7 @@ const closeDiffBtn = document.getElementById('close-diff');
 
 // Initialization
 (async () => {
+    initBrowseModal();
     const config = await api.fetchConfig();
     if (config) {
         if (config.left) leftInput.value = config.left;
@@ -124,52 +126,26 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Browse Modal Logic
-const modal = document.getElementById('browse-modal');
-const modalPathInput = document.getElementById('modal-path-input');
-let currentBrowseTarget = null;
-let currentModalPath = "";
+// About Modal
+const aboutModal = document.getElementById('about-modal');
+const aboutBtn = document.getElementById('about-btn');
+const closeAboutBtn = document.querySelector('.close-modal-about');
 
-document.querySelectorAll('.browse-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        currentBrowseTarget = document.getElementById(btn.dataset.target);
-        openBrowseModal(currentBrowseTarget.value);
+if (aboutBtn && aboutModal) {
+    aboutBtn.addEventListener('click', () => {
+        aboutModal.classList.remove('hidden');
     });
-});
 
-document.querySelector('.close-modal').addEventListener('click', () => modal.classList.add('hidden'));
-
-document.getElementById('select-folder-btn').addEventListener('click', () => {
-    if (currentBrowseTarget) {
-        currentBrowseTarget.value = currentModalPath;
-    }
-    modal.classList.add('hidden');
-});
-
-document.getElementById('nav-up').addEventListener('click', () => {
-    const parent = modalPathInput.getAttribute('data-parent');
-    loadBrowsePath(parent);
-});
-
-async function openBrowseModal(initialPath) {
-    modal.classList.remove('hidden');
-    loadBrowsePath(initialPath);
-}
-
-async function loadBrowsePath(path) {
-    try {
-        const data = await api.listDirs(path);
-        currentModalPath = data.current;
-        modalPathInput.value = data.current;
-        modalPathInput.setAttribute('data-parent', data.parent);
-
-        folderView.renderBrowseList(data, (selectedName) => {
-            currentModalPath = data.current + (data.current.endsWith('/') ? '' : '/') + selectedName;
-            modalPathInput.value = currentModalPath;
-        }, (openName) => {
-            loadBrowsePath(data.current + (data.current.endsWith('/') ? '' : '/') + openName);
+    if (closeAboutBtn) {
+        closeAboutBtn.addEventListener('click', () => {
+            aboutModal.classList.add('hidden');
         });
-    } catch (e) {
-        console.error(e);
     }
+
+    // Close on click outside
+    aboutModal.addEventListener('click', (e) => {
+        if (e.target === aboutModal) {
+            aboutModal.classList.add('hidden');
+        }
+    });
 }

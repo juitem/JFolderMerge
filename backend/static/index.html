@@ -15,7 +15,7 @@
     <div class="app-container">
         <header>
             <h1>J-Folder Merge - Oscar Series</h1>
-            <button id="theme-toggle" class="icon-btn" title="Toggle Theme">
+            <button id="about-btn" class="icon-btn" title="About">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                 </svg>
@@ -196,7 +196,29 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=4"></script>
+    <!-- About Modal -->
+    <div id="about-modal" class="modal hidden">
+        <div class="modal-content glass-panel" style="max-width: 400px; height: auto;">
+            <div class="modal-header">
+                <h2>About</h2>
+                <button class="close-modal-about"
+                    style="background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:1.5rem;">&times;</button>
+            </div>
+            <div class="modal-body"
+                style="padding: 2rem; display: flex; flex-direction: column; gap: 1rem; align-items: center;">
+                <p style="font-size: 1.1rem; font-weight: 600;">J-Folder Merge</p>
+                <div style="text-align: center; color: var(--text-secondary);">
+                    <p>By: Juitem JoonWoo Kim</p>
+                    <p>Mail: <a href="mailto:juitem@gmail.com" style="color: var(--primary-color);">juitem@gmail.com</a>
+                    </p>
+                    <p>Repo: <a href="https://github.com/juitem/JFolderMerge" target="_blank"
+                            style="color: var(--primary-color);">https://github.com/juitem/JFolderMerge</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js?v=5"></script>
 </body>
 
 </html>
