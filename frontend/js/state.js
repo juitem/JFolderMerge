@@ -1,5 +1,5 @@
 export const state = {
-    currentDiffMode: 'unified', // 'unified', 'side-by-side', 'both'
+    currentDiffMode: 'both', // 'unified', 'side-by-side', 'both'
     currentDiffPaths: { left: "", right: "", leftRoot: "", rightRoot: "", relPath: "" },
     currentLeftPathGlobal: "",
     currentRightPathGlobal: "",

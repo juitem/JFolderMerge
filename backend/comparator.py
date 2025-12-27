@@ -17,6 +17,34 @@ def get_file_hash(filepath: str, block_size=65536) -> str:
     except Exception:
         return ""
 
+def load_ignore_file(filepath: str) -> List[str]:
+    patterns = []
+    try:
+        if os.path.exists(filepath):
+            with open(filepath, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    patterns.append(line)
+    except:
+        pass
+    return patterns
+
+def load_ignore_file(filepath: str) -> List[str]:
+    patterns = []
+    try:
+        if os.path.exists(filepath):
+            with open(filepath, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    patterns.append(line)
+    except:
+        pass
+    return patterns
+
 def compare_folders(left_root: str, right_root: str, exclude_files: List[str] = [], exclude_folders: List[str] = []) -> FileNode:
     return _compare_recursive(left_root, right_root, "", exclude_files, exclude_folders)
 

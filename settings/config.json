@@ -1,0 +1,9 @@
+{
+    "defaultLeftPath": "/Users/juitem/Docker/ContainerFolder/FolderComp",
+    "defaultRightPath": "/Users/juitem/Docker/ContainerFolder/JF",
+    "ignoreFoldersPath": "settings/ignore_folders",
+    "ignoreFilesPath": "settings/ignore_files",
+    "defaultIgnoreFolderFile": "default",
+    "defaultIgnoreFileFile": "default",
+    "serverPort": 8000
+}

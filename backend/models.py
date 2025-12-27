@@ -34,6 +34,7 @@ class DeleteRequest(BaseModel):
 
 class ListDirRequest(BaseModel):
     path: str
+    include_files: bool = False
 
 class SaveRequest(BaseModel):
     path: str

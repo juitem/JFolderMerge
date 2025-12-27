@@ -1,93 +1,193 @@
 import * as api from './api.js?v=2';
+import { Modal } from './modal.js?v=1';
 
-let modal;
-let modalPathInput;
 let currentBrowseTarget = null;
+let currentOnSelect = null;
+let currentRestriction = null;
 let currentModalPath = "";
-let folderList;
+let currentBrowseMode = 'directory'; // 'directory' or 'file'
+
+// Store UI references for the active modal
+let activeModal = null;
+let pathInput = null;
+let listContainer = null;
 
 export function initBrowseModal() {
-    modal = document.getElementById('browse-modal');
-    modalPathInput = document.getElementById('modal-path-input');
-    folderList = document.getElementById('folder-list');
+    // Legacy init not needed for modal creation, 
+    // but listeners on main page buttons are handled in main.js
+    // We can keep this empty or remove it.
+    // main.js calls it. Let's keep it empty to avoid breaking main.js immediately.
+}
 
-    // Attach listeners to browse buttons
-    document.querySelectorAll('.browse-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            currentBrowseTarget = document.getElementById(btn.dataset.target);
-            // Default to empty or some path if empty
-            openBrowseModal(currentBrowseTarget.value);
-        });
+export async function openBrowseModal(initialPath, options = {}) {
+    currentBrowseTarget = options.target || null;
+    currentOnSelect = options.onSelect || null;
+    currentBrowseMode = options.mode || 'directory';
+    currentRestriction = options.restrictTo || null;
+    const title = options.title || 'Select Folder';
+    const submitLabel = options.submitLabel || (currentBrowseMode === 'file' ? 'Select File' : 'Select Folder');
+
+    // Create Content DOM
+    const container = document.createElement('div');
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.height = '100%';
+    container.style.gap = '10px';
+
+    // Navigation Bar
+    const navBar = document.createElement('div');
+    navBar.style.display = 'flex';
+    navBar.style.gap = '8px';
+
+    const upBtn = document.createElement('button');
+    upBtn.className = 'icon-btn';
+    upBtn.textContent = '↑';
+    upBtn.onclick = goUp;
+
+    pathInput = document.createElement('input');
+    pathInput.type = 'text';
+    pathInput.readOnly = true;
+    pathInput.style.flex = '1';
+    pathInput.style.background = 'rgba(0,0,0,0.2)';
+    pathInput.style.border = '1px solid var(--border-color)';
+    pathInput.style.borderRadius = '4px';
+    pathInput.style.padding = '4px 8px';
+    pathInput.style.color = 'var(--text-secondary)';
+
+    navBar.appendChild(upBtn);
+    navBar.appendChild(pathInput);
+    container.appendChild(navBar);
+
+    // List Container
+    listContainer = document.createElement('div');
+    listContainer.className = 'folder-list';
+    listContainer.style.flex = '1';
+    listContainer.style.height = '300px'; // Min height
+    listContainer.style.border = '1px solid var(--border-color)';
+    listContainer.style.borderRadius = '6px';
+    container.appendChild(listContainer);
+
+    // Create Modal
+    activeModal = new Modal({
+        title: title,
+        content: container,
+        width: '600px',
+        buttons: [
+            {
+                text: 'Cancel',
+                class: 'secondary-btn',
+                onClick: (e, modal) => modal.close()
+            },
+            {
+                text: submitLabel,
+                class: 'primary-btn',
+                onClick: onConfirm
+            }
+        ],
+        onClose: () => {
+            activeModal = null;
+        }
     });
 
-    const closeBtn = document.querySelector('.close-modal');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
-    }
+    activeModal.open();
+    loadBrowsePath(initialPath);
+}
 
-    const selectBtn = document.getElementById('select-folder-btn');
-    if (selectBtn) {
-        selectBtn.addEventListener('click', () => {
-            if (currentBrowseTarget) {
-                currentBrowseTarget.value = currentModalPath;
-            }
-            modal.classList.add('hidden');
-        });
-    }
-
-    const navUpBtn = document.getElementById('nav-up');
-    if (navUpBtn) {
-        navUpBtn.addEventListener('click', () => {
-            const parent = modalPathInput.getAttribute('data-parent');
-            loadBrowsePath(parent);
-        });
+function onConfirm() {
+    if (activeModal) {
+        if (currentOnSelect) {
+            currentOnSelect(currentModalPath);
+        } else if (currentBrowseTarget) {
+            currentBrowseTarget.value = currentModalPath;
+        }
+        activeModal.close();
     }
 }
 
-async function openBrowseModal(initialPath) {
-    if (modal) modal.classList.remove('hidden');
-    loadBrowsePath(initialPath);
+function goUp() {
+    // Calculate parent
+    // We need parent from API or calculate from string.
+    // API listDirs returns parent. We need to store it.
+    // Let's rely on data-parent attribute logic or simple string manipulation if data not stored.
+    // Better: store currentParent in var.
+    if (!activeModal) return;
+
+    const parentPath = pathInput.getAttribute('data-parent');
+    if (!parentPath) return;
+
+    if (currentRestriction) {
+        // Restriction check
+        if (currentModalPath === currentRestriction || currentModalPath.replace(/\/$/, '') === currentRestriction.replace(/\/$/, '')) {
+            return;
+        }
+        if (parentPath.length < currentRestriction.length) return;
+    }
+    loadBrowsePath(parentPath);
 }
 
 async function loadBrowsePath(path) {
     try {
-        const data = await api.listDirs(path);
+        const data = await api.listDirs(path, currentBrowseMode === 'file');
         currentModalPath = data.current;
-        if (modalPathInput) {
-            modalPathInput.value = data.current;
-            modalPathInput.setAttribute('data-parent', data.parent);
+
+        if (pathInput) {
+            pathInput.value = data.current;
+            pathInput.setAttribute('data-parent', data.parent);
         }
 
         renderBrowseList(data);
     } catch (e) {
         console.error(e);
+        // Toast? Using api.js error handling usually?
+        // We aren't importing Toast here yet, but we could.
     }
 }
 
 function renderBrowseList(data) {
-    if (!folderList) return;
-    folderList.innerHTML = '';
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
 
-    data.dirs.forEach(dir => {
+    const createItem = (name, type) => {
         const div = document.createElement('div');
         div.className = 'folder-item';
-        // Folder Icon
-        const icon = '<span class="file-icon" style="display:inline-flex; vertical-align:middle; margin-right:4px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg></span>';
-        div.innerHTML = icon + ' ' + dir;
+
+        let icon = '';
+        if (type === 'directory') {
+            icon = '<span class="file-icon" style="display:inline-flex; vertical-align:middle; margin-right:4px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg></span>';
+        } else {
+            icon = '<span class="file-icon" style="display:inline-flex; vertical-align:middle; margin-right:4px; color:#888;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg></span>';
+        }
+
+        div.innerHTML = icon + ' ' + name;
 
         div.addEventListener('click', () => {
-            document.querySelectorAll('.folder-item').forEach(i => i.classList.remove('selected'));
-            div.classList.add('selected');
-            const newPath = data.current + (data.current.endsWith('/') ? '' : '/') + dir;
-            currentModalPath = newPath;
-            if (modalPathInput) modalPathInput.value = currentModalPath;
+            menuSelect(div, data, name);
         });
 
         div.addEventListener('dblclick', () => {
-            const newPath = data.current + (data.current.endsWith('/') ? '' : '/') + dir;
-            loadBrowsePath(newPath);
+            if (type === 'directory') {
+                const newPath = data.current + (data.current.endsWith('/') ? '' : '/') + name;
+                loadBrowsePath(newPath);
+            } else if (currentBrowseMode === 'file') {
+                menuSelect(div, data, name); // Ensure selection
+                onConfirm(); // Confirm
+            }
         });
 
-        folderList.appendChild(div);
-    });
+        listContainer.appendChild(div);
+    };
+
+    data.dirs.forEach(dir => createItem(dir, 'directory'));
+    if (data.files) {
+        data.files.forEach(file => createItem(file, 'file'));
+    }
+}
+
+function menuSelect(div, data, name) {
+    if (!listContainer) return;
+    listContainer.querySelectorAll('.folder-item').forEach(i => i.classList.remove('selected'));
+    div.classList.add('selected');
+    const newPath = data.current + (data.current.endsWith('/') ? '' : '/') + name;
+    currentModalPath = newPath;
+    if (pathInput) pathInput.value = currentModalPath;
 }

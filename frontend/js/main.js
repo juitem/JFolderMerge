@@ -2,7 +2,9 @@ import { state } from './state.js';
 import * as api from './api.js?v=2';
 import * as folderView from './folderView.js?v=7';
 import * as diffView from './diffView.js';
-import { initBrowseModal } from './browseModal.js';
+import { openBrowseModal } from './browseModal.js?v=7';
+import { Modal } from './modal.js?v=1';
+import { Toast } from './toast.js?v=1';
 
 // Elements
 const leftInput = document.getElementById('left-path');
@@ -19,14 +21,118 @@ const expandDiffBtn = document.getElementById('expand-diff');
 const closeDiffBtn = document.getElementById('close-diff');
 
 // Initialization
+let appConfig = {};
+
 (async () => {
-    initBrowseModal();
-    const config = await api.fetchConfig();
-    if (config) {
-        if (config.left) leftInput.value = config.left;
-        if (config.right) rightInput.value = config.right;
+    try {
+        // initBrowseModal(); // No longer needed/used
+
+        const config = await api.fetchConfig();
+        appConfig = config || {};
+
+        if (config) {
+            if (config.left) leftInput.value = config.left;
+            if (config.right) rightInput.value = config.right;
+        }
+
+        // Attach Browse Button Listeners
+        document.querySelectorAll('.browse-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.dataset.target;
+                const target = document.getElementById(targetId);
+                const mode = btn.dataset.type || 'directory';
+                const initialPath = target ? target.value : '';
+
+                let title = 'Select Folder';
+                // Use config paths for checking? Or just ID check is fine.
+                if (targetId === 'exclude-folders') title = 'Select Exclude Folder List';
+                if (targetId === 'exclude-files') title = 'Select Exclude File List';
+
+                // Determine start path if empty?
+                // For now, let openBrowseModal handle empty initialPath (defaults to home or root)
+                // But for exclude lists, we might want to start in the settings folder if empty.
+                let startPath = initialPath;
+                if (!startPath) {
+                    if (targetId === 'exclude-folders') startPath = appConfig.ignoreFoldersPath || 'IgnoreFolders';
+                    if (targetId === 'exclude-files') startPath = appConfig.ignoreFilesPath || 'IgnoreFiles';
+                }
+
+                openBrowseModal(startPath, {
+                    target: target,
+                    mode: mode,
+                    title: title
+                });
+            });
+        });
+
+        // Auto-load default ignores
+        const ignoreFoldersPath = appConfig.ignoreFoldersPath || 'IgnoreFolders';
+        const ignoreFilesPath = appConfig.ignoreFilesPath || 'IgnoreFiles';
+        const defaultFolder = appConfig.defaultIgnoreFolderFile || 'default';
+        const defaultFile = appConfig.defaultIgnoreFileFile || 'default';
+
+        await loadIgnoreConfig(`${ignoreFoldersPath}/${defaultFolder}`, 'exclude-folders');
+        await loadIgnoreConfig(`${ignoreFilesPath}/${defaultFile}`, 'exclude-files');
+
+    } catch (e) {
+        console.error("Main Init Error", e);
+        Toast.error("Initialization Error: " + e.message);
     }
 })();
+
+async function loadIgnoreConfig(path, inputId) {
+    const data = await api.fetchFileContent(path);
+    if (!data || !data.content) return;
+
+    const lines = data.content.split(/\r?\n/);
+    const patterns = lines
+        .map(l => l.trim())
+        .filter(l => l && !l.startsWith('#'));
+
+    const el = document.getElementById(inputId);
+    if (el) el.value = patterns.join(', ');
+}
+
+// Import Buttons
+const importFolderBtn = document.getElementById('import-ignore-folder-btn');
+const importFileBtn = document.getElementById('import-ignore-file-btn');
+
+if (importFolderBtn) {
+    importFolderBtn.addEventListener('click', async () => {
+        try {
+            const root = appConfig.ignoreFoldersPath || 'IgnoreFolders';
+            const data = await api.listDirs(root + '/'); // Ensure trailing slash if needed used by api? api handles it.
+            openBrowseModal(data.current, {
+                mode: 'file',
+                restrictTo: root, // Use config path as restriction
+                title: 'Select Exclude Folder List',
+                submitLabel: 'Import',
+                onSelect: (path) => loadIgnoreConfig(path, 'exclude-folders')
+            });
+        } catch (e) {
+            console.error(e);
+            Toast.error("Failed to open IgnoreFolders");
+        }
+    });
+}
+if (importFileBtn) {
+    importFileBtn.addEventListener('click', async () => {
+        try {
+            const root = appConfig.ignoreFilesPath || 'IgnoreFiles';
+            const data = await api.listDirs(root + '/');
+            openBrowseModal(data.current, {
+                mode: 'file',
+                restrictTo: root,
+                title: 'Select Exclude File List',
+                submitLabel: 'Import',
+                onSelect: (path) => loadIgnoreConfig(path, 'exclude-files')
+            });
+        } catch (e) {
+            console.error(e);
+            Toast.error("Failed to open IgnoreFiles");
+        }
+    });
+}
 
 // Compare Button
 compareBtn.addEventListener('click', async () => {
@@ -38,7 +144,7 @@ compareBtn.addEventListener('click', async () => {
         .split(',').map(s => s.trim()).filter(s => s);
 
     if (!leftPath || !rightPath) {
-        alert("Please enter both paths.");
+        Toast.warning("Please enter both paths.");
         return;
     }
 
@@ -48,14 +154,16 @@ compareBtn.addEventListener('click', async () => {
     try {
         const data = await api.compareFolders(leftPath, rightPath, excludeFiles, excludeFolders);
         folderView.renderTree(data);
+        Toast.success("Comparison Complete");
     } catch (e) {
-        alert("Error: " + e.message);
+        Toast.error("Error: " + e.message);
     } finally {
         compareBtn.textContent = 'Compare';
         compareBtn.disabled = false;
     }
 });
-// Filters
+
+// Filters & Toggles (Existing code remains similar, mostly binding)
 const folderFilterChecks = {
     added: document.getElementById('folder-show-added'),
     removed: document.getElementById('folder-show-removed'),
@@ -64,10 +172,12 @@ const folderFilterChecks = {
 };
 
 Object.keys(folderFilterChecks).forEach(key => {
-    folderFilterChecks[key].addEventListener('change', (e) => {
-        state.folderFilters[key] = e.target.checked;
-        folderView.applyFilters();
-    });
+    if (folderFilterChecks[key]) {
+        folderFilterChecks[key].addEventListener('change', (e) => {
+            state.folderFilters[key] = e.target.checked;
+            folderView.applyFilters();
+        });
+    }
 });
 
 const diffFilterChecks = {
@@ -78,10 +188,12 @@ const diffFilterChecks = {
 };
 
 Object.keys(diffFilterChecks).forEach(key => {
-    diffFilterChecks[key].addEventListener('change', (e) => {
-        state.diffFilters[key] = e.target.checked;
-        diffView.applyFilters();
-    });
+    if (diffFilterChecks[key]) {
+        diffFilterChecks[key].addEventListener('change', (e) => {
+            state.diffFilters[key] = e.target.checked;
+            diffView.applyFilters();
+        });
+    }
 });
 
 // View Toggles
@@ -89,12 +201,10 @@ function updateViewMode(mode) {
     if (state.currentDiffMode === mode) return;
     state.currentDiffMode = mode;
 
-    // Update Active State
     if (viewUnifiedBtn) viewUnifiedBtn.classList.toggle('active', mode === 'unified');
     if (viewSplitBtn) viewSplitBtn.classList.toggle('active', mode === 'side-by-side');
     if (viewBothBtn) viewBothBtn.classList.toggle('active', mode === 'both');
 
-    // Refresh Diff if active
     if (state.currentDiffPaths.leftRoot) {
         diffView.refreshDiffView();
     }
@@ -104,19 +214,9 @@ if (viewUnifiedBtn) viewUnifiedBtn.addEventListener('click', () => updateViewMod
 if (viewSplitBtn) viewSplitBtn.addEventListener('click', () => updateViewMode('side-by-side'));
 if (viewBothBtn) viewBothBtn.addEventListener('click', () => updateViewMode('both'));
 
+if (expandDiffBtn) expandDiffBtn.addEventListener('click', diffView.toggleFullScreen);
+if (closeDiffBtn) closeDiffBtn.addEventListener('click', diffView.closeDiffView);
 
-// Window Controls
-if (expandDiffBtn) {
-    expandDiffBtn.addEventListener('click', diffView.toggleFullScreen);
-}
-
-if (closeDiffBtn) {
-    closeDiffBtn.addEventListener('click', () => {
-        diffView.closeDiffView();
-    });
-}
-
-// Keyboard Shortcuts
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         const treeContainer = document.querySelector('.tree-container');
@@ -126,26 +226,27 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// About Modal
-const aboutModal = document.getElementById('about-modal');
+// About Modal - Unified via Modal Class
 const aboutBtn = document.getElementById('about-btn');
-const closeAboutBtn = document.querySelector('.close-modal-about');
-
-if (aboutBtn && aboutModal) {
+if (aboutBtn) {
     aboutBtn.addEventListener('click', () => {
-        aboutModal.classList.remove('hidden');
-    });
-
-    if (closeAboutBtn) {
-        closeAboutBtn.addEventListener('click', () => {
-            aboutModal.classList.add('hidden');
-        });
-    }
-
-    // Close on click outside
-    aboutModal.addEventListener('click', (e) => {
-        if (e.target === aboutModal) {
-            aboutModal.classList.add('hidden');
-        }
+        new Modal({
+            title: 'About',
+            width: '400px',
+            content: `
+                <div style="text-align: center; color: var(--text-secondary); display:flex; flex-direction:column; gap:1rem; align-items:center; padding:1rem;">
+                    <p style="font-size: 1.1rem; font-weight: 600; color:var(--text-primary);">J-Folder Merge</p>
+                    <div>
+                        <p>By: Juitem JoonWoo Kim</p>
+                        <p>Mail: <a href="mailto:juitem@gmail.com" style="color: var(--primary-color);">juitem@gmail.com</a></p>
+                        <p>Repo: <a href="https://github.com/juitem/JFolderMerge" target="_blank" style="color: var(--primary-color);">github.com/juitem/JFolderMerge</a></p>
+                    </div>
+                </div>
+            `,
+            buttons: [
+                { text: 'Close', onClick: (e, m) => m.close() }
+            ]
+        }).open();
     });
 }
+

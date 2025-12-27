@@ -284,26 +284,56 @@ def list_dirs(req: ListDirRequest):
         raise HTTPException(status_code=400, detail="Invalid directory path")
     
     dirs = []
+    files = []
     try:
         with os.scandir(path) as it:
             for entry in it:
-                if entry.is_dir() and not entry.name.startswith('.'):
+                if entry.name.startswith('.'):
+                    continue
+                if entry.is_dir():
                     dirs.append(entry.name)
+                elif req.include_files and entry.is_file():
+                    files.append(entry.name)
         dirs.sort()
+        files.sort()
         parent = os.path.dirname(path)
-        return {"current": path, "parent": parent, "dirs": dirs}
+        return {"current": path, "parent": parent, "dirs": dirs, "files": files}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 
+import json
+
+CONFIG_FILE = "settings/config.json"
+
+def load_config():
+    config = {
+        "left": args.left,
+        "right": args.right,
+        "ignoreFoldersPath": "IgnoreFolders",
+        "ignoreFilesPath": "IgnoreFiles",
+        "defaultIgnoreFolderFile": "default",
+        "defaultIgnoreFileFile": "default"
+    }
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                file_config = json.load(f)
+                # Map JSON keys to our internal keys if different, or just use as is
+                if "defaultLeftPath" in file_config: config["left"] = file_config["defaultLeftPath"]
+                if "defaultRightPath" in file_config: config["right"] = file_config["defaultRightPath"]
+                if "ignoreFoldersPath" in file_config: config["ignoreFoldersPath"] = file_config["ignoreFoldersPath"]
+                if "ignoreFilesPath" in file_config: config["ignoreFilesPath"] = file_config["ignoreFilesPath"]
+                if "defaultIgnoreFolderFile" in file_config: config["defaultIgnoreFolderFile"] = file_config["defaultIgnoreFolderFile"]
+                if "defaultIgnoreFileFile" in file_config: config["defaultIgnoreFileFile"] = file_config["defaultIgnoreFileFile"]
+        except Exception as e:
+            print(f"Error loading config: {e}")
+    return config
+
 @app.get("/api/config")
 def get_config():
-    # Use the arguments parsed at module level
-    return {
-        "left": args.left,
-        "right": args.right
-    }
+    return load_config()
 
 app.mount("/", StaticFiles(directory="frontend", html=True), name="static")
 

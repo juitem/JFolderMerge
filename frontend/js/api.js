@@ -10,16 +10,16 @@ export async function fetchConfig() {
     return null;
 }
 
-export async function listDirs(path) {
+export async function listDirs(path, includeFiles = false) {
     try {
         const response = await fetch('/api/list-dirs', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path })
+            body: JSON.stringify({ path, include_files: includeFiles })
         });
         if (!response.ok) {
             // Retry with empty path if failed (fallback to root)
-            if (path !== "") return listDirs("");
+            if (path !== "") return listDirs("", includeFiles);
             throw new Error("Failed to load path");
         }
         return await response.json();
