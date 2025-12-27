@@ -7,7 +7,10 @@ const treeRight = document.getElementById('tree-right');
 
 
 // Filtering
+// Filtering logic with Search support (Recursive)
 export function applyFilters() {
+    const searchQuery = state.searchQuery ? state.searchQuery.toLowerCase() : "";
+
     const filterTree = (container) => {
         if (!container) return false;
         let hasVisible = false;
@@ -16,16 +19,60 @@ export function applyFilters() {
         items.forEach(item => {
             const childrenContainer = item.querySelector('.tree-children');
             let childVisible = false;
+
+            // Recurse first
             if (childrenContainer) {
                 childVisible = filterTree(childrenContainer);
             }
-            const status = item.dataset.status || 'same'; // e.g. 'same'
-            // state.folderFilters keys match status strings 'added', 'removed', 'modified', 'same'
-            const isFilterActive = state.folderFilters[status] !== false;
 
-            // Show if self matches filter OR if has visible children
-            // This ensures that a folder (status='same') remains visible if it contains modified children
-            if (isFilterActive || childVisible) {
+            // Check self matches
+            const nameSpan = item.querySelector('.item-name');
+            const name = nameSpan ? nameSpan.textContent.toLowerCase() : "";
+            const matchesSearch = !searchQuery || name.includes(searchQuery);
+
+            const status = item.dataset.status || 'same';
+            const isStatusActive = state.folderFilters[status] !== false;
+
+            // Visibility Logic:
+            // If Search is Active: Show if (Name Matches OR Child Visible)
+            // If Search is Inactive: Show if (Status Active OR Child Visible)
+
+            // Visibility Logic:
+            // Search acts as an additional filter (AND logic) on top of Status Filter.
+
+            // 1. Does it match the Search Criteria? (Name match)
+            // If no query, everything matches search.
+            const matchesName = !searchQuery || name.includes(searchQuery);
+
+            // 2. Does it match the Status Filter?
+            // (Only applies to the item itself, not necessarily simply inheriting from children logic, 
+            // though folders usually show if children are visible regardless of their own status)
+            // But if it's a file (no children), both must be true.
+
+            let isVisible = false;
+
+            if (childrenContainer) { // Directory
+                // Show if it has visible children (content match)
+                // OR if the directory itself matches search AND status (name match on folder)
+                // Usually for folder trees, we show the folder if any child is visible.
+                // We also show the folder if the folder name *itself* matches search (and status is allowed),
+                // even if no children match? 
+                // Let's stick to: Show if ChildVisible OR (MatchesName AND StatusActive)
+                isVisible = childVisible || (matchesName && isStatusActive && searchQuery !== "");
+                // Note: if searchQuery is empty, matchesName is true. 
+                // Then isVisible = childVisible || isStatusActive.
+                // But if child is NOT visible (empty folder) and isStatusActive is true, should we show?
+                // Standard logic: Show if StatusActive. 
+                // So: ( !searchQuery && isStatusActive ) || ( searchQuery && matchesName && isStatusActive ) || childVisible
+
+                if (!childVisible) {
+                    isVisible = matchesName && isStatusActive;
+                }
+            } else { // File
+                isVisible = matchesName && isStatusActive;
+            }
+
+            if (isVisible) {
                 item.classList.remove('hidden-by-filter');
                 hasVisible = true;
             } else {
@@ -109,7 +156,8 @@ function buildDualNode(node, leftParent, rightParent) {
         rightChevron = createRowContent(rightRow, true);
         appendNameAndStatus(leftRow, node, false);
         appendNameAndStatus(rightRow, node, true);
-        if (status === 'modified') {
+        if (status === 'modified' || status === 'same') {
+            // Now allow actions for same (delete)
             appendMergeActions(leftRow, node, false);
             appendMergeActions(rightRow, node, true);
         }
@@ -170,7 +218,23 @@ function appendNameAndStatus(row, node, isRight) {
 }
 
 function appendMergeActions(row, node, isRightSide) {
-    if (node.status === 'same') return;
+    // Determine visibility of actions
+    // We want to allow delete on ALL items if they exist on this side.
+
+    // Status Logic:
+    // 'same': Exists on both. No Copy. Can Delete.
+    // 'modified': Exists on both. Copy. Can Delete.
+    // 'added': Exists on Right. Left is Spacer.
+    // 'removed': Exists on Left. Right is Spacer.
+
+    // If we are calling this function, 'row' is a valid content row (not spacer), 
+    // EXCEPT if buildDualNode calls it for a spacer? 
+    // Check buildDualNode:
+    // added -> left: Spacer, right: Content. Calls (right, node, true).
+    // removed -> left: Content, right: Spacer. Calls (left, node, false).
+    // modified/same -> Both Content. Calls both.
+
+    // So if we are here, the item EXISTS on this side.
     const actions = document.createElement('div');
     actions.className = 'merge-actions';
 
@@ -179,25 +243,36 @@ function appendMergeActions(row, node, isRightSide) {
     const fullLeft = leftInput.value + '/' + node.path;
     const fullRight = rightInput.value + '/' + node.path;
 
-    if (node.status === 'removed') {
+    const status = node.status;
+
+    // --- COPY BUTTONS ---
+    // Only if there is a 'counterpart' or we want to 'restore'/copy to other side.
+    // same: No copy needed.
+    // modified: Copy (Overwrite)
+    // added (Right): Copy to Left.
+    // removed (Left): Copy to Right.
+
+    if (status === 'removed' && !isRightSide) {
+        // Left side item. Copy to Right.
         const btn = document.createElement('button');
         btn.className = 'merge-btn';
         btn.innerHTML = 'Copy <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>';
         btn.onclick = (e) => { e.stopPropagation(); api.copyItem(fullLeft, fullRight, node.type === 'directory').then(() => { document.getElementById('compare-btn').click(); refreshDiffView(); }); };
         actions.appendChild(btn);
-    } else if (node.status === 'added') {
+    }
+    else if (status === 'added' && isRightSide) {
+        // Right side item. Copy to Left.
         const btn = document.createElement('button');
         btn.className = 'merge-btn';
         btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Copy';
         btn.onclick = (e) => { e.stopPropagation(); api.copyItem(fullRight, fullLeft, node.type === 'directory').then(() => { document.getElementById('compare-btn').click(); refreshDiffView(); }); };
         actions.appendChild(btn);
-    } else if (node.status === 'modified') {
+    }
+    else if (status === 'modified') {
         const btn = document.createElement('button');
         btn.className = 'merge-btn';
-        // Left Arrow for Right Side (Copy to Left), Right Arrow for Left Side (Copy to Right)
         const leftArrow = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`;
         const rightArrow = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
-
         btn.innerHTML = isRightSide ? leftArrow : rightArrow;
         btn.title = isRightSide ? "Overwrite Left" : "Overwrite Right";
         btn.onclick = (e) => {
@@ -209,13 +284,15 @@ function appendMergeActions(row, node, isRightSide) {
         };
         actions.appendChild(btn);
     }
-    // Delete Button
+
+    // --- DELETE BUTTON ---
+    // Always available if item exists (which it does if we are here)
     const delBtn = document.createElement('button');
     delBtn.className = 'merge-btn delete-btn';
     delBtn.title = isRightSide ? "Delete Right" : "Delete Left";
     delBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
     delBtn.style.marginLeft = '4px';
-    delBtn.style.color = '#ef5350'; // Red color
+    delBtn.style.color = '#ef5350';
     delBtn.onclick = (e) => {
         e.stopPropagation();
         if (confirm(`Delete ${isRightSide ? 'Right' : 'Left'} item: ${node.name}?`)) {

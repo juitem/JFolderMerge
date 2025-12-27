@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import * as api from './api.js?v=2';
 import * as folderView from './folderView.js?v=7';
-import * as diffView from './diffView.js';
+import * as diffView from './diffView.js?v=2';
 import { openBrowseModal } from './browseModal.js?v=7';
 import { Modal } from './modal.js?v=1';
 import { Toast } from './toast.js?v=1';
@@ -196,6 +196,15 @@ Object.keys(diffFilterChecks).forEach(key => {
     }
 });
 
+// Search
+const searchInput = document.getElementById('file-search');
+if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+        state.searchQuery = e.target.value.trim();
+        folderView.applyFilters();
+    });
+}
+
 // View Toggles
 function updateViewMode(mode) {
     if (state.currentDiffMode === mode) return;
@@ -218,11 +227,20 @@ if (expandDiffBtn) expandDiffBtn.addEventListener('click', diffView.toggleFullSc
 if (closeDiffBtn) closeDiffBtn.addEventListener('click', diffView.closeDiffView);
 
 document.addEventListener('keydown', (e) => {
+    // Ignore input fields
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+    }
+
     if (e.key === 'Escape') {
         const treeContainer = document.querySelector('.tree-container');
         if (treeContainer && treeContainer.classList.contains('collapsed')) {
             diffView.toggleFullScreen();
         }
+    } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(e.key)) {
+        // Prevent default scrolling for arrows/space (handled in folderView)
+        // Delegate to folderView
+        folderView.handleKeyNavigation(e);
     }
 });
 

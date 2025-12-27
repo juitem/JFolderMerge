@@ -109,6 +109,9 @@ export async function refreshDiffView() {
             diffSplit.classList.add('hidden');
         }
 
+        // Apply Filters immediately after render
+        applyFilters();
+
     } catch (e) {
         diffContent.textContent = "Error: " + e.message;
         diffLeft.textContent = "Error";
@@ -179,11 +182,33 @@ function createDiffRow(row, side, index, otherRow, targetRowsArray) {
     div.appendChild(contentSpan);
 
     // Merge Actions
+    // Allow merge on Modified, Added, Removed.
+    // AND allow merge on 'empty' (Spacer) if the other side has content (Added/Removed pairs).
+    // Pushing 'empty' to 'content' means DELETING the content line.
+
+    // Check if we should show button:
+    // 1. Classic active types: modified, added, removed.
+    // 2. Empty type, BUT only if otherRow has a valid line to overwrite/delete.
+
+    let canMerge = false;
     if (row.type === 'modified' || row.type === 'added' || row.type === 'removed') {
+        canMerge = true;
+    } else if (row.type === 'empty' && otherRow && otherRow.line) {
+        canMerge = true;
+    }
+
+    if (canMerge) {
         const btn = document.createElement('button');
         btn.className = 'merge-btn';
         btn.textContent = side === 'left' ? '→' : '←';
-        btn.title = side === 'left' ? 'Copy to Right' : 'Copy to Left';
+
+        if (row.type === 'empty') {
+            btn.title = side === 'left' ? 'Delete Right Line' : 'Delete Left Line';
+            btn.classList.add('delete-action'); // Optional: Style it differently?
+        } else {
+            btn.title = side === 'left' ? 'Copy to Right' : 'Copy to Left';
+        }
+
         btn.onclick = (e) => {
             e.stopPropagation();
             mergeLine(side, index, row, otherRow, targetRowsArray);
@@ -201,21 +226,37 @@ async function mergeLine(sourceSide, viewIndex, sourceRow, targetRow, targetRows
     if (Array.isArray(sourceRow.text)) {
         sourceText = sourceRow.text.map(s => s.text).join('');
     } else {
-        sourceText = sourceRow.text;
+        sourceText = sourceRow.text || "";
     }
 
     if (!targetRow.line) { // Spacer / Empty -> Insert
+        // Source has content, Target is empty. Insert Source into Target.
+        // Find split position.
         let insertIndex = 0;
+        // Search backwards for a line number
+        let found = false;
         for (let i = viewIndex - 1; i >= 0; i--) {
             if (targetRowsArray[i].line) {
-                insertIndex = targetRowsArray[i].line;
+                insertIndex = targetRowsArray[i].line; // Insert AFTER this line
+                found = true;
                 break;
             }
         }
+        // If found, insertIndex is the line number (1-based). So array index is insertIndex.
+        // If not found (top of file), insertIndex is 0.
+
         targetLines.splice(insertIndex, 0, sourceText);
-    } else { // Replace
+
+    } else { // Replace or Delete
         const arrayIndex = targetRow.line - 1;
-        targetLines[arrayIndex] = sourceText;
+
+        if (sourceRow.type === 'empty') {
+            // Source is empty -> Delete Target Line
+            targetLines.splice(arrayIndex, 1);
+        } else {
+            // Source has content -> Replace Target Line
+            targetLines[arrayIndex] = sourceText;
+        }
     }
 
     await api.saveFile(targetPath, targetLines.join('\n'));

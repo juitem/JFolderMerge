@@ -1,10 +1,12 @@
 export const state = {
-    currentDiffMode: 'both', // 'unified', 'side-by-side', 'both'
+    currentDiffMode: 'side-by-side', // Default to Side-by-Side
     currentDiffPaths: { left: "", right: "", leftRoot: "", rightRoot: "", relPath: "" },
     currentLeftPathGlobal: "",
     currentRightPathGlobal: "",
     currentLeftLines: [],
     currentRightLines: [],
+    searchQuery: "",
+    focusedIndex: -1,
 
     // Filter State
     // Filters
@@ -18,7 +20,7 @@ export const state = {
         added: true,
         removed: true,
         modified: true,
-        same: true
+        same: false // Default off for file content
     }
 };
 

@@ -10,6 +10,23 @@
     --danger: #ef4444;
     --warning: #f59e0b;
     --font-family: 'Inter', sans-serif;
+
+    /* Semantic Colors */
+    --hover-bg: rgba(255, 255, 255, 0.05);
+    --selected-bg: rgba(59, 130, 246, 0.15);
+    --input-bg: rgba(15, 23, 42, 0.5);
+    --toolbar-bg: rgba(0, 0, 0, 0.2);
+    --diff-added-bg: rgba(16, 185, 129, 0.1);
+    --diff-removed-bg: rgba(239, 68, 68, 0.1);
+    --diff-modified-bg: rgba(245, 158, 11, 0.1);
+    --diff-modified-bg-strong: rgba(245, 158, 11, 0.15);
+
+    /* Spacing */
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 12px;
 }
 
 body {
@@ -93,9 +110,9 @@ label {
 }
 
 input[type="text"] {
-    background: rgba(15, 23, 42, 0.5);
+    background: var(--input-bg);
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     padding: 0.75rem;
     color: var(--text-primary);
     font-family: inherit;
@@ -153,7 +170,7 @@ input[type="text"]:focus {
 
 .icon-btn:hover {
     color: var(--text-primary);
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--hover-bg);
 }
 
 .main-view {
@@ -181,7 +198,7 @@ input[type="text"]:focus {
 .split-tree-header {
     display: flex;
     border-bottom: 1px solid var(--border-color);
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--toolbar-bg);
 }
 
 .tree-col-header {
@@ -217,7 +234,7 @@ input[type="text"]:focus {
 }
 
 .tree-column::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--hover-bg);
     border-radius: 3px;
 }
 
@@ -289,11 +306,11 @@ input[type="text"]:focus {
 }
 
 .tree-row:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--hover-bg);
 }
 
 .tree-row.selected {
-    background-color: rgba(59, 130, 246, 0.15);
+    background-color: var(--selected-bg);
 }
 
 .tree-row.spacer {
@@ -303,7 +320,7 @@ input[type="text"]:focus {
 }
 
 .tree-row.selected {
-    background-color: rgba(59, 130, 246, 0.15);
+    background-color: var(--selected-bg);
 }
 
 .chevron {
@@ -334,17 +351,17 @@ input[type="text"]:focus {
 
 .item-status.added {
     color: var(--success);
-    background: rgba(16, 185, 129, 0.1);
+    background: var(--diff-added-bg);
 }
 
 .item-status.removed {
     color: var(--danger);
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--diff-removed-bg);
 }
 
 .item-status.modified {
     color: var(--warning);
-    background: rgba(245, 158, 11, 0.1);
+    background: var(--diff-modified-bg);
 }
 
 .tree-children {
@@ -407,10 +424,22 @@ input[type="text"]:focus {
 
 .diff-line {
     display: flex;
+    min-height: 1.5em;
+    /* Ensure height even if empty */
+}
+
+.diff-line.empty {
+    /* Hatch pattern to indicate "Void" or "Missing" content corresponding to the other side */
+    background-image: repeating-linear-gradient(45deg,
+            rgba(0, 0, 0, 0.2),
+            rgba(0, 0, 0, 0.2) 10px,
+            transparent 10px,
+            transparent 20px);
+    opacity: 0.6;
 }
 
 .diff-line.added {
-    background-color: rgba(16, 185, 129, 0.1);
+    background-color: var(--diff-added-bg);
     color: var(--success);
 }
 
@@ -433,14 +462,14 @@ input[type="text"]:focus {
 }
 
 .diff-line.removed {
-    background-color: rgba(239, 68, 68, 0.1);
+    background-color: var(--diff-removed-bg);
     color: var(--danger);
     text-decoration: line-through;
     opacity: 0.8;
 }
 
 .diff-line.modified {
-    background-color: rgba(245, 158, 11, 0.15);
+    background-color: var(--diff-modified-bg-strong);
     /* Slightly stronger for visibility */
     color: var(--warning);
 }
@@ -469,7 +498,7 @@ input[type="text"]:focus {
     align-items: center;
     margin-bottom: 0;
     gap: 0.5rem;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--toolbar-bg);
 }
 
 .filters-group {
@@ -656,8 +685,17 @@ input[type="text"]:focus {
 }
 
 .merge-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--hover-bg);
     color: var(--text-primary);
+}
+
+.merge-btn.delete-action {
+    color: var(--danger);
+    /* Reddish arrow to indicate deletion */
+}
+
+.merge-btn.delete-action:hover {
+    background: var(--diff-removed-bg);
 }
 
 /* Modal */
@@ -735,7 +773,7 @@ input[type="text"]:focus {
     overflow-y: auto;
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--toolbar-bg);
 }
 
 .folder-item {
@@ -747,11 +785,11 @@ input[type="text"]:focus {
 }
 
 .folder-item:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--hover-bg);
 }
 
 .folder-item.selected {
-    background: rgba(59, 130, 246, 0.15);
+    background: var(--selected-bg);
 }
 
 .modal-footer {
@@ -832,7 +870,7 @@ input[type="text"]:focus {
 }
 
 .split-pane::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--hover-bg);
     border-radius: 3px;
 }
 
