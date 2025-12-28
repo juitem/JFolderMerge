@@ -1,0 +1,548 @@
+:root {
+  --bg-color: #1a1a1a;
+  --panel-bg: rgba(255, 255, 255, 0.05);
+  --border-color: #333;
+  --text-primary: #e0e0e0;
+  --text-secondary: #aaaaaa;
+  --accent-color: #3b82f6;
+  --accent-hover: #2563eb;
+  --danger-color: #ef4444;
+  --folder-color: #eab308;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Utilities */
+.glass-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.custom-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+  background: #111;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Buttons */
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.primary-btn {
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+}
+
+.primary-btn:hover {
+  background: var(--accent-hover);
+}
+
+.primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secondary-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Main App Container */
+.app-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1rem;
+  /* Match legacy padding */
+  height: 60px;
+  /* Explicit height */
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header-brand h1 {
+  font-size: 1.5rem;
+  /* Legacy Size */
+  font-weight: 600;
+  margin: 0;
+  background: linear-gradient(to right, #60a5fa, #a855f7);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.app-header {
+  height: 50px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+}
+
+.header-brand h1 {
+  font-size: 1.1rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.beta-badge {
+  font-size: 0.7rem;
+  background: #333;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 10px;
+  color: #888;
+}
+
+/* Controls Bar (Inputs) */
+.controls-bar {
+  display: flex;
+  /* Flex row by default */
+  align-items: center;
+  gap: 15px;
+  padding: 10px 20px;
+  margin: 10px 20px 0 20px;
+  flex-wrap: nowrap;
+  /* Prevent wrapping */
+}
+
+.path-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  /* Both inputs take equal space */
+  min-width: 200px;
+}
+
+.path-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.input-wrapper {
+  display: flex;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.input-wrapper input {
+  background: transparent;
+  border: none;
+  color: white;
+  flex: 1;
+  padding: 6px 10px;
+  min-width: 0;
+  /* Important for flex child */
+}
+
+.input-wrapper input:focus {
+  outline: none;
+}
+
+.inner-btn {
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.inner-btn:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.compare-btn {
+  height: 36px;
+  /* margin-top removed for toolbar alignment */
+  padding: 0 20px;
+  white-space: nowrap;
+}
+
+/* Toolbar */
+.toolbar {
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-size: 0.9rem;
+}
+
+.filter-icon {
+  color: var(--text-secondary);
+  margin-right: 5px;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  overflow: hidden;
+  /* Nested scroll */
+  display: flex;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Main Content Layout */
+.main-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  border-top: 1px solid var(--border-color);
+  position: relative;
+  /* For absolute positioning if needed */
+}
+
+.left-panel {
+  flex: 1;
+  /* Takes all space by default */
+  border-right: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  /* Hide scroll on panel, allow child to scroll */
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* Allow shrinking */
+  transition: flex 0.3s ease, width 0.3s ease;
+}
+
+.right-panel {
+  width: 0;
+  /* Hidden by default */
+  overflow: hidden;
+  /* Child DiffViewer handles scroll */
+  background: #1e1e1e;
+  border-left: 1px solid var(--border-color);
+  transition: width 0.3s ease, flex 0.3s ease, opacity 0.2s;
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.right-panel.open {
+  width: 50%;
+  /* Or 60%? User said "partially". Let's split 50/50 or 40/60 */
+  opacity: 1;
+  flex-shrink: 0;
+  /* Do not shrink */
+}
+
+/* When Right Panel is Open, Left Panel stays flex:1 but constrained? 
+   If Right is width 50%, Left takes remaining 50%. 
+*/
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+}
+
+/* Tree Styling */
+.tree-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.split-tree-header {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  background: var(--bg-color);
+  z-index: 10;
+}
+
+.tree-col-header {
+  flex: 1;
+  padding: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.split-tree-view {
+  display: flex;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.tree-column {
+  flex: 1;
+  padding-bottom: 20px;
+}
+
+.tree-item {
+  user-select: none;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.tree-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tree-row.selected {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.chevron {
+  width: 16px;
+  margin-right: 4px;
+  transition: transform 0.2s;
+}
+
+.chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.item-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.9rem;
+}
+
+.item-status {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.item-status.added {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+}
+
+.item-status.removed {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.item-status.modified {
+  color: #f59e0b;
+  /* Amber-500 matching Legacy var(--warning) */
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.merge-actions {
+  display: none;
+  margin-left: 8px;
+  gap: 4px;
+}
+
+.tree-row:hover .merge-actions {
+  display: flex;
+}
+
+.merge-btn {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #333;
+  border: 1px solid #555;
+  color: #ccc;
+  border-radius: 3px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.merge-btn:hover {
+  background: #555;
+  color: white;
+}
+
+.delete-btn:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.tree-children {
+  display: none;
+  padding-left: 16px;
+}
+
+.tree-children.visible {
+  display: block;
+}
+
+.tree-row.spacer {
+  height: 29px;
+}
+
+.history-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Diff Styling */
+.diff-component {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.diff-toolbar {
+  padding: 8px 15px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-color);
+}
+
+.diff-filename {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.diff-toggles {
+  display: flex;
+  gap: 4px;
+}
+
+.diff-toggles .icon-btn.active {
+  background: var(--accent-color);
+  color: white;
+}
+
+.diff-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Scroll handled by children Views */
+  padding: 0;
+  /* Padding moved to views if needed */
+  font-family: 'Menlo', 'Monaco', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.diff-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+  min-height: 18px;
+}
+
+.diff-line.added {
+  background: rgba(74, 222, 128, 0.1);
+  color: #86efac;
+}
+
+.diff-line.removed {
+  background: rgba(248, 113, 113, 0.1);
+  color: #fca5a5;
+}
+
+.diff-line.header {
+  color: #aaa;
+  font-style: italic;
+}
+
+.split-diff-container .diff-col {
+  flex: 1;
+  padding: 0 5px;
+  overflow-x: auto;
+}
+
+.split-diff-container .left {
+  border-right: 1px solid var(--border-color);
+}
+
+.compact-toolbar {
+  padding: 6px 20px;
+  gap: 15px;
+  background: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
+}

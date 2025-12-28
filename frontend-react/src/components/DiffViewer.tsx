@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { DiffResult, DiffMode, Config } from '../types';
 import { Maximize, Minimize } from 'lucide-react';
-import ConfirmModal from './ConfirmModal';
 
 interface DiffViewerProps {
     leftPathBase: string;
@@ -32,12 +31,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
     const [diffData, setDiffData] = useState<DiffResult | null>(null);
     const [rawContent, setRawContent] = useState<{ left: string, right: string } | null>(null);
 
-    const [confirmState, setConfirmState] = useState<{
-        isOpen: boolean;
-        title: string;
-        message: string;
-        action: (() => void) | null;
-    }>({ isOpen: false, title: '', message: '', action: null });
+
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -88,56 +82,49 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
         fetchDiff();
     }, [relPath, mode, leftPathBase, rightPathBase]);
 
-    const handleLineMerge = (sourceText: string, targetSide: 'left' | 'right', targetLineIndex: number | null, type: 'insert' | 'replace' | 'delete', viewIndex: number) => {
-        setConfirmState({
-            isOpen: true,
-            title: 'Confirm Line Change',
-            message: `Are you sure you want to ${type} on the ${targetSide} side?`,
-            action: async () => {
-                setLoading(true);
-                try {
-                    const targetPathBase = targetSide === 'left' ? leftPathBase : rightPathBase;
-                    const fullTargetPath = targetPathBase + '/' + relPath;
+    const handleLineMerge = async (sourceText: string, targetSide: 'left' | 'right', targetLineIndex: number | null, type: 'insert' | 'replace' | 'delete', viewIndex: number) => {
+        setLoading(true);
+        try {
+            const targetPathBase = targetSide === 'left' ? leftPathBase : rightPathBase;
+            const fullTargetPath = targetPathBase + '/' + relPath;
 
-                    // 1. Fetch current target content
-                    const fileData = await api.fetchFileContent(fullTargetPath);
-                    let lines = fileData && fileData.content ? fileData.content.split(/\r?\n/) : [];
+            // 1. Fetch current target content
+            const fileData = await api.fetchFileContent(fullTargetPath);
+            let lines = fileData && fileData.content ? fileData.content.split(/\r?\n/) : [];
 
-                    // 2. Modify Lines
-                    if (type === 'delete') {
-                        if (targetLineIndex !== null) {
-                            // Line numbers are 1-based, array is 0-based
-                            lines.splice(targetLineIndex - 1, 1);
-                        }
-                    } else if (type === 'replace') {
-                        if (targetLineIndex !== null) {
-                            lines[targetLineIndex - 1] = sourceText;
-                        }
-                    } else if (type === 'insert') {
-                        let insertAt = 0;
-                        const rows = targetSide === 'left' ? diffData?.left_rows : diffData?.right_rows;
-                        if (rows) {
-                            for (let i = viewIndex - 1; i >= 0; i--) {
-                                if (rows[i].line) {
-                                    insertAt = rows[i].line; // Insert AFTER this line
-                                    break;
-                                }
-                            }
-                        }
-                        lines.splice(insertAt, 0, sourceText);
-                    }
-
-                    // 3. Save
-                    await api.saveFile(fullTargetPath, lines.join('\n'));
-
-                    // 4. Refresh
-                    await fetchDiff();
-                } catch (e: any) {
-                    setError("Merge failed: " + e.message);
-                    setLoading(false);
+            // 2. Modify Lines
+            if (type === 'delete') {
+                if (targetLineIndex !== null) {
+                    // Line numbers are 1-based, array is 0-based
+                    lines.splice(targetLineIndex - 1, 1);
                 }
+            } else if (type === 'replace') {
+                if (targetLineIndex !== null) {
+                    lines[targetLineIndex - 1] = sourceText;
+                }
+            } else if (type === 'insert') {
+                let insertAt = 0;
+                const rows = targetSide === 'left' ? diffData?.left_rows : diffData?.right_rows;
+                if (rows) {
+                    for (let i = viewIndex - 1; i >= 0; i--) {
+                        if (rows[i].line) {
+                            insertAt = rows[i].line; // Insert AFTER this line
+                            break;
+                        }
+                    }
+                }
+                lines.splice(insertAt, 0, sourceText);
             }
-        });
+
+            // 3. Save
+            await api.saveFile(fullTargetPath, lines.join('\n'));
+
+            // 4. Refresh
+            await fetchDiff();
+        } catch (e: any) {
+            setError("Merge failed: " + e.message);
+            setLoading(false);
+        }
     };
 
     if (loading) return <div className="loading-diff">Loading Diff...</div>;
@@ -180,16 +167,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
                 )}
 
             </div>
-            <ConfirmModal
-                isOpen={confirmState.isOpen}
-                title={confirmState.title}
-                message={confirmState.message}
-                onConfirm={() => {
-                    if (confirmState.action) confirmState.action();
-                    setConfirmState(prev => ({ ...prev, isOpen: false }));
-                }}
-                onCancel={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
-            />
+
         </div>
     );
 };
