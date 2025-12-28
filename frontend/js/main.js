@@ -1,7 +1,15 @@
 import { state } from './state.js';
 import * as api from './api.js?v=29';
 import * as folderView from './folderView.js?v=7';
-import * as diffView from './diffView.js?v=2';
+import { viewerManager } from './viewers/ViewerManager.js';
+import { DiffViewer } from './viewers/DiffViewer.js';
+import { ImageViewer } from './viewers/ImageViewer.js';
+import { EventBus, EVENTS } from './events.js';
+
+// Register Viewers
+viewerManager.register(new DiffViewer()); // Fallback / Default
+viewerManager.register(new ImageViewer()); // High priority for images
+
 import { openBrowseModal } from './browseModal.js?v=7';
 import { Modal } from './modal.js?v=1';
 import { Toast } from './toast.js?v=1';
@@ -77,6 +85,27 @@ let appConfig = {};
         // Init Events
         folderView.initFolderViewEvents();
 
+        // Wire Viewer Manager
+        EventBus.on(EVENTS.FILE_SELECTED, async (data) => {
+            const panel = document.getElementById('diff-panel');
+            const container = document.getElementById('diff-view-container');
+            const viewer = viewerManager.getViewerForFile(data.relPath);
+
+            if (viewer) {
+                panel.classList.remove('hidden');
+
+                // Update Header
+                const titleEl = document.getElementById('diff-filename');
+                if (titleEl) titleEl.textContent = data.relPath;
+
+                applyAutoExpandState();
+
+                await viewer.render(container, data.leftPath, data.rightPath, data.relPath);
+            } else {
+                Toast.warning("No viewer available for this file type.");
+            }
+        });
+
     } catch (e) {
         console.error("Main Init Error", e);
         Toast.error("Initialization Error: " + e.message);
@@ -137,17 +166,13 @@ if (importFileBtn) {
     });
 }
 
-// Compare Button
-compareBtn.addEventListener('click', async () => {
-    const leftPath = leftInput.value;
-    const rightPath = rightInput.value;
-    const excludeFolders = document.getElementById('exclude-folders').value
-        .split(',').map(s => s.trim()).filter(s => s);
-    const excludeFiles = document.getElementById('exclude-files').value
-        .split(',').map(s => s.trim()).filter(s => s);
+// Helper to run comparison
+async function runComparison() {
+    const leftPath = document.getElementById('left-path');
+    const rightPath = document.getElementById('right-path');
 
-    if (!leftPath || !rightPath) {
-        Toast.warning("Please enter both paths.");
+    if (!leftPath.value || !rightPath.value) {
+        Toast.error("Please enter both paths");
         return;
     }
 
@@ -155,19 +180,37 @@ compareBtn.addEventListener('click', async () => {
     compareBtn.disabled = true;
 
     try {
-        const data = await api.compareFolders(leftPath, rightPath, excludeFiles, excludeFolders);
+        const excludeFiles = document.getElementById('exclude-files').value.split(',').map(s => s.trim()).filter(s => s);
+        const excludeFolders = document.getElementById('exclude-folders').value.split(',').map(s => s.trim()).filter(s => s);
+
+        document.getElementById('loading-overlay').classList.remove('hidden');
+
+        const data = await api.compareFolders(leftPath.value, rightPath.value, excludeFiles, excludeFolders);
         folderView.renderTree(data);
-        Toast.success("Comparison Complete");
+
+        Toast.success("Comparison completed");
 
         // Save History
-        await api.saveHistory(leftPath, rightPath);
+        await api.saveHistory(leftPath.value, rightPath.value);
 
     } catch (e) {
-        Toast.error("Error: " + e.message);
+        console.error(e);
+        Toast.error("Comparison failed: " + e.message);
     } finally {
+        document.getElementById('loading-overlay').classList.add('hidden');
         compareBtn.textContent = 'Compare';
         compareBtn.disabled = false;
     }
+}
+
+// Compare Button
+if (compareBtn) {
+    compareBtn.addEventListener('click', runComparison);
+}
+
+// Event Bus Listeners
+EventBus.on(EVENTS.REFRESH_TREE, () => {
+    runComparison();
 });
 
 // History Logic
@@ -233,6 +276,17 @@ const folderFilterChecks = {
     same: document.getElementById('folder-show-same')
 };
 
+// Helper to refresh view (applies filters via re-render)
+function refreshActiveView() {
+    if (state.currentDiffPaths.relPath) {
+        EventBus.emit(EVENTS.FILE_SELECTED, {
+            leftPath: state.currentDiffPaths.leftRoot,
+            rightPath: state.currentDiffPaths.rightRoot,
+            relPath: state.currentDiffPaths.relPath
+        });
+    }
+}
+
 Object.keys(folderFilterChecks).forEach(key => {
     if (folderFilterChecks[key]) {
         folderFilterChecks[key].addEventListener('change', (e) => {
@@ -253,7 +307,7 @@ Object.keys(diffFilterChecks).forEach(key => {
     if (diffFilterChecks[key]) {
         diffFilterChecks[key].addEventListener('change', (e) => {
             state.diffFilters[key] = e.target.checked;
-            diffView.applyFilters();
+            refreshActiveView();
         });
     }
 });
@@ -276,8 +330,17 @@ function updateViewMode(mode) {
     if (viewSplitBtn) viewSplitBtn.classList.toggle('active', mode === 'side-by-side');
     if (viewBothBtn) viewBothBtn.classList.toggle('active', mode === 'both');
 
-    if (state.currentDiffPaths.leftRoot) {
-        diffView.refreshDiffView();
+    console.log("Updating View Mode:", mode, "Current Path:", state.currentDiffPaths.relPath);
+
+    if (state.currentDiffPaths.relPath) {
+        // Re-trigger viewer render for current file
+        EventBus.emit(EVENTS.FILE_SELECTED, {
+            leftPath: state.currentDiffPaths.leftRoot,
+            rightPath: state.currentDiffPaths.rightRoot,
+            relPath: state.currentDiffPaths.relPath
+        });
+    } else {
+        console.warn("No current file to refresh view for.");
     }
 }
 
@@ -285,8 +348,38 @@ if (viewUnifiedBtn) viewUnifiedBtn.addEventListener('click', () => updateViewMod
 if (viewSplitBtn) viewSplitBtn.addEventListener('click', () => updateViewMode('side-by-side'));
 if (viewBothBtn) viewBothBtn.addEventListener('click', () => updateViewMode('both'));
 
-if (expandDiffBtn) expandDiffBtn.addEventListener('click', diffView.toggleFullScreen);
-if (closeDiffBtn) closeDiffBtn.addEventListener('click', diffView.closeDiffView);
+// Diff Window Controls
+// Diff Window Controls
+const diffPanel = document.getElementById('diff-panel');
+const treeContainer = document.querySelector('.tree-container');
+
+function applyAutoExpandState() {
+    // Apply the current state to the DOM
+    if (state.viewOpts.autoExpand) {
+        if (diffPanel) diffPanel.classList.add('expanded');
+        if (treeContainer) treeContainer.classList.add('collapsed');
+    } else {
+        if (diffPanel) diffPanel.classList.remove('expanded');
+        if (treeContainer) treeContainer.classList.remove('collapsed');
+    }
+    updateOptUI();
+}
+
+function toggleFullScreen() {
+    state.viewOpts.autoExpand = !state.viewOpts.autoExpand;
+    applyAutoExpandState();
+}
+
+function closeDiffView() {
+    if (diffPanel) diffPanel.classList.add('hidden');
+    // Ensure Tree is visible when Panel is closed, regardless of AutoExpand preference
+    if (treeContainer) treeContainer.classList.remove('collapsed');
+    // NOTE: We do NOT change state.viewOpts.autoExpand. 
+    // It remains as a preference for the next File Open.
+}
+
+if (expandDiffBtn) expandDiffBtn.addEventListener('click', toggleFullScreen);
+if (closeDiffBtn) closeDiffBtn.addEventListener('click', closeDiffView);
 
 // Advanced Options
 const optDefault = document.getElementById('opt-default');
@@ -303,6 +396,7 @@ if (optDefault) {
     optDefault.addEventListener('click', () => {
         state.viewOpts.autoExpand = false;
         state.viewOpts.useExternal = false;
+        applyAutoExpandState(); // Update DOM
         updateOptUI();
         Toast.info("View: Default");
     });
@@ -317,7 +411,7 @@ if (optAutoExpand) {
         state.viewOpts.autoExpand = !startState;
         if (state.viewOpts.autoExpand) state.viewOpts.useExternal = false;
 
-        updateOptUI();
+        applyAutoExpandState(); // Update DOM immediately
         Toast.info(`View: ${state.viewOpts.autoExpand ? 'Auto-Expand' : 'Default'}`);
     });
 }
@@ -327,7 +421,16 @@ if (optExternalTool) {
         state.viewOpts.useExternal = !startState;
         if (state.viewOpts.useExternal) state.viewOpts.autoExpand = false;
 
-        updateOptUI();
+        applyAutoExpandState(); // Update DOM (will collapse if expanded)
+        updateOptUI(); // This is called inside applyAutoExpandState too? No, separated now.
+        // Wait, applyAutoExpandState calls updateOptUI inside it?
+        // Let's check applyAutoExpandState definition.
+        // It calls updateOptUI(). So calling it twice is redundant but harmless.
+        // Step 2733 definition calls updateOptUI().
+        // So I can remove explicit updateOptUI() calls here if applyAutoExpandState handles it.
+        // But let's keep it safe or remove it.
+        // I'll keep it simple: applyAutoExpandState() updates UI.
+
         Toast.info(`View: ${state.viewOpts.useExternal ? 'External Tool' : 'Default'}`);
     });
 }
@@ -341,7 +444,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         const treeContainer = document.querySelector('.tree-container');
         if (treeContainer && treeContainer.classList.contains('collapsed')) {
-            diffView.toggleFullScreen();
+            toggleFullScreen();
         }
     } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(e.key)) {
         // Prevent default scrolling for arrows/space (handled in folderView)

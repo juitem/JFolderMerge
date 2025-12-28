@@ -22,5 +22,6 @@ export const EventBus = {
 // Event Constants
 export const EVENTS = {
     FILE_MERGED: 'file-merged',
-    REFRESH_TREE: 'refresh-tree'
+    REFRESH_TREE: 'refresh-tree',
+    FILE_SELECTED: 'file-selected'
 };

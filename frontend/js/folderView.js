@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import * as api from './api.js?v=29';
 import { showDiff, refreshDiffView } from './diffView.js';
+import { EventBus, EVENTS } from './events.js';
 
 const treeLeft = document.getElementById('tree-left');
 const treeRight = document.getElementById('tree-right');
@@ -150,18 +151,14 @@ function buildDualNode(node, leftParent, rightParent) {
 
                     api.openExternal(fullLeft, fullRight).catch(e => alert(e.message));
                 } else {
-                    // Internal Diff
-                    showDiff(leftRoot, rightRoot, node.path).then(() => {
-                        // CHECK AUTO-EXPAND
-                        if (state.viewOpts.autoExpand) {
-                            // We need to trigger expand if not already.
-                            const diffPanel = document.getElementById('diff-panel');
-                            if (diffPanel && !diffPanel.classList.contains('expanded')) {
-                                // Use toggle function from diffView if accessible, or trigger button click.
-                                const expandBtn = document.getElementById('expand-diff');
-                                if (expandBtn) expandBtn.click();
-                            }
-                        }
+                    // Internal Diff -> Emit Event for ViewerManager
+                    const leftRoot = document.getElementById('left-path').value;
+                    const rightRoot = document.getElementById('right-path').value;
+
+                    EventBus.emit(EVENTS.FILE_SELECTED, {
+                        leftPath: leftRoot,
+                        rightPath: rightRoot,
+                        relPath: node.path
                     });
                 }
             });
@@ -292,7 +289,12 @@ function appendMergeActions(row, node, isRightSide) {
         const btn = document.createElement('button');
         btn.className = 'merge-btn';
         btn.innerHTML = 'Copy <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>';
-        btn.onclick = (e) => { e.stopPropagation(); api.copyItem(fullLeft, fullRight, node.type === 'directory').then(() => { document.getElementById('compare-btn').click(); refreshDiffView(); }); };
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            api.copyItem(fullLeft, fullRight, node.type === 'directory').then(() => {
+                EventBus.emit(EVENTS.REFRESH_TREE);
+            });
+        };
         actions.appendChild(btn);
     }
     else if (status === 'added' && isRightSide) {
@@ -300,7 +302,12 @@ function appendMergeActions(row, node, isRightSide) {
         const btn = document.createElement('button');
         btn.className = 'merge-btn';
         btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Copy';
-        btn.onclick = (e) => { e.stopPropagation(); api.copyItem(fullRight, fullLeft, node.type === 'directory').then(() => { document.getElementById('compare-btn').click(); refreshDiffView(); }); };
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            api.copyItem(fullRight, fullLeft, node.type === 'directory').then(() => {
+                EventBus.emit(EVENTS.REFRESH_TREE);
+            });
+        };
         actions.appendChild(btn);
     }
     else if (status === 'modified') {
@@ -313,8 +320,8 @@ function appendMergeActions(row, node, isRightSide) {
         btn.onclick = (e) => {
             e.stopPropagation();
             if (confirm(`Overwrite ${isRightSide ? 'Left' : 'Right'}?`)) {
-                if (isRightSide) api.copyItem(fullRight, fullLeft, node.type === 'directory').then(() => { document.getElementById('compare-btn').click(); refreshDiffView(); });
-                else api.copyItem(fullLeft, fullRight, node.type === 'directory').then(() => { document.getElementById('compare-btn').click(); refreshDiffView(); });
+                if (isRightSide) api.copyItem(fullRight, fullLeft, node.type === 'directory').then(() => { EventBus.emit(EVENTS.REFRESH_TREE); });
+                else api.copyItem(fullLeft, fullRight, node.type === 'directory').then(() => { EventBus.emit(EVENTS.REFRESH_TREE); });
             }
         };
         actions.appendChild(btn);
@@ -333,9 +340,9 @@ function appendMergeActions(row, node, isRightSide) {
         if (confirm(`Delete ${isRightSide ? 'Right' : 'Left'} item: ${node.name}?`)) {
             const target = isRightSide ? fullRight : fullLeft;
             console.log("Attempting to delete:", target);
+            console.log("Attempting to delete:", target);
             api.deleteItem(target).then(() => {
-                document.getElementById('compare-btn').click();
-                refreshDiffView();
+                EventBus.emit(EVENTS.REFRESH_TREE);
             }).catch(e => alert("Delete failed: " + e.message));
         }
     };
@@ -370,7 +377,6 @@ export function updateFileStatus(relPath, newStatus) {
 }
 
 // Initial Listener Setup
-import { EventBus, EVENTS } from './events.js';
 
 export function initFolderViewEvents() {
     EventBus.on(EVENTS.FILE_MERGED, ({ path, status }) => {

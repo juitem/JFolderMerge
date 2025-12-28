@@ -231,18 +231,26 @@
                     </div>
                     <span id="diff-filename">Select a file to compare</span>
                 </div>
-                <pre id="diff-content" class="diff-content hidden"></pre>
-                <div id="diff-split" class="diff-split-view hidden">
-                    <div id="diff-left" class="split-pane"></div>
-                    <div id="diff-right" class="split-pane"></div>
+                <div id="diff-view-container" class="diff-view-container">
+                    <pre id="diff-content" class="diff-content hidden"></pre>
+                    <div id="diff-split" class="diff-split-view hidden">
+                        <div id="diff-left" class="split-pane"></div>
+                        <div id="diff-right" class="split-pane"></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loader"></div>
+        <div class="loading-text">Comparing...</div>
+    </div>
+
     <!-- Modals are now generated dynamically by modal.js -->
 
-    <script type="module" src="js/main.js?v=30"></script>
+    <script type="module" src="js/main.js?v=32"></script>
 </body>
 
 </html>

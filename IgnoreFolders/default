@@ -1,8 +1,0 @@
-.git
-.tmp
-__pycache__
-.vscode
-.idea
-.venv
-venv
-ROOTFS

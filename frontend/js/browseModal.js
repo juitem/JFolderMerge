@@ -1,5 +1,5 @@
-import * as api from './api.js?v=2';
-import { Modal } from './modal.js?v=1';
+import * as api from './api.js?v=31';
+import { Modal } from './modal.js?v=2';
 
 let currentBrowseTarget = null;
 let currentOnSelect = null;
@@ -31,13 +31,15 @@ export async function openBrowseModal(initialPath, options = {}) {
     const container = document.createElement('div');
     container.style.display = 'flex';
     container.style.flexDirection = 'column';
-    container.style.height = '100%';
+    container.style.flex = '1'; // Fill modal body
+    container.style.minHeight = '0'; // Allow shrinking for scroll
     container.style.gap = '10px';
 
     // Navigation Bar
     const navBar = document.createElement('div');
     navBar.style.display = 'flex';
     navBar.style.gap = '8px';
+    navBar.style.flexShrink = '0'; // Don't shrink header
 
     const upBtn = document.createElement('button');
     upBtn.className = 'icon-btn';
@@ -62,7 +64,8 @@ export async function openBrowseModal(initialPath, options = {}) {
     listContainer = document.createElement('div');
     listContainer.className = 'folder-list';
     listContainer.style.flex = '1';
-    listContainer.style.height = '300px'; // Min height
+    listContainer.style.minHeight = '0'; // Crucial for scrolling inside flex
+    listContainer.style.overflowY = 'auto'; // Explicitly ensure scroll
     listContainer.style.border = '1px solid var(--border-color)';
     listContainer.style.borderRadius = '6px';
     container.appendChild(listContainer);
@@ -127,7 +130,9 @@ function goUp() {
 
 async function loadBrowsePath(path) {
     try {
+        console.log("Loading path:", path, "Mode:", currentBrowseMode);
         const data = await api.listDirs(path, currentBrowseMode === 'file');
+        console.log("Received data:", data);
         currentModalPath = data.current;
 
         if (pathInput) {
@@ -137,15 +142,22 @@ async function loadBrowsePath(path) {
 
         renderBrowseList(data);
     } catch (e) {
-        console.error(e);
-        // Toast? Using api.js error handling usually?
-        // We aren't importing Toast here yet, but we could.
+        console.error("Browse Error", e);
+        // Fallback to home if failed and path was not empty
+        if (path) {
+            console.log("Falling back to default path...");
+            loadBrowsePath('');
+        }
     }
 }
 
 function renderBrowseList(data) {
-    if (!listContainer) return;
+    if (!listContainer) {
+        console.error("List container missing!");
+        return;
+    }
     listContainer.innerHTML = '';
+    console.log(`Rendering ${data.dirs.length} dirs, ${data.files ? data.files.length : 0} files.`);
 
     const createItem = (name, type) => {
         const div = document.createElement('div');
