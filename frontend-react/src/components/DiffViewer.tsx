@@ -218,32 +218,76 @@ const UnifiedView: React.FC<{ diff?: string[], filters?: any }> = ({ diff, filte
 const SideBySideView: React.FC<{ leftRows?: any[], rightRows?: any[], filters?: any, onMerge: any }> = ({ leftRows, rightRows, filters, onMerge }) => {
     if (!leftRows || !rightRows) return <div>No Split Data</div>;
 
+    // Filter Logic: Skip rows where BOTH sides are hidden by filter
+    // 1. "same" lines are symmetric. If filter.same=false, both are hidden -> Skip.
+    // 2. "detailed" lines: if left is added (filtered?) and right is empty...
+    //    If we filter "added", left is hidden. Right is empty. Should we show?
+    //    Usually we hide the whole row if it contains no visible info.
+    //    Let's check visibility.
+
+    const rows = [];
+    const len = Math.max(leftRows.length, rightRows.length);
+
+    for (let i = 0; i < len; i++) {
+        const l = leftRows[i] || { type: 'empty' };
+        const r = rightRows[i] || { type: 'empty' };
+
+        // Check if visible
+        // Helper: type -> visibility
+        const isVisible = (rowNode: any) => {
+            const t = rowNode.type === 'modified' ? 'modified' :
+                rowNode.type === 'added' ? 'added' :
+                    rowNode.type === 'removed' ? 'removed' : 'same';
+            // Empty is always "visible" unless paired with a hidden content?
+            // No, empty itself is neutral. Visibility depends on CONTENT.
+            // If type is empty, it doesn't force show.
+            if (rowNode.type === 'empty') return false; // Empty doesn't demand show
+            return filters?.[t] !== false;
+        };
+
+        const lVis = isVisible(l);
+        const rVis = isVisible(r);
+
+        // If NEITHER side produces visible content, skip row.
+        // (Empty counts as "not producing content").
+        // Exception: If one side is empty and other is hidden content -> Skip.
+        // If one side is empty and other is visible content -> Show.
+        // If both are same (and filtered) -> Skip.
+        // If both are same (and shown) -> Show.
+
+        if (!lVis && !rVis) continue;
+
+        rows.push(
+            <div key={i} className="diff-row-wrapper" style={{ display: 'flex', minHeight: '24px' }}>
+                <div className="diff-col left" style={{ flex: '1 1 50%', width: '50%', maxWidth: '50%' }}>
+                    <DiffRow row={l} side="left" otherRow={r} filters={filters} onMerge={onMerge} index={i} forceRender={true} />
+                </div>
+                <div className="diff-col right" style={{ flex: '1 1 50%', width: '50%', maxWidth: '50%' }}>
+                    <DiffRow row={r} side="right" otherRow={l} filters={filters} onMerge={onMerge} index={i} forceRender={true} />
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="split-diff-container custom-scroll" style={{ display: 'flex', flex: 1, overflow: 'auto', minHeight: 0 }}>
-            <div className="diff-col left custom-scroll">
-                {leftRows.map((row, i) => (
-                    <DiffRow key={'l' + i} row={row} side="left" otherRow={rightRows[i]} filters={filters} onMerge={onMerge} index={i} />
-                ))}
-            </div>
-            <div className="diff-col right custom-scroll">
-                {rightRows.map((row, i) => (
-                    <DiffRow key={'r' + i} row={row} side="right" otherRow={leftRows[i]} filters={filters} onMerge={onMerge} index={i} />
-                ))}
-            </div>
+        <div className="split-diff-container custom-scroll" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'auto', minHeight: 0 }}>
+            {rows}
+            {rows.length === 0 && <div className="empty-diff-message" style={{ padding: 20, color: '#888' }}>No visible changes</div>}
         </div>
     )
 }
 
-const DiffRow: React.FC<{ row: any, side: 'left' | 'right', otherRow: any, filters?: any, onMerge: any, index: number }> = ({ row, side, otherRow, filters, onMerge, index }) => {
-    let type = 'same';
-    const myType = row.type;
-    if (myType === 'modified') type = 'modified';
-    else if (myType === 'added') type = 'added';
-    else if (myType === 'removed') type = 'removed';
+const DiffRow: React.FC<{ row: any, side: 'left' | 'right', otherRow: any, onMerge: any, index: number, forceRender?: boolean }> = ({ row, side, otherRow, onMerge, index }) => {
+    // Merge Logic Determination
+    // Case 1: I have content. Target is Empty (Insert) or Different (Replace).
 
-    const isHidden = filters?.[type] === false;
+    // Filter Logic is now handled by Parent for Row Skipping.
+    // However, we might still want to apply classes or styling.
+    // If strict row skipping is done, we simply render.
 
-    if (isHidden) return <div className={`diff-line hidden-by-filter ${myType}`}></div>;
+    // Legacy Safety:
+    // const isHidden = !forceRender && filters?.[type] === false;
+    // if (isHidden) return <div className={`diff-line hidden-by-filter ${myType}`}></div>;
 
     // Merge Logic Determination
 
@@ -283,11 +327,11 @@ const DiffRow: React.FC<{ row: any, side: 'left' | 'right', otherRow: any, filte
                     </button>
                 )}
                 {isEmptySpacer && (
-                    <button className="merge-btn small delete-btn" title={`Delete ${side === 'left' ? 'Right' : 'Left'} Line`} onClick={() => {
-                        // Delete OTHER side's line
+                    <button className="merge-btn small" title={`Copy Empty to ${side === 'left' ? 'Right' : 'Left'} (Delete)`} onClick={() => {
+                        // Delete OTHER side's line (Propagate Emptiness)
                         onMerge("", side === 'left' ? 'right' : 'left', otherRow.line, 'delete', index);
                     }}>
-                        ×
+                        {side === 'left' ? '→' : '←'}
                     </button>
                 )}
             </div>
