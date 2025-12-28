@@ -148,7 +148,7 @@ def copy_item(req: CopyRequest):
     dest_path = req.dest_path
     dest_parent = os.path.dirname(dest_path)
     if not os.path.exists(dest_parent):
-        raise HTTPException(status_code=400, detail=f"Destination parent directory does not exist: {dest_parent}")
+        os.makedirs(dest_parent, exist_ok=True)
 
     try:
         if req.is_dir:
@@ -166,6 +166,10 @@ def copy_item(req: CopyRequest):
 @app.post("/api/save-file")
 def save_file(req: SaveRequest):
     try:
+        parent_dir = os.path.dirname(req.path)
+        if not os.path.exists(parent_dir):
+            os.makedirs(parent_dir, exist_ok=True)
+
         temp_path = req.path + ".tmp"
         with open(temp_path, 'w', encoding='utf-8') as f:
             f.write(req.content)
@@ -313,15 +317,19 @@ def get_history():
             content = f.read()
             if not content:
                 return []
-            return json.loads(content)
+            history = json.loads(content)
+            
+            # Filter out non-existent paths
+            valid_history = []
+            for h in history:
+                if os.path.exists(h.get("left_path", "")) and os.path.exists(h.get("right_path", "")):
+                    valid_history.append(h)
+            
+            return valid_history
     except Exception as e:
         print(f"Error loading history: {e}")
         return []
 
-@app.post("/api/history")
-def save_history(req: HistoryRequest):
-    history = get_history()
-    
 @app.post("/api/history")
 def save_history(req: HistoryRequest):
     history = get_history()

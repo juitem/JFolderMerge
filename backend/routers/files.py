@@ -27,8 +27,9 @@ def copy_item(req: CopyRequest):
         raise HTTPException(status_code=400, detail="Source does not exist")
     
     dest_parent = os.path.dirname(req.dest_path)
+
     if not os.path.exists(dest_parent):
-        raise HTTPException(status_code=400, detail=f"Destination parent directory does not exist: {dest_parent}")
+        os.makedirs(dest_parent, exist_ok=True)
 
     try:
         if req.is_dir:
@@ -44,6 +45,10 @@ def copy_item(req: CopyRequest):
 @router.post("/save-file")
 def save_file(req: SaveRequest):
     try:
+        parent_dir = os.path.dirname(req.path)
+        if not os.path.exists(parent_dir):
+            os.makedirs(parent_dir, exist_ok=True)
+
         temp_path = req.path + ".tmp"
         with open(temp_path, 'w', encoding='utf-8') as f:
             f.write(req.content)

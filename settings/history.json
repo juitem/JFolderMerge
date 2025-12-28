@@ -1,0 +1,12 @@
+[
+  {
+    "left_path": "/Users/juitem/Docker/ContainerFolder/JF",
+    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
+    "timestamp": "2025-12-28T19:36:29.699174"
+  },
+  {
+    "left_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
+    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
+    "timestamp": "2025-12-28T18:24:26.863890"
+  }
+]
