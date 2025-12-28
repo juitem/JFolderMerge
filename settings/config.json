@@ -21,10 +21,11 @@
   "viewOptions": {
     "autoExpand": false,
     "useExternal": false,
-    "currentDiffMode": "side-by-side"
+    "currentDiffMode": "side-by-side",
+    "diffMode": "side-by-side"
   },
   "savedExcludes": {
-    "folders": ".git, .tmp, __pycache__, .vscode, .idea, .venv, venv, ROOTFS, jfoldermerge-vscode, node_modules",
+    "folders": ".git, .tmp, __pycache__, .vscode, .idea, .venv, venv, ROOTFS, jfoldermerge-vscode, node_modules, dist",
     "files": ".tmp, *.pyc, .DS_Store"
   }
 }

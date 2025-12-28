@@ -28,6 +28,8 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, onS
                         if (side === 'right' && h.right_path) paths.add(h.right_path);
                     });
                     setUniquePaths(Array.from(paths));
+                } else {
+                    setItems(history);
                 }
             }).finally(() => setLoading(false));
         }

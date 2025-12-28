@@ -79,4 +79,10 @@ echo "[RunReact] Starting Frontend..."
 echo "[RunReact] Access the App at http://localhost:5173"
 
 cd frontend-react
+# Check for node_modules and install if missing
+if [ ! -d "node_modules" ]; then
+    echo "[RunReact] Installing frontend dependencies..."
+    npm install
+fi
+
 npm run dev

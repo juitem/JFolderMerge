@@ -21,18 +21,34 @@ interface FileItem {
 }
 
 export const BrowseModal: React.FC<BrowseModalProps> = ({ isOpen, onClose, onSelect, initialPath, title = "Browse Folder", mode = 'directory', restrictTo, submitLabel }) => {
-    const [currentPath, setCurrentPath] = useState(initialPath || "/");
+    const [currentPath, setCurrentPath] = useState("/");
     const [items, setItems] = useState<FileItem[]>([]);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null); // Inline error state
+    const [error, setError] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
-    // Fetch on path change
+    // Initialization on Open
+    useEffect(() => {
+        if (isOpen) {
+            setItems([]); // Clear stale items immediately
+            setError(null);
+
+            // If new path requested, update state (triggers load via dependency)
+            // If path is same, force load manually
+            if (initialPath && initialPath !== currentPath) {
+                setCurrentPath(initialPath);
+            } else {
+                loadDir(currentPath);
+            }
+        }
+    }, [isOpen]); // Only run when opening/closing state changes
+
+    // Fetch on path change (Navigation)
     useEffect(() => {
         if (!isOpen) return;
         loadDir(currentPath);
         setSelectedFile(null);
-    }, [currentPath, isOpen]);
+    }, [currentPath]); // Run when user navigates
 
     const loadDir = async (path: string) => {
         setLoading(true);
@@ -133,7 +149,7 @@ export const BrowseModal: React.FC<BrowseModalProps> = ({ isOpen, onClose, onSel
                 </div>
 
                 {/* List */}
-                <div className="browse-list custom-scroll" style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                <div className="browse-list custom-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
                     {loading ? (
                         <div className="loading-center"><Loader className="spin" /> Loading...</div>
                     ) : error && !items.length ? ( // Only show error here if no items are loaded
@@ -153,10 +169,10 @@ export const BrowseModal: React.FC<BrowseModalProps> = ({ isOpen, onClose, onSel
                                     }}
                                 >
                                     {item.is_dir ?
-                                        <Folder size={16} fill="var(--folder-color, #eab308)" stroke="none" style={{ marginRight: '10px' }} /> :
-                                        <File size={16} style={{ marginRight: '10px', opacity: mode === 'file' ? 1 : 0.5 }} />
+                                        <Folder size={16} fill="var(--folder-color, #eab308)" stroke="none" style={{ marginRight: '10px', flexShrink: 0 }} /> :
+                                        <File size={16} style={{ marginRight: '10px', opacity: mode === 'file' ? 1 : 0.5, flexShrink: 0 }} />
                                     }
-                                    <span style={{ flex: 1 }}>{item.name}</span>
+                                    <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{item.name}</span>
                                 </div>
                             );
                         })

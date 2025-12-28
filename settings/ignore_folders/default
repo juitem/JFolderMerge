@@ -8,3 +8,4 @@ venv
 ROOTFS
 jfoldermerge-vscode
 node_modules
+dist

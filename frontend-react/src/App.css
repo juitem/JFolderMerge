@@ -10,13 +10,20 @@
   --folder-color: #eab308;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  /* Prevent window scroll */
+}
+
 body {
   background-color: var(--bg-color);
   color: var(--text-primary);
-  margin: 0;
   font-family: 'Inter', sans-serif;
-  height: 100vh;
-  overflow: hidden;
 }
 
 /* Utilities */
@@ -60,6 +67,11 @@ body {
   color: #fff;
 }
 
+.icon-btn.active {
+  background: var(--accent-color);
+  color: white;
+}
+
 .primary-btn {
   background: var(--accent-color);
   color: white;
@@ -96,7 +108,8 @@ body {
 
 /* Main App Container */
 .app-container {
-  height: 100vh;
+  height: 100%;
+  width: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -259,6 +272,8 @@ body {
   flex: 1;
   overflow: hidden;
   display: flex;
+  min-height: 0;
+  /* Required for nested scroll */
   border-top: 1px solid var(--border-color);
   position: relative;
   /* For absolute positioning if needed */
@@ -267,6 +282,7 @@ body {
 .left-panel {
   flex: 1;
   /* Takes all space by default */
+  min-height: 0;
   border-right: 1px solid var(--border-color);
   background: rgba(0, 0, 0, 0.1);
   overflow: hidden;
@@ -289,6 +305,7 @@ body {
   opacity: 0;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .right-panel.open {
@@ -316,7 +333,8 @@ body {
 .tree-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .split-tree-header {

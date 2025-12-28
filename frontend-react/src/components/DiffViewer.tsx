@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { DiffResult, DiffMode, Config } from '../types';
-import { Maximize, Minimize } from 'lucide-react';
+
+
 
 interface DiffViewerProps {
     leftPathBase: string;
@@ -13,7 +14,7 @@ interface DiffViewerProps {
 }
 
 export const DiffViewer: React.FC<DiffViewerProps> = ({
-    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onModeChange
+    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config
 }) => {
     const [mode, setMode] = useState<DiffMode>(initialMode);
 
@@ -24,10 +25,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
         }
     }, [initialMode]);
 
-    const handleModeChange = (newMode: DiffMode) => {
-        setMode(newMode);
-        if (onModeChange) onModeChange(newMode);
-    };
+
     const [diffData, setDiffData] = useState<DiffResult | null>(null);
     const [rawContent, setRawContent] = useState<{ left: string, right: string } | null>(null);
 
@@ -248,8 +246,6 @@ const DiffRow: React.FC<{ row: any, side: 'left' | 'right', otherRow: any, filte
     if (isHidden) return <div className={`diff-line hidden-by-filter ${myType}`}></div>;
 
     // Merge Logic Determination
-    const canMerge = (row.type === 'modified' || row.type === 'added' || row.type === 'removed') ||
-        (row.type === 'empty' && otherRow && otherRow.line);
 
     // If I am empty, I can "pull" from other side? Or "delete" myself?
     // Wait, the button is usually on the CONTENT side to push to other, OR on the EMPTY side to pull/delete?

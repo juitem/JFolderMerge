@@ -3,8 +3,6 @@ import type { FileNode, Config } from '../types';
 
 interface FolderTreeProps {
     root: FileNode; // Root Node
-    leftPath: string; // Base path for logic
-    rightPath: string;
     config: Config;
     onSelect: (node: FileNode) => void;
     onMerge: (node: FileNode, direction: 'left-to-right' | 'right-to-left') => void;
@@ -13,7 +11,7 @@ interface FolderTreeProps {
 }
 
 export const FolderTree: React.FC<FolderTreeProps> = ({
-    root, leftPath, rightPath, config, onSelect, onMerge, onDelete, searchQuery = ""
+    root, config, onSelect, onMerge, onDelete, searchQuery = ""
 }) => {
     const [focusedPath, setFocusedPath] = useState<string | null>(null);
     const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
@@ -59,7 +57,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
 
     const handleKeyNav = (e: KeyboardEvent) => {
         // 1. Flatten visible nodes to list for Up/Down
-        const visibleNodes = flattenVisibleNodes(root, expandedPaths, config, leftPath, rightPath);
+        const visibleNodes = flattenVisibleNodes(root, expandedPaths, config);
         if (visibleNodes.length === 0) return;
 
         let currentIndex = -1;
@@ -104,7 +102,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
     };
 
     // Helper to flatten
-    const flattenVisibleNodes = (node: FileNode, expanded: Set<string>, cfg: Config, lPath: string, rPath: string): FileNode[] => {
+    const flattenVisibleNodes = (node: FileNode, expanded: Set<string>, cfg: Config): FileNode[] => {
         const list: FileNode[] = [];
         const filters = cfg.folderFilters || { same: true, modified: true, added: true, removed: true };
 
@@ -116,7 +114,6 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
             }
         };
         // Root usually is the base, we want children of root?
-        const roots = node.children || []; // Root itself usually not shown as item? Or is it "."?
         // In legacy, we iterated children.
         // My FolderTree renders `TreeColumn` with `[root]`.
         // So Root IS the first item?

@@ -97,45 +97,18 @@ def get_content(path: str):
 
 @app.post("/api/diff")
 def get_diff(req: DiffRequest):
-    # Logic extracted to core/differ.py but Main might still have old copy or we use router?
-    # Wait, we refactored Main in previous turn to use Routers, BUT I might have reverted or 
-    # overwritten it with the "Monolith" version in my thought process?
-    # Let's check the current file content via what I am replacing.
-    # The TargetContent below implies it IS the Monolith version.
-    # User might have rejected the Router refactor? Or I am seeing cached state?
-    # Ah, I see `TargetContent` in previous turn had `app.include_router`. 
-    # But here I am replacing lines 18-300+?
-    
-    # Wait, in Step 2382 I planned to refactor Main.
-    # In Step 2385 it failed/was flagged.
-    # In Step 2388 User said "Proceed".
-    # But I proceeded with FRONTEND refactoring.
-    # Did I ever apply the Backend Router refactor?
-    # Step 2385 was "The previous CodeEdit was suggested... The diff was not immediately applied".
-    # User manually reviewed? No, User said "Proceed". 
-    # Usually "Proceed" means "Do what you planned".
-    # But did I re-apply the backend refactor? No. I went strait to Frontend.
-    
-    # So `backend/main.py` is STILL the Monolith.
-    # The routers I created (`backend/routers/comparison.py`, etc.) are sitting there unused.
-    # AND `backend/core/differ.py` is unused.
-    
-    # So I have TWO tasks here:
-    # 1. Fix the Priority Issue.
-    # 2. Actually Apply the Backend Refactor (Modularity) that I supposedly did.
-    
-    # The User's issue "Left/Right folder not changing" is unrelated to modularity, but crucial.
-    # If I apply Modularity now, I can fix the Priority logic in `backend/main.py` (the new clean version).
-    
-    # Strategy:
-    # Rewrite `backend/main.py` to be the Clean Router version (finishing Phase 1) AND fix priority in `load_config`.
-    # This solves the user's issue and completes the refactor.
-    
-    pass 
-    
+    # Delegate to core differ logic
+
     if req.mode == "side-by-side":
         from .core.differ import generate_side_by_side_diff
         return generate_side_by_side_diff(req.left_path, req.right_path)
+    elif req.mode == "combined":
+        from .core.differ import generate_side_by_side_diff, generate_unified_diff
+        sbs = generate_side_by_side_diff(req.left_path, req.right_path)
+        unified = generate_unified_diff(req.left_path, req.right_path)
+        # sbs is a dict, unified is a dict. Merge them.
+        # sbs has left_rows, right_rows. unified has diff.
+        return {**sbs, **unified, "mode": "combined"}
     else:
         from .core.differ import generate_unified_diff
         return generate_unified_diff(req.left_path, req.right_path)
@@ -227,9 +200,6 @@ def list_dirs(req: ListDirRequest):
     parent = os.path.dirname(path)
     return {"current": path, "parent": parent, "dirs": dirs, "files": files}
 
-# ...
-# I will use the MODULAR content I prepared earlier but missed applying.
-# AND I will ensure load_config logic is correct.
 
 CONFIG_FILE = "settings/config.json"
 def load_config():

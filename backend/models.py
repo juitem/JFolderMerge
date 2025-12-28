@@ -22,7 +22,7 @@ class ContentRequest(BaseModel):
 class DiffRequest(BaseModel):
     left_path: str
     right_path: str
-    mode: Literal["unified", "side-by-side"] = "unified"
+    mode: Literal["unified", "side-by-side", "combined", "raw"] = "unified"
 
 class CopyRequest(BaseModel):
     source_path: str
