@@ -7,7 +7,7 @@
   "defaultIgnoreFileFile": "default",
   "serverPort": 8000,
   "folderFilters": {
-    "added": true,
+    "added": false,
     "removed": true,
     "modified": true,
     "same": false

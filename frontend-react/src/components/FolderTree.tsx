@@ -210,11 +210,23 @@ interface TreeNodeProps {
     };
 }
 
+const isNodeVisible = (node: FileNode, filters: Record<string, any>): boolean => {
+    // 1. If self is allowed, visible.
+    if (filters[node.status] !== false) return true;
+    // 2. If directory, check descendants
+    if (node.type === 'directory' && node.children) {
+        return node.children.some(child => isNodeVisible(child, filters));
+    }
+    return false;
+};
+
 const TreeNode: React.FC<TreeNodeProps> = ({ node, side, expandedPaths, focusedPath, onToggle, config, searchQuery, actions }) => {
 
     const filters = config.folderFilters || { same: true, modified: true, added: true, removed: true };
-    if (filters[node.status] === false) {
-        return null;
+
+    // Check visibility recursively
+    if (!isNodeVisible(node, filters)) {
+        return null; // Hidden by filter AND no visible children
     }
 
     const isExpanded = expandedPaths.has(node.path);

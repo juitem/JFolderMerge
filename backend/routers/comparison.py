@@ -30,6 +30,10 @@ def get_diff(req: DiffRequest):
     try:
         if req.mode == "side-by-side":
             return generate_side_by_side_diff(req.left_path, req.right_path)
+        elif req.mode == "combined":
+            sbs = generate_side_by_side_diff(req.left_path, req.right_path)
+            unified = generate_unified_diff(req.left_path, req.right_path)
+            return {**sbs, **unified, "mode": "combined"}
         else:
             return generate_unified_diff(req.left_path, req.right_path)
     except Exception as e:

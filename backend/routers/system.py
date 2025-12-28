@@ -6,7 +6,8 @@ import platform
 import subprocess
 import datetime
 from fastapi import APIRouter, HTTPException
-from ..models import HistoryRequest, ExternalToolRequest
+from ..global_state import GlobalState
+from ..models import HistoryRequest, ExternalToolRequest, ConfigUpdateRequest
 
 router = APIRouter()
 
@@ -14,35 +15,70 @@ router = APIRouter()
 CONFIG_FILE = "settings/config.json"
 HISTORY_FILE = "settings/history.json"
 
-# We access 'args' via a getter or shared module? 
-# For now, we will re-parse or dependency inject?
-# Just rely on Main or Environment?
-# Actually, Main parses args. We can put them in os.environ or a shared config module.
-# Let's clean up Config loading.
-
-# Minimal Config Loader
 def load_config():
-    # Defaults from args are tricky here without importing args from main.
-    # Better to have settings module.
-    # For now, minimal.
+    # 1. Defaults
     config = {
-        "ignoreFoldersPath": "IgnoreFolders",
-        "ignoreFilesPath": "IgnoreFiles",
+        "left": "test/A",
+        "right": "test/B",
+        "ignoreFoldersPath": "settings/ignore_folders",
+        "ignoreFilesPath": "settings/ignore_files",
         "defaultIgnoreFolderFile": "default",
         "defaultIgnoreFileFile": "default"
     }
+    
+    # 2. File Config overrides Defaults
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, 'r') as f:
                 file_config = json.load(f)
-                config.update(file_config)
+                if "defaultLeftPath" in file_config: config["left"] = file_config["defaultLeftPath"]
+                if "defaultRightPath" in file_config: config["right"] = file_config["defaultRightPath"]
+                if "ignoreFoldersPath" in file_config: config["ignoreFoldersPath"] = file_config["ignoreFoldersPath"]
+                if "ignoreFilesPath" in file_config: config["ignoreFilesPath"] = file_config["ignoreFilesPath"]
+                
+                # Load UI Settings
+                if "folderFilters" in file_config: config["folderFilters"] = file_config["folderFilters"]
+                if "diffFilters" in file_config: config["diffFilters"] = file_config["diffFilters"]
+                if "viewOptions" in file_config: config["viewOptions"] = file_config["viewOptions"]
+                if "savedExcludes" in file_config: config["savedExcludes"] = file_config["savedExcludes"]
         except Exception:
             pass
+
+    # 3. CLI Args override EVERYTHING (if present)
+    if GlobalState.args:
+        if GlobalState.args.left is not None: config["left"] = GlobalState.args.left
+        if GlobalState.args.right is not None: config["right"] = GlobalState.args.right
+    
     return config
 
 @router.get("/config")
 def get_config():
     return load_config()
+
+@router.post("/config")
+def save_config(req: ConfigUpdateRequest):
+    # Load existing file config to preserve other keys
+    file_config = {}
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                file_config = json.load(f)
+        except:
+            pass
+            
+    # Update with new values
+    if req.folderFilters is not None: file_config["folderFilters"] = req.folderFilters
+    if req.diffFilters is not None: file_config["diffFilters"] = req.diffFilters
+    if req.viewOptions is not None: file_config["viewOptions"] = req.viewOptions
+    if req.savedExcludes is not None: file_config["savedExcludes"] = req.savedExcludes
+        
+    try:
+        os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(file_config, f, indent=2)
+        return {"status": "success", "config": file_config}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/history")
 def get_history():
