@@ -24,13 +24,12 @@ The main toolbar has been fully populated:
 
 ## 4. Header Actions
 -   **Save Settings**: Clicking the Save icon now persists your filters and exclude patterns to the backend.
--   **About**: Clicking the Info icon opens the About modal.
 
 ## Tested Scenarios
 -   **View Modes**: Verified Unified, Side-by-Side, and Combined views.
 -   **Merge Actions**: Confirmed Folder/File merge and Line-level merge work seamlessly.
 -   **Auto-Creation**: Verified that copying a file to a non-existent folder structure automatically creates the necessary directories.
--   **Styling**: Confirmed consistent dark/glass UI across all components, including the new Modals.
+-   **Styling**: Confirmed consistent dark/glass UI. Widen Folder Merge buttons (2x width) for better usability and added spacing from the delete button.
 
 ## Verification
 I verified the changes by:

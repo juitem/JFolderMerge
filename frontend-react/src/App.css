@@ -423,7 +423,6 @@ body {
 }
 
 .merge-btn {
-  width: 20px;
   height: 20px;
   display: flex;
   align-items: center;
@@ -434,6 +433,17 @@ body {
   border-radius: 3px;
   font-size: 10px;
   cursor: pointer;
+  /* Default for arrow buttons */
+  width: 40px;
+  margin-right: 6px;
+  /* Spacing between arrow and trash */
+}
+
+/* Trash button overrides */
+.merge-btn.delete-btn {
+  width: 20px;
+  /* Keep trash square */
+  margin-right: 0;
 }
 
 .merge-btn:hover {
