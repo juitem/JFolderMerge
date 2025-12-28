@@ -1,6 +1,5 @@
 import { state } from './state.js';
 import * as api from './api.js?v=29';
-import { showDiff, refreshDiffView } from './diffView.js';
 import { EventBus, EVENTS } from './events.js';
 
 const treeLeft = document.getElementById('tree-left');
