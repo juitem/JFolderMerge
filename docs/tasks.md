@@ -10,6 +10,14 @@
         - [x] Frontend: Implement "Import from file" workflow for Excludes <!-- id: 53 -->
         - [x] Frontend: Fix Initialization/Syntax Crashes <!-- id: 54 -->
         - [x] Frontend: Polish Modal UI (Titles, Labels, Cancel Button) <!-- id: 55 -->
+        - [x] Backend: Restore missing API endpoints (`list-dirs`, `save-file`, `delete`) <!-- id: 56 -->
+        - [x] Debug: Browse Modal empty list issue <!-- id: 57 -->
+        - [x] Debug: File View "Not Working" (Fixed Import) <!-- id: 58 -->
+        - [x] Debug: Browse Modal empty list issue <!-- id: 57 -->
+        - [x] Debug: File View "Not Working" (Fixed Import) <!-- id: 58 -->
+        - [x] Debug: Right Folder Name Incorrect <!-- id: 59 -->
+        - [x] Feature Restoration: File View UI (Expand, Close, Header) <!-- id: 60 -->
+        - [x] Feature Fix: Auto-Expand Persistence <!-- id: 61 -->
 - [x] Line-level Merging <!-- id: 3 -->
     - [x] Backend: Create `/api/save-file` endpoint <!-- id: 4 -->
     - [x] Frontend: Store file content lines in memory <!-- id: 5 -->
@@ -47,11 +55,20 @@
   - [x] Backend: Add `settings/history.json` and API endpoints.
   - [x] Frontend: Add "Recent History" icon/button to input groups.
   - [x] Logic: Save history on compare, retrieve on click.
-- [x] **Process Advanced View Options**
-  - [x] Backend Support: `/api/open-external` endpoint.
-  - [x] Frontend State: Update `state.js` with `viewOpts`.
-  - [x] UI: Add toggle buttons (Default, Auto-Expand, External).
-  - [x] Logic: Handle file click based on current mode.
+- [x] **Refactoring: Backend Modularity**
+  - [x] Create `backend/core` and `backend/routers`.
+  - [x] Extract Diff logic to `differ.py`.
+  - [x] Extract File Ops to `files.py`.
+  - [x] Split `main.py` into routers (`comparison`, `file_ops`, `system`).
+- [ ] **Refactoring: Frontend Modularity**
+  - [x] Implement `ViewerManager` (supports custom viewers by extension).
+  - [x] Refactor `diffView.js` to `DiffViewer` class (registered in Manager).
+  - [x] Implement `ImageViewer`.
+  - [x] **Wire Events**: `folderView.js` -> `EventBus` -> `main.js` -> `ViewerManager`.
+  - [ ] Implement `FolderTree` class (Future).
+- [ ] **Feature: Viewers & Editors** (Post-Refactor)
+  - [ ] Add Image Viewer support.
+  - [ ] Add Basic Text Editor support.
 - [x] Feature: Delete Logic <!-- id: 42 -->
     - [x] Backend: `/api/delete` endpoint <!-- id: 43 -->
     - [x] Frontend: `deleteItem` API <!-- id: 44 -->

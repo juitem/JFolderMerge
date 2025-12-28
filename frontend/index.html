@@ -15,11 +15,20 @@
     <div class="app-container">
         <header>
             <h1>J-Folder Merge - Oscar Series</h1>
-            <button id="about-btn" class="icon-btn" title="About">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                </svg>
-            </button>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button id="save-settings-btn" class="icon-btn" title="Save Current Settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                </button>
+                <button id="about-btn" class="icon-btn" title="About">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </button>
+            </div>
         </header>
 
         <div class="controls glass-panel">
@@ -250,7 +259,7 @@
 
     <!-- Modals are now generated dynamically by modal.js -->
 
-    <script type="module" src="js/main.js?v=32"></script>
+    <script type="module" src="js/main.js?v=33"></script>
 </body>
 
 </html>

@@ -1,79 +1,69 @@
-# System Sequence Diagram
+# Sequence Diagram: File Selection & Viewing Flow
 
-This diagram details the interaction flow between the User, Frontend Components, API Layer, and Backend System.
+This diagram details the interaction between the User, Frontend Components, and the Backend API when a file is selected for comparison.
 
 ```mermaid
 sequenceDiagram
     autonumber
     
     actor User
-    participant Main as Main.js (UI)
-    participant State as State.js
-    participant API as API.js
-    participant FV as FolderView.js
-    participant Event as EventBus
+    participant FV as FolderView (folderView.js)
+    participant EB as EventBus (events.js)
+    participant Main as Controller (main.js)
+    participant VM as ViewerManager (ViewerManager.js)
+    participant DV as DiffViewer (DiffViewer.js)
+    participant API as API Client (api.js)
     participant BE as Backend (FastAPI)
-    participant FS as FileSystem
 
-    Note over User, Main: Initialization
-    User->>Main: Load Application
-    Main->>API: fetchConfig()
-    API->>BE: GET /api/config
-    BE->>FS: Read settings/config.json
-    FS-->>BE: Config Data
-    BE-->>Main: Config (Paths, Extensions)
-    Main->>Main: Initialize UI, Listeners
+    Note over User, FV: User interacts with the Folder Tree
 
-    Note over User, BE: Comparison Flow
-    User->>Main: Input Paths (A, B) or Select History
-    User->>Main: Click "Compare"
-    Main->>API: compareFolders(A, B)
-    API->>BE: POST /api/compare
-    BE->>FS: os.walk(A), os.walk(B)
-    BE->>BE: Compare Structure & Files (filecmp)
-    BE-->>API: Comparison Result (JSON)
-    API-->>Main: Result Data
+    User->>FV: Click on File Node
+    FV->>FV: Identify Paths (Left/Right)
     
-    rect rgb(30, 40, 50)
-        Note right of Main: History Auto-Save
-        Main->>API: saveHistory(A, B)
-        API->>BE: POST /api/history
-        BE->>FS: Update settings/history.json
-    end
-
-    Main->>FV: renderTree(data)
-    FV->>User: Display Folder Tree
+    Note over FV, EB: Decoupled via EventBus
+    FV->>EB: emit(EVENTS.FILE_SELECTED, {left, right, relPath})
     
-    Note over User, BE: View & Interaction Flow
-    User->>FV: Click File Node
-    FV->>State: Check viewOpts (AutoExpand, External)
+    EB->>Main: Call Listener (async)
     
-    alt External Tool Mode
-        FV->>API: openExternal(A, B)
-        API->>BE: POST /api/open-external
-        BE->>BE: subprocess.Popen(tool)
-        BE-->>Main: Success/Error
-    else Internal Diff Mode
-        FV->>API: fetchDiff(A, B)
-        API->>BE: POST /api/diff
-        BE->>FS: Read File A, File B
-        BE->>BE: Generate Diff (difflib)
-        BE-->>FV: Diff Lines (JSON)
-        FV->>Event: emit(FILE_SELECTED)
-        Event-->>Main: Handle Layout Updates
+    activate Main
+        Note right of Main: UI Synchronization
+        Main->>Main: applyAutoExpandState()
+        note right of Main: Toggles .expanded/.collapsed<br/>based on state.viewOpts
         
-        opt Auto-Expand ON
-            FV->>Main: Trigger Full Screen Toggle
-        end
+        Main->>Main: Update Header (Filename)
         
-        FV->>User: Show Split/Unified Diff View
-    end
-
-    Note over User, BE: File Operations
-    User->>FV: Right Click -> Delete/Copy
-    FV->>API: deleteItem(path)
-    API->>BE: POST /api/delete
-    BE->>FS: os.remove(path)
-    BE-->>FV: Success
-    FV->>FV: Update UI (Mark Removed)
+        Note right of Main: Viewer Selection
+        Main->>VM: getViewerForFile(relPath)
+        VM-->>Main: Return Viewer Instance (e.g., DiffViewer)
+        
+        Main->>DV: render(container, leftPath, rightPath, relPath)
+        
+        activate DV
+            DV->>DV: Set state.currentDiffPaths
+            
+            par Data Fetching (Parallel)
+                DV->>API: fetchFileContent(leftPath)
+                API->>BE: GET /api/files (param: path)
+                BE-->>API: File Content (string)
+                API-->>DV: Left Content
+                
+                DV->>API: fetchFileContent(rightPath)
+                API->>BE: GET /api/files
+                BE-->>API: File Content
+                API-->>DV: Right Content
+                
+                alt If Mode requires Diff Info
+                    DV->>API: fetchDiff(left, right)
+                    API->>BE: POST /api/compare/diff
+                    BE-->>API: Diff JSON (lines, matches)
+                    API-->>DV: Diff Data
+                end
+            end
+            
+            DV->>DV: refresh() -> Generate HTML
+            DV-->>Main: Render Complete
+        deactivate DV
+        
+        Main->>Main: Unhide Panel
+    deactivate Main
 ```

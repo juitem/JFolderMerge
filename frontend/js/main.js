@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import * as api from './api.js?v=29';
+import * as api from './api.js?v=30';
 import * as folderView from './folderView.js?v=7';
 import { viewerManager } from './viewers/ViewerManager.js';
 import { DiffViewer } from './viewers/DiffViewer.js';
@@ -81,6 +81,9 @@ let appConfig = {};
 
         await loadIgnoreConfig(`${ignoreFoldersPath}/${defaultFolder}`, 'exclude-folders');
         await loadIgnoreConfig(`${ignoreFilesPath}/${defaultFile}`, 'exclude-files');
+
+        // Apply Saved Settings (Overrides defaults)
+        await loadAndApplyConfig(config);
 
         // Init Events
         folderView.initFolderViewEvents();
@@ -477,3 +480,94 @@ if (aboutBtn) {
     });
 }
 
+
+// Config Persistence Logic
+async function loadAndApplyConfig(config) {
+    console.log("loadAndApplyConfig called with:", config);
+    if (!config) return;
+
+    // Apply View Options
+    if (config.viewOptions) {
+        state.viewOpts = { ...state.viewOpts, ...config.viewOptions };
+        applyAutoExpandState();
+        updateOptUI();
+        if (config.viewOptions.currentDiffMode) {
+            updateViewMode(config.viewOptions.currentDiffMode);
+        }
+    }
+
+    // Apply Folder Filters
+    if (config.folderFilters) {
+        state.folderFilters = { ...state.folderFilters, ...config.folderFilters };
+        // Update Checkboxes
+        const map = {
+            added: 'folder-show-added',
+            removed: 'folder-show-removed',
+            modified: 'folder-show-modified',
+            same: 'folder-show-same'
+        };
+        Object.keys(state.folderFilters).forEach(key => {
+            if (map[key]) {
+                const el = document.getElementById(map[key]);
+                if (el) el.checked = state.folderFilters[key];
+            }
+        });
+        // Trigger Render? Init loop handles init render, but after config load we should re-render?
+        // Actually initFolderViewEvents triggers nothing until content loads.
+        // Compare triggers render.
+    }
+
+    // Apply Diff Filters
+    if (config.diffFilters) {
+        state.diffFilters = { ...state.diffFilters, ...config.diffFilters };
+        const map = {
+            added: 'diff-show-added',
+            removed: 'diff-show-removed',
+            modified: 'diff-show-modified',
+            same: 'diff-show-same'
+        };
+        Object.keys(state.diffFilters).forEach(key => {
+            if (map[key]) {
+                const el = document.getElementById(map[key]);
+                if (el) el.checked = state.diffFilters[key];
+            }
+        });
+    }
+
+    // Apply Saved Excludes
+    if (config.savedExcludes) {
+        if (config.savedExcludes.folders) {
+            const el = document.getElementById('exclude-folders');
+            if (el) el.value = config.savedExcludes.folders;
+        }
+        if (config.savedExcludes.files) {
+            const el = document.getElementById('exclude-files');
+            if (el) el.value = config.savedExcludes.files;
+        }
+    }
+}
+
+const saveSettingsBtn = document.getElementById('save-settings-btn');
+if (saveSettingsBtn) {
+    saveSettingsBtn.addEventListener('click', async () => {
+        const configData = {
+            folderFilters: state.folderFilters,
+            diffFilters: state.diffFilters,
+            viewOptions: {
+                ...state.viewOpts,
+                currentDiffMode: state.currentDiffMode
+            },
+            savedExcludes: {
+                folders: document.getElementById('exclude-folders').value,
+                files: document.getElementById('exclude-files').value
+            }
+        };
+        try {
+            await api.saveConfig(configData);
+            Toast.success("Settings Saved!");
+        } catch (e) {
+            Toast.error("Failed to save settings");
+            console.error(e);
+        }
+    });
+}

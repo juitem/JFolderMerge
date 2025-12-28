@@ -1,9 +1,30 @@
 {
-    "defaultLeftPath": "/Users/juitem/Docker/ContainerFolder/FolderComp",
-    "defaultRightPath": "/Users/juitem/Docker/ContainerFolder/JF",
-    "ignoreFoldersPath": "settings/ignore_folders",
-    "ignoreFilesPath": "settings/ignore_files",
-    "defaultIgnoreFolderFile": "default",
-    "defaultIgnoreFileFile": "default",
-    "serverPort": 8000
+  "defaultLeftPath": "/Users/juitem/Docker/ContainerFolder/FolderComp",
+  "defaultRightPath": "/Users/juitem/Docker/ContainerFolder/JF",
+  "ignoreFoldersPath": "settings/ignore_folders",
+  "ignoreFilesPath": "settings/ignore_files",
+  "defaultIgnoreFolderFile": "default",
+  "defaultIgnoreFileFile": "default",
+  "serverPort": 8000,
+  "folderFilters": {
+    "added": true,
+    "removed": true,
+    "modified": true,
+    "same": false
+  },
+  "diffFilters": {
+    "added": true,
+    "removed": true,
+    "modified": true,
+    "same": false
+  },
+  "viewOptions": {
+    "autoExpand": false,
+    "useExternal": false,
+    "currentDiffMode": "side-by-side"
+  },
+  "savedExcludes": {
+    "folders": ".git, .tmp, __pycache__, .vscode, .idea, .venv, venv, ROOTFS, jfoldermerge-vscode",
+    "files": ".tmp, *.pyc, .DS_Store"
+  }
 }

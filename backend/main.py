@@ -1,7 +1,7 @@
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from .models import CompareRequest, ContentRequest, DiffRequest, FileNode, CopyRequest, ListDirRequest, SaveRequest, DeleteRequest, HistoryRequest, ExternalToolRequest
+from .models import CompareRequest, ContentRequest, DiffRequest, FileNode, CopyRequest, ListDirRequest, SaveRequest, DeleteRequest, HistoryRequest, ExternalToolRequest, ConfigUpdateRequest
 from .comparator import compare_folders
 import os
 import difflib
@@ -249,6 +249,12 @@ def load_config():
                 # ... copy others
                 if "ignoreFoldersPath" in file_config: config["ignoreFoldersPath"] = file_config["ignoreFoldersPath"]
                 if "ignoreFilesPath" in file_config: config["ignoreFilesPath"] = file_config["ignoreFilesPath"]
+                
+                # Load UI Settings
+                if "folderFilters" in file_config: config["folderFilters"] = file_config["folderFilters"]
+                if "diffFilters" in file_config: config["diffFilters"] = file_config["diffFilters"]
+                if "viewOptions" in file_config: config["viewOptions"] = file_config["viewOptions"]
+                if "savedExcludes" in file_config: config["savedExcludes"] = file_config["savedExcludes"]
         except Exception:
             pass
 
@@ -264,6 +270,36 @@ def load_config():
 @app.get("/api/config")
 def get_config():
     return load_config()
+
+@app.post("/api/config")
+def save_config(req: ConfigUpdateRequest):
+    # Load existing file config to preserve other keys (like defaultLeftPath)
+    file_config = {}
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                file_config = json.load(f)
+        except:
+            pass
+            
+    # Update with new values if provided
+    if req.folderFilters is not None:
+        file_config["folderFilters"] = req.folderFilters
+    if req.diffFilters is not None:
+        file_config["diffFilters"] = req.diffFilters
+    if req.viewOptions is not None:
+        file_config["viewOptions"] = req.viewOptions
+    if req.savedExcludes is not None:
+        file_config["savedExcludes"] = req.savedExcludes
+        
+    # Write back
+    try:
+        os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(file_config, f, indent=2)
+        return {"status": "success", "config": file_config}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # History API
 HISTORY_FILE = "settings/history.json"

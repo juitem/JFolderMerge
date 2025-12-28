@@ -25,97 +25,161 @@
 
 ## 3. System Architecture
 
-### Sequence Diagram: Compare & View Flow
+### Sequence Diagram: File Selection & Viewing Flow
 ```mermaid
 sequenceDiagram
+    autonumber
+    
     actor User
-    participant UI as frontend (main.js)
-    participant FV as FolderView
-    participant API as API Layer
-    participant BE as Backend (main.py)
-    participant EXT as External Tool
+    participant FV as FolderView (folderView.js)
+    participant EB as EventBus (events.js)
+    participant Main as Controller (main.js)
+    participant VM as ViewerManager (ViewerManager.js)
+    participant DV as DiffViewer (DiffViewer.js)
+    participant API as API Client (api.js)
+    participant BE as Backend (FastAPI)
 
-    User->>UI: Click "Compare"
-    UI->>API: POST /api/compare (left, right)
-    API->>BE: Run Comparison
-    BE-->>API: JSON (diff_summary, structure)
-    API-->>UI: Result Data
-    UI->>FV: Render Folder Tree
+    Note over User, FV: User interacts with the Folder Tree
+
+    User->>FV: Click on File Node
+    FV->>FV: Identify Paths (Left/Right)
     
-    User->>FV: Click File Node
-    FV->>FV: Check State (ViewOpts)
+    Note over FV, EB: Decoupled via EventBus
+    FV->>EB: emit(EVENTS.FILE_SELECTED, {left, right, relPath})
     
-    alt External Tool Enabled
-        FV->>API: POST /api/open-external
-        API->>BE: subprocess.Popen(tool)
-        BE->>EXT: Launch Application
-    else Internal View
-        FV->>API: GET /api/diff
-        API->>BE: Calculate Diff lines
-        BE-->>API: Diff Data
-        API-->>FV: Diff JSON
-        FV->>UI: Show Diff Panel
+    EB->>Main: Call Listener (async)
+    
+    activate Main
+        Note right of Main: UI Synchronization
+        Main->>Main: applyAutoExpandState()
+        note right of Main: Toggles .expanded/.collapsed<br/>based on state.viewOpts
         
-        opt Auto-Expand Enabled
-            FV->>UI: Toggle Fullscreen Class
-        end
-    end
+        Main->>Main: Update Header (Filename)
+        
+        Note right of Main: Viewer Selection
+        Main->>VM: getViewerForFile(relPath)
+        VM-->>Main: Return Viewer Instance (e.g., DiffViewer)
+        
+        Main->>DV: render(container, leftPath, rightPath, relPath)
+        
+        activate DV
+            DV->>DV: Set state.currentDiffPaths
+            
+            par Data Fetching (Parallel)
+                DV->>API: fetchFileContent(leftPath)
+                API->>BE: GET /api/files (param: path)
+                BE-->>API: File Content (string)
+                API-->>DV: Left Content
+                
+                DV->>API: fetchFileContent(rightPath)
+                API->>BE: GET /api/files
+                BE-->>API: File Content
+                API-->>DV: Right Content
+                
+                alt If Mode requires Diff Info
+                    DV->>API: fetchDiff(left, right)
+                    API->>BE: POST /api/compare/diff
+                    BE-->>API: Diff JSON (lines, matches)
+                    API-->>DV: Diff Data
+                end
+            end
+            
+            DV->>DV: refresh() -> Generate HTML
+            DV-->>Main: Render Complete
+        deactivate DV
+        
+        Main->>Main: Unhide Panel
+    deactivate Main
 ```
 
-### Flowchart: User Journey
+### Flowchart: User Journey & System Logic
 ```mermaid
 flowchart TD
-    Start([Start App]) --> InputPaths
+    %% Nodes
+    Start([Start Application])
+    InputPaths[Input Left & Right Paths]
+    CompareBtn{Click 'Compare'}
     
-    subgraph Path Selection
-        InputPaths[Input Left/Right Paths]
-        History[Select from History] --> InputPaths
-        Browse[Browse Directory] --> InputPaths
+    subgraph Initialization
+        Start --> InputPaths
+        InputPaths --> CompareBtn
+    end
+
+    subgraph Comparison_Logic [Backend Comparison]
+        CompareBtn -->|POST /api/compare| API_Compare[Run compare_folders]
+        API_Compare -->|Result JSON| RenderTree[Render Folder Tree]
+    end
+
+    subgraph Interaction_Loop [Frontend Interaction]
+        RenderTree --> UserAction{User Action}
+        
+        UserAction -- Expand Folder --> ToggleFolder[Toggle visibility]
+        ToggleFolder --> UserAction
+        
+        UserAction -- Select File --> FileLogic[Emit FILE_SELECTED]
+        
+        subgraph File_Viewing [File View Logic]
+            FileLogic --> UI_Sync[Sync UI State]
+            UI_Sync --> AutoExpand{Auto-Expand?}
+            
+            AutoExpand -- Yes --> DOM_Expand[Add .expanded class\nCollapse Tree]
+            AutoExpand -- No --> DOM_Normal[Normal Split View]
+            
+            DOM_Expand & DOM_Normal --> SelectViewer[ViewerManager.getViewer]
+            
+            SelectViewer -- Image --> ImageViewer[Render Image]
+            SelectViewer -- Text --> DiffViewer[Render Text Diff]
+            
+            subgraph Diff_Process [Diff Rendering]
+                DiffViewer --> FetchContent[Fetch Left/Right Content]
+                FetchContent --> ComputeDiff[Compute/Fetch Diff Lines]
+                ComputeDiff --> RenderHTML[Render Lines to DOM]
+            end
+        end
+        
+        RenderHTML --> ViewAction{View Action}
     end
     
-    InputPaths --> Compare{Click Compare}
-    Compare -->|Validation| API_Call[Call /api/compare]
-    API_Call --> RenderTree[Render Folder Structure]
-    
-    RenderTree --> SelectFile[Select File]
-    
-    SelectFile --> CheckMode{View Mode?}
-    
-    CheckMode -- External --> LaunchExt[Launch External Tool]
-    CheckMode -- Internal --> FetchDiff[Fetch File Diff]
-    
-    FetchDiff --> RenderDiff[Render Split View]
-    
-    RenderDiff --> CheckExpand{Auto Expand?}
-    CheckExpand -- Yes --> FullScreen[Full Screen Mode]
-    CheckExpand -- No --> SplitScreen[Split Panel Mode]
+    subgraph View_Actions [Toolbar & Merge]
+        ViewAction -- Switch Mode --> ViewMode[Toggle Unified/Split]
+        ViewMode --> ReTrigger[Re-emit FILE_SELECTED] --> FileLogic
+        
+        ViewAction -- Click Merge --> MergeLogic[Merge Content]
+        MergeLogic --> API_Save[POST /api/save-file]
+        API_Save --> Refresh[Refresh Tree & View]
+        Refresh --> RenderTree
+    end
 ```
 
 ## 4. Current File Structure
 ```
 FolderComp/
 ├── backend/
-│   ├── main.py        # FastAPI App & Endpoints
-│   ├── models.py      # Pydantic Models (HistoryRequest, etc.)
-│   └── differ.py      # (Planned) Diff Logic separation
+│   ├── main.py        # FastAPI Entry Point
+│   ├── models.py      # Pydantic Models
+│   ├── core/
+│   │   ├── comparator.py # Directory Logic
+│   │   └── differ.py     # File Diff Logic
+│   └── routers/       # (Prepared) Route Separation
 ├── frontend/
-│   ├── index.html     # Main UI Layout
-│   ├── style.css      # Dark Theme & Layout Styles
+│   ├── index.html     
+│   ├── style.css      
 │   └── js/
-│       ├── main.js       # Entry Point & UI Event Binding
-│       ├── api.js        # API Client Wrapper
-│       ├── state.js      # Global State Management
-│       ├── events.js     # Event Bus (Pub/Sub)
-│       ├── folderView.js # Tree Rendering Logic
-│       ├── diffView.js   # Diff Rendering Logic
-│       ├── modal.js      # Modal Component
-│       └── toast.js      # Toast Notifications
+│       ├── main.js       # Controller
+│       ├── api.js        # API Client
+│       ├── state.js      # Global Store
+│       ├── events.js     # Event Bus
+│       ├── folderView.js # Tree View Logic
+│       ├── browseModal.js
+│       └── viewers/      # Pluggable Viewers
+│           ├── ViewerManager.js
+│           ├── DiffViewer.js
+│           └── ImageViewer.js
 └── settings/
-    ├── history.json   # Recent Paths Storage
-    └── config.json    # Application Config
+    ├── history.json
+    └── config.json
 ```
 
 ## 5. Next Steps (Recommended)
 1.  **Refactoring**: Continue moving logic to Class-based components (as per `refactoring_plan.md`).
 2.  **Testing**: Add unit tests for backend `compare` logic and frontend `EventBus`.
-3.  **UI Polish**: Further refine the unified button/input look if needed.

@@ -50,3 +50,9 @@ class ListDirRequest(BaseModel):
 class SaveRequest(BaseModel):
     path: str
     content: str
+    
+class ConfigUpdateRequest(BaseModel):
+    folderFilters: Optional[dict] = None
+    diffFilters: Optional[dict] = None
+    viewOptions: Optional[dict] = None
+    savedExcludes: Optional[dict] = None

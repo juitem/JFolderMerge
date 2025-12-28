@@ -147,6 +147,7 @@ export async function openExternal(leftPath, rightPath, tool = "default") {
     return res.json();
 }
 
+// ...existing code...
 export async function copyItem(src, dest, isDir) {
     const response = await fetch('/api/copy', {
         method: 'POST',
@@ -158,4 +159,14 @@ export async function copyItem(src, dest, isDir) {
         const err = await response.json();
         throw new Error(err.detail || "Copy failed");
     }
+}
+
+export async function saveConfig(configData) {
+    const response = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(configData)
+    });
+    if (!response.ok) throw new Error("Failed to save config");
+    return await response.json();
 }

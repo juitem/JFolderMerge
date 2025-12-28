@@ -1,59 +1,61 @@
-# Application Process Flowchart
+# Flowchart: User Journey & System Logic
 
-This flowchart illustrates the complete user journey and internal logic decision points.
+This flowchart illustrates the complete user journey from starting the application to viewing and merging files, including internal logic triggers.
 
 ```mermaid
 flowchart TD
-    Start([Start Application]) --> Init[Load Config & UI]
-    Init --> InputState
+    %% Nodes
+    Start([Start Application])
+    InputPaths[Input Left & Right Paths]
+    CompareBtn{Click 'Compare'}
     
-    subgraph Input Phase
-        InputState{Has Paths?}
-        History[Select from History] --> InputState
-        Browse[Browse Directory] --> InputState
-        Manual[Manual Input] --> InputState
+    subgraph Initialization
+        Start --> InputPaths
+        InputPaths --> CompareBtn
     end
-    
-    InputState -- Yes --> Compare{Click Compare}
-    InputState -- No --> Wait[Wait for Input]
-    
-    Compare -->|Validation| APICall[API: /compare]
-    APICall --> SaveHistory[Save Request to History]
-    APICall --> BackendComp[Backend: filecmp & os.walk]
-    BackendComp --> ReturnJSON[Return Comparison Data]
-    
-    ReturnJSON --> RenderTree[Render Folder Tree]
-    
-    subgraph Interaction Phase
+
+    subgraph Comparison_Logic [Backend Comparison]
+        CompareBtn -->|POST /api/compare| API_Compare[Run compare_folders]
+        API_Compare -->|Result JSON| RenderTree[Render Folder Tree]
+    end
+
+    subgraph Interaction_Loop [Frontend Interaction]
         RenderTree --> UserAction{User Action}
         
-        UserAction -- Filter --> ApplyFilter[Apply Name/Ext Filters]
-        ApplyFilter --> ReRender[Update Tree View]
+        UserAction -- Expand Folder --> ToggleFolder[Toggle visibility]
+        ToggleFolder --> UserAction
         
-        UserAction -- Select File --> CheckViewOpts{View Options}
+        UserAction -- Select File --> FileLogic[Emit FILE_SELECTED]
         
-        UserAction -- Context Menu --> Ops{Operation}
-        Ops -- Delete --> APIDelete[API: /delete]
-        Ops -- Copy --> APICopy[API: /copy]
-        APIDelete --> UpdateStatus[Update Node Status]
-        APICopy --> Refresh[Refresh Target]
+        subgraph File_Viewing [File View Logic]
+            FileLogic --> UI_Sync[Sync UI State]
+            UI_Sync --> AutoExpand{Auto-Expand?}
+            
+            AutoExpand -- Yes --> DOM_Expand[Add .expanded class\nCollapse Tree]
+            AutoExpand -- No --> DOM_Normal[Normal Split View]
+            
+            DOM_Expand & DOM_Normal --> SelectViewer[ViewerManager.getViewer]
+            
+            SelectViewer -- Image --> ImageViewer[Render Image]
+            SelectViewer -- Text --> DiffViewer[Render Text Diff]
+            
+            subgraph Diff_Process [Diff Rendering]
+                DiffViewer --> FetchContent[Fetch Left/Right Content]
+                FetchContent --> ComputeDiff[Compute/Fetch Diff Lines]
+                ComputeDiff --> RenderHTML[Render Lines to DOM]
+            end
+        end
+        
+        RenderHTML --> ViewAction{View Action}
     end
     
-    subgraph Visualization Phase
-        CheckViewOpts -- External Tool --> ExtLaunch[API: /open-external]
-        ExtLaunch --> SysCall[subprocess.Popen]
+    subgraph View_Actions [Toolbar & Merge]
+        ViewAction -- Switch Mode --> ViewMode[Toggle Unified/Split]
+        ViewMode --> ReTrigger[Re-emit FILE_SELECTED] --> FileLogic
         
-        CheckViewOpts -- Internal View --> FetchDiff[API: /diff]
-        FetchDiff --> CalcDiff[Backend: difflib]
-        CalcDiff --> ShowDiff[Render Split/Unified View]
-        
-        ShowDiff --> CheckExpand{Auto Expand?}
-        CheckExpand -- Yes --> ToggleFull[Maximize Diff Panel]
-        CheckExpand -- No --> StandardView[Standard Split Layout]
+        ViewAction -- Click Merge --> MergeLogic[Merge Content]
+        MergeLogic --> API_Save[POST /api/save-file]
+        API_Save --> Refresh[Refresh Tree & View]
+        Refresh --> RenderTree
     end
-    
-    UpdateStatus --> UserAction
-    ReRender --> UserAction
-    StandardView --> UserAction
-    ToggleFull --> UserAction
 ```

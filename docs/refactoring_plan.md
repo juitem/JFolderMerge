@@ -14,13 +14,15 @@ Here is a proposal to refactor the frontend for better scalability and maintaina
 ```javascript
 // events.js (New)
 export const EventBus = {
+```
+
 ### 1. Event-Driven Architecture [DONE]
 - **Goal**: Decouple `folderView.js`, `diffView.js`, and `main.js`.
 - **Action**: Implement `EventBus` class.
-  - Events: `FILE_SELECTED`, `COMPARISON_STARTED`, `VIEW_MODE_CHANGED`.
-- **Status**: Implemented `events.js` and wired up `FILE_MERGED` events.
+  - Events: `FILE_SELECTED`, `REFRESH_TREE`, `FILE_MERGED`.
+- **Status**: Completed. `events.js` created. `folderView` emits events. `main.js` handles coordination. `diffView.js` legacy logic removed.
 
-### 2. Component-Based UI [PENDING]state management.
+### 2. Component-Based UI [PENDING/PARTIAL]
 **Solution**: Encapsulate logic in Classes.
 - `FolderTree` class: Handles DOM generation, state (expanded nodes), and filtering internally.
 - `DiffViewer` class: Handles diff rendering, line mapping, and merge logic.
