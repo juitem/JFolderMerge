@@ -1,7 +1,8 @@
 import React from 'react';
 import type { ReactNode } from 'react';
-import { Save, Info } from 'lucide-react';
+import { Save, ShieldCheck, ShieldAlert, Moon, Sun } from 'lucide-react';
 import { FilterToolbar } from '../FilterToolbar';
+import { useConfig } from '../../contexts/ConfigContext';
 import { PathControls } from '../PathControls';
 import type { DiffMode } from '../../types';
 
@@ -34,19 +35,48 @@ interface MainLayoutProps {
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = (props) => {
+    const { config, setViewOption } = useConfig();
+    const isDark = config?.viewOptions?.darkMode !== false; // Default to dark
+
+    React.useEffect(() => {
+        if (isDark) {
+            document.body.classList.add('dark-mode');
+            document.body.classList.remove('light-mode');
+        } else {
+            document.body.classList.add('light-mode');
+            document.body.classList.remove('dark-mode');
+        }
+    }, [isDark]);
+
     return (
         <div className="app-container">
             {/* Header */}
             <header className="app-header">
-                <div className="header-brand">
-                    <h1>J-Folder Merge - Oscar Series</h1>
+                <div className="header-brand" onClick={props.onOpenAbout} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h1 style={{ fontStyle: 'normal' }}>
+                        <i style={{ marginRight: '4px' }}>J-Folder Merge</i> - Oscar Series
+                    </h1>
                 </div>
                 <div className="header-actions">
+                    {/* Confirmation Toggles */}
+                    <div style={{ display: 'flex', gap: '4px', marginRight: '10px', paddingRight: '10px', borderRight: '1px solid #444', alignItems: 'center' }}>
+                        <button className={`icon-btn ${config?.viewOptions?.confirmMerge !== false ? 'active' : ''}`}
+                            onClick={() => setViewOption('confirmMerge', config?.viewOptions?.confirmMerge === false)}
+                            title={config?.viewOptions?.confirmMerge !== false ? "Merge Confirmation: ON" : "Merge Confirmation: OFF"}>
+                            <ShieldCheck size={18} />
+                        </button>
+                        <button className={`icon-btn ${config?.viewOptions?.confirmDelete !== false ? 'active' : ''}`}
+                            onClick={() => setViewOption('confirmDelete', config?.viewOptions?.confirmDelete === false)}
+                            title={config?.viewOptions?.confirmDelete !== false ? "Delete Confirmation: ON" : "Delete Confirmation: OFF"}>
+                            <ShieldAlert size={18} />
+                        </button>
+                    </div>
+
                     <button className="icon-btn" title="Save Settings" onClick={props.onSaveSettings}>
                         <Save size={18} />
                     </button>
-                    <button className="icon-btn" title="About" onClick={props.onOpenAbout}>
-                        <Info size={18} />
+                    <button className="icon-btn" title="Toggle Theme" onClick={() => setViewOption('darkMode', !isDark)}>
+                        {isDark ? <Sun size={18} /> : <Moon size={18} style={{ transform: 'scaleX(-1)' }} />}
                     </button>
                 </div>
             </header>

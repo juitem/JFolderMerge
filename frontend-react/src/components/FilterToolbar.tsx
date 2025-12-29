@@ -1,4 +1,4 @@
-import { Folder, FileText, Upload, Play, AlignJustify, Columns, Layout, FileCode, Bot, BookOpen, ListTree, ShieldCheck, ShieldAlert, Shield } from 'lucide-react';
+import { Folder, FileText, Upload, Play, AlignJustify, Columns, Layout, FileCode, Bot, BookOpen, ListTree } from 'lucide-react';
 import { useConfig } from '../contexts/ConfigContext';
 import type { DiffMode } from '../types';
 
@@ -156,16 +156,7 @@ export function FilterToolbar({
             <div className="separator"></div>
 
             <div className="filter-group" style={{ gap: '2px' }}>
-                <button className={`icon-btn ${config.viewOptions?.confirmMerge !== false ? 'active' : ''}`}
-                    onClick={() => setViewOption('confirmMerge', config.viewOptions?.confirmMerge === false)}
-                    title={config.viewOptions?.confirmMerge !== false ? "Merge Confirmation: ON" : "Merge Confirmation: OFF"}>
-                    <ShieldCheck size={16} />
-                </button>
-                <button className={`icon-btn ${config.viewOptions?.confirmDelete !== false ? 'active' : ''}`}
-                    onClick={() => setViewOption('confirmDelete', config.viewOptions?.confirmDelete === false)}
-                    title={config.viewOptions?.confirmDelete !== false ? "Delete Confirmation: ON" : "Delete Confirmation: OFF"}>
-                    <ShieldAlert size={16} />
-                </button>
+                {/* Shield buttons moved to MainLayout */}
             </div>
 
             <button className="primary-btn compare-btn" onClick={onCompare} disabled={loading} style={{ marginLeft: 'auto' }}>

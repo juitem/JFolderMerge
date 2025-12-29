@@ -6,6 +6,7 @@ import ConfirmModal from '../ConfirmModal';
 import type { Config } from '../../types';
 
 import { useConfig } from '../../contexts/ConfigContext';
+import { JLogo } from '../common/JLogo';
 
 interface AppModalsProps {
     config: Config | null;
@@ -116,11 +117,12 @@ export const AppModals: React.FC<AppModalsProps> = (props) => {
                             <button className="icon-btn" onClick={() => props.setAboutOpen(false)}><X size={18} /></button>
                         </div>
                         <div className="modal-body" style={{ textAlign: 'center', padding: '20px' }}>
+                            <div style={{ marginBottom: '15px' }}><JLogo size={64} style={{ display: 'inline-block' }} /></div>
                             <h2 style={{ marginBottom: '10px' }}>J-Folder Merge</h2>
-                            <p style={{ color: '#888', marginBottom: '20px' }}>React Beta Port</p>
+                            <p style={{ color: '#888', marginBottom: '20px' }}>Oscar Series</p>
                             <p>By: Juitem JoonWoo Kim</p>
                             <p><a href="mailto:juitem@gmail.com" style={{ color: '#646cff' }}>juitem@gmail.com</a></p>
-                            <p style={{ marginTop: '10px' }}><a href="https://github.com/juitem/JFolderMerge" target="_blank" style={{ color: '#646cff' }}>GitHub Repository</a></p>
+                            <p style={{ marginTop: '10px' }}><a href="https://github.com/juitem/JFolderMerge" target="_blank" style={{ color: '#646cff' }}>https://github.com/juitem/JFolderMerge</a></p>
                         </div>
                         <div className="modal-footer">
                             <button className="primary-btn" onClick={() => props.setAboutOpen(false)}>Close</button>

@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useImperativeHandle } from 'react';
 import { api } from '../api';
 import type { DiffResult, DiffMode, Config } from '../types';
 import { UnifiedView } from './diff/UnifiedView';
 import { SideBySideView } from './diff/SideBySideView';
 import { RawView } from './diff/RawView';
-import { AgentView } from './diff/AgentView';
+import { AgentView, type AgentViewHandle } from './diff/AgentView';
 
 interface DiffViewerProps {
     leftPathBase: string;
@@ -15,9 +15,13 @@ interface DiffViewerProps {
     config: Config;
 }
 
-export const DiffViewer: React.FC<DiffViewerProps> = ({
+export interface DiffViewerHandle {
+    scrollToChange: (type: 'added' | 'removed', direction: 'prev' | 'next') => void;
+}
+
+export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
     leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config
-}) => {
+}, ref) => {
     const [mode, setMode] = useState<DiffMode>(initialMode);
 
     // Sync if initialMode changes (though usually App passes persisted state)
@@ -31,6 +35,18 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
     const [diffData, setDiffData] = useState<DiffResult | null>(null);
     const [rawContent, setRawContent] = useState<{ left: string, right: string } | null>(null);
 
+    const agentViewRef = useRef<AgentViewHandle>(null);
+
+    // Expose methods to parent
+    useImperativeHandle(ref, () => ({
+        scrollToChange: (type, direction) => {
+            if (mode === 'agent' && agentViewRef.current) {
+                agentViewRef.current.scrollToChange(type, direction);
+            } else {
+                console.log("Scroll to change not implemented for mode:", mode);
+            }
+        }
+    }));
 
 
     const [loading, setLoading] = useState(false);
@@ -127,6 +143,40 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
         }
     };
 
+    const handleAgentMerge = async (linesToMerge: string[], targetSide: 'left' | 'right', anchorLine: number, type: 'insert' | 'delete') => {
+        setLoading(true);
+        try {
+            const targetPathBase = targetSide === 'left' ? leftPathBase : rightPathBase;
+            const fullTargetPath = targetPathBase + '/' + relPath;
+
+            // 1. Fetch
+            const fileData = await api.fetchFileContent(fullTargetPath);
+            let lines = fileData && fileData.content ? fileData.content.split(/\r?\n/) : [];
+
+            // 2. Modify
+            if (type === 'delete') {
+                // anchorLine is 1-based, starting line to delete
+                // linesToMerge length is how many lines to delete
+                if (anchorLine > 0 && anchorLine <= lines.length) {
+                    lines.splice(anchorLine - 1, linesToMerge.length);
+                }
+            } else if (type === 'insert') {
+                // Insert lines AFTER anchorLine (1-based)
+                // If anchorLine is 0, insert at beginning.
+                lines.splice(anchorLine, 0, ...linesToMerge);
+            }
+
+            // 3. Save
+            await api.saveFile(fullTargetPath, lines.join('\n'));
+
+            // 4. Refresh
+            await fetchDiff();
+        } catch (e: any) {
+            setError("Merge failed: " + e.message);
+            setLoading(false);
+        }
+    };
+
     if (loading) return <div className="loading-diff">Loading Diff...</div>;
     // Error can be shown, but sometimes we want to show partial content.
     if (error) return <div className="error-diff">Error: {error}</div>;
@@ -169,10 +219,12 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
                 )}
                 {mode === 'agent' && diffData && (
                     <AgentView
+                        ref={agentViewRef}
                         diff={diffData.diff}
                         showLineNumbers={!!config.viewOptions?.showLineNumbers}
                         fullRightPath={rightPathBase + '/' + relPath}
                         showSame={!!config.diffFilters?.same}
+                        onMerge={handleAgentMerge}
                     />
                 )}
 
@@ -180,4 +232,4 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
 
         </div>
     );
-};
+});

@@ -1,7 +1,7 @@
 import React from 'react';
-import { Maximize, Minimize, X, Hash, FileDiff } from 'lucide-react';
+import { Maximize, Minimize, X, Hash, FileDiff, ChevronUp, ChevronDown } from 'lucide-react';
 import { FolderTree } from '../FolderTree';
-import { DiffViewer } from '../DiffViewer';
+import { DiffViewer, type DiffViewerHandle } from '../DiffViewer';
 import type { FileNode, Config, DiffMode } from '../../types';
 
 interface WorkspaceProps {
@@ -48,6 +48,8 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
         rightStyle.width = '75%';
     }
 
+    const diffViewerRef = React.useRef<DiffViewerHandle>(null);
+
     return (
         <div className="main-content split-view">
             {/* Left Panel: Tree */}
@@ -84,11 +86,23 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                                     title="Toggle Line Numbers">
                                     <Hash size={16} />
                                 </button>
+
+                                <div style={{ display: 'flex', gap: '16px', marginLeft: '12px', borderLeft: '1px solid #444', paddingLeft: '12px', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }} title="Jump to Removed">
+                                        <ChevronUp size={18} className="icon-btn" style={{ padding: 4, color: '#f87171' }} onClick={() => diffViewerRef.current?.scrollToChange('removed', 'prev')} />
+                                        <ChevronDown size={18} className="icon-btn" style={{ padding: 4, color: '#f87171' }} onClick={() => diffViewerRef.current?.scrollToChange('removed', 'next')} />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }} title="Jump to Added">
+                                        <ChevronUp size={18} className="icon-btn" style={{ padding: 4, color: '#4ade80' }} onClick={() => diffViewerRef.current?.scrollToChange('added', 'prev')} />
+                                        <ChevronDown size={18} className="icon-btn" style={{ padding: 4, color: '#4ade80' }} onClick={() => diffViewerRef.current?.scrollToChange('added', 'next')} />
+                                    </div>
+                                </div>
                             </div>
                             <span style={{ fontFamily: 'monospace', color: '#aaa', marginLeft: 'auto' }}>{props.selectedNode.path}</span>
                         </div>
                         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                             <DiffViewer
+                                ref={diffViewerRef}
                                 leftPathBase={props.leftPath}
                                 rightPathBase={props.rightPath}
                                 relPath={props.selectedNode.path}
