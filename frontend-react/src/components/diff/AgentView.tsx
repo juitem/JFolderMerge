@@ -33,7 +33,8 @@ export interface AgentViewHandle {
     mergeActiveBlock: () => void;
 }
 
-export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(({ diff, showLineNumbers = true, fullRightPath, showSame = false, onMerge, onNextFile, onPrevFile }, ref) => {
+export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((props, ref) => {
+    const { diff, showLineNumbers = true, fullRightPath, showSame = false, onMerge, onNextFile, onPrevFile } = props;
     // We store expanded lines in a map: gapKey -> string[]
     const [expandedContent, setExpandedContent] = useState<Record<string, string[]>>({});
     const [loadingGaps, setLoadingGaps] = useState<Record<string, boolean>>({});
@@ -43,6 +44,8 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(({ di
     useEffect(() => {
         setExpandedContent({});
         setLoadingGaps({});
+        // Don't reset activeBlockIndex here; wait for parsedItems to recalculate
+        // checking equality or re-evaluating index.
     }, [diff]);
 
     const parsedItems = useMemo(() => {
@@ -163,6 +166,45 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(({ di
         }
     }, [showSame, parsedItems, fullRightPath]);
 
+    // Intelligent Block Selection Restoration
+    const prevParsedItemsRef = React.useRef<DiffItem[]>([]);
+    useEffect(() => {
+        if (activeBlockIndex !== null && prevParsedItemsRef.current.length > 0) {
+            // We had a selection. Did it disappear?
+            // If the item at activeBlockIndex is no longer a block, or parsedItems length changed significantly...
+            // Simple heuristic used: If current index is not a block, find next block.
+            const currentItem = parsedItems[activeBlockIndex];
+            const isBlock = currentItem && 'lines' in currentItem && (currentItem as any).type.startsWith('block-');
+
+            if (!isBlock) {
+                // Search forward for next block
+                let nextIdx = -1;
+                for (let i = activeBlockIndex; i < parsedItems.length; i++) {
+                    if ('lines' in parsedItems[i] && (parsedItems[i] as any).type.startsWith('block-')) {
+                        nextIdx = i;
+                        break;
+                    }
+                }
+                // If not found forward, search backward? Or just 0?
+                // User prefers "Next".
+                if (nextIdx !== -1) {
+                    setActiveBlockIndex(nextIdx);
+                } else {
+                    // Try finding first available block if none forward
+                    for (let i = 0; i < parsedItems.length; i++) {
+                        if ('lines' in parsedItems[i] && (parsedItems[i] as any).type.startsWith('block-')) {
+                            setActiveBlockIndex(i);
+                            break;
+                        }
+                    }
+                }
+            }
+            // Ensure focus is kept on container to allow rapid keyboard usage
+            containerRef.current?.focus();
+        }
+        prevParsedItemsRef.current = parsedItems;
+    }, [parsedItems]);
+
     const handleExpand = async (start: number, end: number) => {
         if (!fullRightPath) return;
         const key = `${start}-${end}`;
@@ -184,49 +226,12 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(({ di
 
     React.useImperativeHandle(ref, () => ({
         scrollToChange: (type: 'added' | 'removed' | 'any', direction: 'prev' | 'next') => {
-            if (!containerRef.current) return;
-
-            const selector = type === 'any' ? '.diff-block-group' : (type === 'added' ? '.group-added' : '.group-removed');
-            const elements = Array.from(containerRef.current.querySelectorAll(selector));
-            if (elements.length === 0) return;
-
-            const container = containerRef.current;
-            const containerRect = container.getBoundingClientRect();
-
-            let targetEl: Element | null = null;
-            const VIEWPORT_OFFSET = 50; // Buffer
-
-            if (direction === 'next') {
-                targetEl = elements.find(el => {
-                    const rect = el.getBoundingClientRect();
-                    return rect.top > containerRect.top + VIEWPORT_OFFSET;
-                }) || elements[0];
-                if (!targetEl) targetEl = elements[0];
-            } else {
-                for (let i = elements.length - 1; i >= 0; i--) {
-                    const rect = elements[i].getBoundingClientRect();
-                    if (rect.top < containerRect.top - VIEWPORT_OFFSET) {
-                        targetEl = elements[i];
-                        break;
-                    }
-                }
-                if (!targetEl) targetEl = elements[elements.length - 1];
-            }
-
-            if (targetEl) {
-                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Update Active State
-                const idx = (targetEl as HTMLElement).dataset.blockIndex;
-                if (idx !== undefined) setActiveBlockIndex(parseInt(idx, 10));
-            }
+            scrollToChangeInternal(type, direction);
         },
         mergeActiveBlock: () => {
             if (activeBlockIndex === null || !diff) return;
 
             // Find block by index
-            // parsedItems isn't easily indexed by blockIndex directly if we skip gaps/lines
-            // But activeBlockIndex corresponds to the mapped index in parsedItems?
-            // Yes, we assign key={idx} and data-block-index={idx}
             const item = parsedItems[activeBlockIndex];
             if (!item || !('lines' in item)) return;
 
@@ -319,6 +324,73 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(({ di
                     }
                 }
             }
+        }
+
+
+        // Navigation Shortcuts
+        // a: Prev Added, s: Next Added
+        // e: Prev Removed, r: Next Removed
+        if (e.key === 'a') {
+            e.preventDefault();
+            // Prev Added
+            const instance = ref && 'current' in ref ? ref.current : null;
+            // logic inline or via handle? We are inside component.
+            // Reuse scrollToChange logic via ref not efficient.
+            // Impl directly:
+            scrollToChangeInternal('added', 'prev');
+        } else if (e.key === 's') {
+            e.preventDefault();
+            scrollToChangeInternal('added', 'next');
+        } else if (e.key === 'e') {
+            e.preventDefault();
+            scrollToChangeInternal('removed', 'prev');
+        } else if (e.key === 'r') {
+            e.preventDefault();
+            scrollToChangeInternal('removed', 'next');
+        }
+    };
+
+    const scrollToChangeInternal = (type: 'added' | 'removed' | 'any', direction: 'prev' | 'next') => {
+        if (!containerRef.current) return;
+
+        const selector = type === 'any' ? '.diff-block-group' : (type === 'added' ? '.group-added' : '.group-removed');
+        const elements = Array.from(containerRef.current.querySelectorAll(selector));
+        if (elements.length === 0) return;
+
+        const container = containerRef.current;
+        const containerRect = container.getBoundingClientRect();
+
+        let targetEl: Element | null = null;
+        let bestCandidate: Element | null = null;
+        const VIEWPORT_OFFSET = 50; // Buffer
+
+        if (direction === 'next') {
+            // Find first element strictly below the offset
+            targetEl = elements.find(el => {
+                const rect = el.getBoundingClientRect();
+                return rect.top > containerRect.top + VIEWPORT_OFFSET;
+            }) || elements[0];
+
+            // If we are at the bottom, cycle? Or just stay?
+            // Existing logic wrap-around or stick.
+            if (!targetEl) targetEl = elements[0];
+
+        } else {
+            // Prev
+            for (let i = elements.length - 1; i >= 0; i--) {
+                const rect = elements[i].getBoundingClientRect();
+                if (rect.top < containerRect.top - VIEWPORT_OFFSET) {
+                    targetEl = elements[i];
+                    break;
+                }
+            }
+            if (!targetEl) targetEl = elements[elements.length - 1]; // Cycle to bottom
+        }
+
+        if (targetEl) {
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const idx = (targetEl as HTMLElement).dataset.blockIndex;
+            if (idx !== undefined) setActiveBlockIndex(parseInt(idx, 10));
         }
     };
 

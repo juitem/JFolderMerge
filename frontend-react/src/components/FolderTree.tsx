@@ -77,7 +77,7 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
         if (['ArrowUp', 'ArrowDown', ' '].includes(e.key)) e.preventDefault();
 
         // 1. Flatten visible nodes to list for Up/Down
-        const visibleNodes = flattenVisibleNodes(root, expandedPaths, config);
+        const visibleNodes = flattenVisibleNodes(root, expandedPaths, config, searchQuery);
         if (visibleNodes.length === 0) return;
 
         let currentIndex = -1;
@@ -128,13 +128,24 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
     };
 
     // Helper to flatten
-    const flattenVisibleNodes = (node: FileNode, expanded: Set<string>, cfg: Config): FileNode[] => {
+    const flattenVisibleNodes = (node: FileNode, expanded: Set<string>, cfg: Config, query: string = ""): FileNode[] => {
         const list: FileNode[] = [];
         const filters = cfg.folderFilters || { same: true, modified: true, added: true, removed: true };
 
+        const matchesSearch = (n: FileNode): boolean => {
+            if (!query) return true;
+            // Simplified search check (should match TreeNode logic)
+            const name = n.name.toLowerCase(); // Or check left/right/unified names? Simpler to check local name for now/all.
+            if (name.includes(query.toLowerCase())) return true;
+            if (n.children) return n.children.some(matchesSearch);
+            return false;
+        };
+
         const traverse = (n: FileNode) => {
             if (filters[n.status] === false) return;
-            // Visible?
+            // Check Search Visibility
+            if (query && !matchesSearch(n)) return;
+
             list.push(n);
             if (n.type === 'directory' && expanded.has(n.path) && n.children) {
                 n.children.forEach(traverse);
@@ -147,7 +158,7 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
 
     React.useImperativeHandle(ref, () => ({
         selectNextNode: () => {
-            const visibleNodes = flattenVisibleNodes(root, expandedPaths, config);
+            const visibleNodes = flattenVisibleNodes(root, expandedPaths, config, searchQuery);
             if (visibleNodes.length === 0) return;
             let currentIndex = -1;
             if (focusedPath) currentIndex = visibleNodes.findIndex(n => n.path === focusedPath);
@@ -161,7 +172,7 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
             }
         },
         selectPrevNode: () => {
-            const visibleNodes = flattenVisibleNodes(root, expandedPaths, config);
+            const visibleNodes = flattenVisibleNodes(root, expandedPaths, config, searchQuery);
             if (visibleNodes.length === 0) return;
             let currentIndex = -1;
             if (focusedPath) currentIndex = visibleNodes.findIndex(n => n.path === focusedPath);
