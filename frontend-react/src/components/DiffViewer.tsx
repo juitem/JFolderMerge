@@ -13,14 +13,17 @@ interface DiffViewerProps {
     initialMode?: DiffMode;
     onModeChange?: (mode: DiffMode) => void;
     config: Config;
+    onNextFile?: () => void;
+    onPrevFile?: () => void;
 }
 
 export interface DiffViewerHandle {
-    scrollToChange: (type: 'added' | 'removed', direction: 'prev' | 'next') => void;
+    scrollToChange: (type: 'added' | 'removed' | 'any', direction: 'prev' | 'next') => void;
+    mergeActiveBlock: () => void;
 }
 
 export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
-    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config
+    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile
 }, ref) => {
     const [mode, setMode] = useState<DiffMode>(initialMode);
 
@@ -44,6 +47,11 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                 agentViewRef.current.scrollToChange(type, direction);
             } else {
                 console.log("Scroll to change not implemented for mode:", mode);
+            }
+        },
+        mergeActiveBlock: () => {
+            if (mode === 'agent' && agentViewRef.current) {
+                agentViewRef.current.mergeActiveBlock();
             }
         }
     }));
@@ -225,6 +233,8 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         fullRightPath={rightPathBase + '/' + relPath}
                         showSame={!!config.diffFilters?.same}
                         onMerge={handleAgentMerge}
+                        onNextFile={onNextFile}
+                        onPrevFile={onPrevFile}
                     />
                 )}
 

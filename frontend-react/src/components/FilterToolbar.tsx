@@ -3,8 +3,6 @@ import { useConfig } from '../contexts/ConfigContext';
 import type { DiffMode } from '../types';
 
 interface FilterToolbarProps {
-    searchQuery: string;
-    setSearchQuery: (q: string) => void;
     excludeFolders: string;
     setExcludeFolders: (s: string) => void;
     excludeFiles: string;
@@ -17,7 +15,6 @@ interface FilterToolbarProps {
 }
 
 export function FilterToolbar({
-    searchQuery, setSearchQuery,
     excludeFolders, setExcludeFolders,
     excludeFiles, setExcludeFiles,
     onBrowse, onCompare, loading,
@@ -101,17 +98,7 @@ export function FilterToolbar({
                 </button>
             </div>
 
-            <div className="separator"></div>
 
-            <div className="search-box">
-                <input
-                    type="text"
-                    placeholder="Search files..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#222', color: '#eee' }}
-                />
-            </div>
 
             <div className="separator"></div>
 

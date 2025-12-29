@@ -46,6 +46,7 @@ function App() {
           onMerge={logic.handleMerge}
           onDelete={logic.handleDelete}
           searchQuery={logic.searchQuery}
+          setSearchQuery={logic.setSearchQuery}
           selectedNode={logic.selectedNode}
           leftPath={logic.leftPath}
           rightPath={logic.rightPath}

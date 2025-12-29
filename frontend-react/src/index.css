@@ -341,7 +341,7 @@ h3 {
 .tree-row {
     display: flex;
     align-items: center;
-    padding: 4px 16px;
+    padding: 4px 8px;
     cursor: pointer;
     border-bottom: 1px solid rgba(255, 255, 255, 0.015);
     height: 28px;
@@ -360,9 +360,12 @@ h3 {
 }
 
 .tree-row.focused-row {
-    background: rgba(59, 130, 246, 0.25);
-    /* More visible focus */
-    box-shadow: inset 2px 0 0 0 var(--accent-color);
+    background: rgba(59, 130, 246, 0.4);
+    /* Stronger background */
+    box-shadow: inset 4px 0 0 0 var(--accent-color);
+    /* Thicker indicator */
+    outline: 1px solid rgba(59, 130, 246, 0.5);
+    /* Explicit outline to ensure visibility */
 }
 
 .item-name {
@@ -922,6 +925,7 @@ h3 {
     user-select: none;
     flex-shrink: 0;
     opacity: 0.7;
+    background-color: rgba(65, 17, 102, 0.2);
 }
 
 .noselect {
@@ -982,4 +986,57 @@ h3 {
 
 .tree-column.unified .tree-row:hover {
     background-color: #2a2d2e;
+}
+
+/* Diff View Header (Extracted from Workspace.tsx) */
+.diff-header-bar {
+    padding: 4px 15px;
+    border-bottom: 1px solid var(--border-color);
+    background: #120d3c;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Agent View Block Highlighting */
+.diff-block-group {
+    transition: background-color 0.2s, box-shadow 0.2s;
+    border-radius: 4px;
+    /* Slight rounding */
+}
+
+.diff-block-group.active {
+    background-color: rgba(255, 255, 255, 0.05);
+    /* Subtle highlight */
+    box-shadow: inset 2px 0 0 0 var(--accent-color);
+    /* Left border highlight */
+}
+
+/* Ensure removed blocks keep their red tinge but get highlighted */
+.diff-block-group.group-removed.active {
+    background-color: rgba(239, 68, 68, 0.1);
+    box-shadow: inset 2px 0 0 0 var(--danger);
+}
+
+/* Ensure added blocks keep their green tinge but get highlighted */
+.diff-block-group.group-added.active {
+    background-color: rgba(16, 185, 129, 0.1);
+    box-shadow: inset 2px 0 0 0 var(--success);
+}
+
+/* Chevron Icons for Tree */
+.chevron {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+}
+
+.chevron.expanded {
+    transform: rotate(90deg);
+    color: var(--text-primary);
 }

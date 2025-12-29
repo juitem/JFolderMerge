@@ -1,18 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { FileNode, Config } from '../types';
 
-interface FolderTreeProps {
+// Define Handle Interface
+export interface FolderTreeHandle {
+    selectNextNode: () => void;
+    selectPrevNode: () => void;
+}
+
+export interface FolderTreeProps {
     root: FileNode; // Root Node
     config: Config;
     onSelect: (node: FileNode) => void;
     onMerge: (node: FileNode, direction: 'left-to-right' | 'right-to-left') => void;
     onDelete: (node: FileNode, side: 'left' | 'right') => void;
     searchQuery?: string;
+    setSearchQuery?: (q: string) => void;
+    selectedNode?: FileNode | null;
 }
 
-export const FolderTree: React.FC<FolderTreeProps> = ({
-    root, config, onSelect, onMerge, onDelete, searchQuery = ""
-}) => {
+export interface FolderTreeHandle {
+    selectNextNode: () => void;
+    selectPrevNode: () => void;
+}
+
+export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
+    root, config, onSelect, onMerge, onDelete, searchQuery = "", setSearchQuery, selectedNode
+}, ref) => {
     const [focusedPath, setFocusedPath] = useState<string | null>(null);
     const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
 
@@ -23,25 +36,10 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
         setExpandedPaths(next);
     };
 
-    // Global Key Listener for Tree Navigation
-    // We bind it to the document or a container ref.
-    // For simplicity, let's use useEffect to bind to document when this component is mounted.
-    // Ensure we don't conflict if multiple trees existed (but we only have one).
-
-    React.useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) {
-                // Prevent scrolling
-                if (['ArrowUp', 'ArrowDown'].includes(e.key)) e.preventDefault();
-                handleKeyNav(e);
-            }
-        };
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [expandedPaths, focusedPath, root, config]); // Re-bind when state changes to access latest
+    // Auto-Expand Logic: When root changes, expand all directories to match Legacy behavior
 
     // Auto-Expand Logic: When root changes, expand all directories to match Legacy behavior
-    React.useEffect(() => {
+    useEffect(() => {
         if (!root) return;
         const allPaths = new Set<string>();
         const traverse = (node: FileNode) => {
@@ -54,8 +52,30 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
         setExpandedPaths(allPaths);
     }, [root]);
 
+    // Sync focusedPath with external selectedNode
+    useEffect(() => {
+        if (selectedNode) {
+            setFocusedPath(selectedNode.path);
+        }
+    }, [selectedNode]);
 
-    const handleKeyNav = (e: KeyboardEvent) => {
+
+    const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        // Prevent focus stealing if clicking nested interactive elements?
+        // But we want the tree to focus.
+        e.currentTarget.focus();
+    };
+
+    const handleKeyNav = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            const agentView = document.querySelector('.agent-view-container') as HTMLElement;
+            if (agentView) agentView.focus();
+            return;
+        }
+
+        if (['ArrowUp', 'ArrowDown', ' '].includes(e.key)) e.preventDefault();
+
         // 1. Flatten visible nodes to list for Up/Down
         const visibleNodes = flattenVisibleNodes(root, expandedPaths, config);
         if (visibleNodes.length === 0) return;
@@ -67,10 +87,14 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
 
         if (e.key === 'ArrowDown') {
             const nextIndex = Math.min(currentIndex + 1, visibleNodes.length - 1);
-            setFocusedPath(visibleNodes[nextIndex].path);
+            const nextPath = visibleNodes[nextIndex].path;
+            setFocusedPath(nextPath);
+            scrollToPath(nextPath);
         } else if (e.key === 'ArrowUp') {
             const nextIndex = Math.max(currentIndex - 1, 0);
-            setFocusedPath(visibleNodes[nextIndex].path);
+            const nextPath = visibleNodes[nextIndex].path;
+            setFocusedPath(nextPath);
+            scrollToPath(nextPath);
         } else if (e.key === 'ArrowRight') {
             if (focusedPath) {
                 const node = visibleNodes.find(n => n.path === focusedPath);
@@ -85,17 +109,19 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
                     toggleExpand(node.path);
                 } else {
                     // Jump to parent?
-                    // Basic: just collapse if open.
-                    // Advanced: Go to parent path.
-                    // Let's implement Parent Jump later if needed.
                 }
             }
-        } else if (e.key === 'Enter') {
+        } else if (e.key === ' ' || e.key === 'Enter') {
             if (focusedPath) {
                 const node = visibleNodes.find(n => n.path === focusedPath);
                 if (node) {
                     if (node.type === 'directory') toggleExpand(node.path);
-                    else onSelect(node);
+                    else {
+                        // If file is already selected, maybe toggle close?
+                        // For now, always select. User asked for "Space closes file" -> if we can deselect.
+                        // Assuming onSelect handles it or we just re-select.
+                        onSelect(node);
+                    }
                 }
             }
         }
@@ -108,24 +134,68 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
 
         const traverse = (n: FileNode) => {
             if (filters[n.status] === false) return;
+            // Visible?
             list.push(n);
             if (n.type === 'directory' && expanded.has(n.path) && n.children) {
                 n.children.forEach(traverse);
             }
         };
-        // Root usually is the base, we want children of root?
-        // In legacy, we iterated children.
-        // My FolderTree renders `TreeColumn` with `[root]`.
-        // So Root IS the first item?
-        // Let's check FolderTree usage.
-        // It passes `nodes={[root]}`. So root is visible.
+        // Ensure root is processed
         traverse(node);
         return list;
     };
 
+    React.useImperativeHandle(ref, () => ({
+        selectNextNode: () => {
+            const visibleNodes = flattenVisibleNodes(root, expandedPaths, config);
+            if (visibleNodes.length === 0) return;
+            let currentIndex = -1;
+            if (focusedPath) currentIndex = visibleNodes.findIndex(n => n.path === focusedPath);
+
+            // If nothing focused, start at 0.
+            const nextIndex = currentIndex === -1 ? 0 : Math.min(currentIndex + 1, visibleNodes.length - 1);
+            const node = visibleNodes[nextIndex];
+            if (node) {
+                setFocusedPath(node.path);
+                if (node.type !== 'directory') onSelect(node);
+            }
+        },
+        selectPrevNode: () => {
+            const visibleNodes = flattenVisibleNodes(root, expandedPaths, config);
+            if (visibleNodes.length === 0) return;
+            let currentIndex = -1;
+            if (focusedPath) currentIndex = visibleNodes.findIndex(n => n.path === focusedPath);
+
+            const nextIndex = currentIndex <= 0 ? 0 : currentIndex - 1;
+            const node = visibleNodes[nextIndex];
+            if (node) {
+                setFocusedPath(node.path);
+                if (node.type !== 'directory') onSelect(node);
+            }
+        }
+    }));
+
+
+    const scrollToPath = (path: string) => {
+        setTimeout(() => {
+            const el = document.querySelector(`[data-node-path="${CSS.escape(path)}"]`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }, 0);
+    };
 
     return (
-        <div className="tree-container">
+        <div className="tree-container custom-scroll"
+            style={{ position: 'relative', outline: 'none', border: '2px solid transparent' }}
+            tabIndex={0}
+            onKeyDown={handleKeyNav}
+            onClick={handleContainerClick}
+            onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)'}
+            onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+        >
+            {/* Search Overlay Removed - Moved to Parent */}
+
             {config.viewOptions?.folderViewMode === 'unified' ? (
                 <div className="tree-column unified">
                     <TreeColumn
@@ -169,7 +239,8 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
             )}
         </div>
     );
-};
+});
+
 
 interface TreeColumnProps {
     nodes: FileNode[];
@@ -273,19 +344,19 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, side, expandedPaths, focusedP
     // Unified: uses node.name
 
     const handleExpand = (e: React.MouseEvent) => {
-        e.stopPropagation();
+        // Allow bubbling to focus container
         if (isDir) onToggle(node.path);
     };
 
     const handleSelect = (e: React.MouseEvent) => {
-        e.stopPropagation();
+        // Allow bubbling to focus container
         if (!isDir) actions.onSelect(node);
     };
 
     const isFocused = node.path === focusedPath;
 
     return (
-        <div className={`tree-item ${isFocused ? 'focused' : ''}`} data-status={node.status}>
+        <div className={`tree-item ${isFocused ? 'focused' : ''}`} data-status={node.status} data-node-path={node.path}>
             <div className={`tree-row ${isDir ? '' : 'file-row'} ${isFocused ? 'focused-row' : ''}`} onClick={isDir ? handleExpand : handleSelect}>
                 {isDir ? (
                     <span

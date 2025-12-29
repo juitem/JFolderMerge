@@ -83,8 +83,6 @@ export const MainLayout: React.FC<MainLayoutProps> = (props) => {
 
             {/* Filter Toolbar */}
             <FilterToolbar
-                searchQuery={props.searchQuery}
-                setSearchQuery={props.setSearchQuery}
                 excludeFolders={props.excludeFolders}
                 setExcludeFolders={props.setExcludeFolders}
                 excludeFiles={props.excludeFiles}

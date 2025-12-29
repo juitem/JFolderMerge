@@ -24,16 +24,20 @@ interface AgentViewProps {
     fullRightPath?: string;
     showSame?: boolean;
     onMerge?: (lines: string[], targetSide: 'left' | 'right', anchorLine: number, type: 'insert' | 'delete') => void;
+    onNextFile?: () => void;
+    onPrevFile?: () => void;
 }
 
 export interface AgentViewHandle {
-    scrollToChange: (type: 'added' | 'removed', direction: 'prev' | 'next') => void;
+    scrollToChange: (type: 'added' | 'removed' | 'any', direction: 'prev' | 'next') => void;
+    mergeActiveBlock: () => void;
 }
 
-export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(({ diff, showLineNumbers = true, fullRightPath, showSame = false, onMerge }, ref) => {
+export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(({ diff, showLineNumbers = true, fullRightPath, showSame = false, onMerge, onNextFile, onPrevFile }, ref) => {
     // We store expanded lines in a map: gapKey -> string[]
     const [expandedContent, setExpandedContent] = useState<Record<string, string[]>>({});
     const [loadingGaps, setLoadingGaps] = useState<Record<string, boolean>>({});
+    const [activeBlockIndex, setActiveBlockIndex] = useState<number | null>(null);
 
     // Reset expansion when diff changes
     useEffect(() => {
@@ -179,10 +183,10 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(({ di
     const containerRef = React.useRef<HTMLDivElement>(null);
 
     React.useImperativeHandle(ref, () => ({
-        scrollToChange: (type: 'added' | 'removed', direction: 'prev' | 'next') => {
+        scrollToChange: (type: 'added' | 'removed' | 'any', direction: 'prev' | 'next') => {
             if (!containerRef.current) return;
 
-            const selector = type === 'added' ? '.group-added' : '.group-removed';
+            const selector = type === 'any' ? '.diff-block-group' : (type === 'added' ? '.group-added' : '.group-removed');
             const elements = Array.from(containerRef.current.querySelectorAll(selector));
             if (elements.length === 0) return;
 
@@ -211,9 +215,112 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(({ di
 
             if (targetEl) {
                 targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Update Active State
+                const idx = (targetEl as HTMLElement).dataset.blockIndex;
+                if (idx !== undefined) setActiveBlockIndex(parseInt(idx, 10));
+            }
+        },
+        mergeActiveBlock: () => {
+            if (activeBlockIndex === null || !diff) return;
+
+            // Find block by index
+            // parsedItems isn't easily indexed by blockIndex directly if we skip gaps/lines
+            // But activeBlockIndex corresponds to the mapped index in parsedItems?
+            // Yes, we assign key={idx} and data-block-index={idx}
+            const item = parsedItems[activeBlockIndex];
+            if (!item || !('lines' in item)) return;
+
+            const block = item as DiffBlock;
+            const isRemoved = block.type === 'block-removed';
+
+            if (onMerge) {
+                const content = block.lines.map(l => l.content);
+                if (isRemoved) {
+                    const anchor = block.lines[0].rightLine || 0;
+                    onMerge(content, 'right', anchor, 'insert');
+                } else {
+                    const anchor = block.lines[0].leftLine || 0;
+                    onMerge(content, 'left', anchor, 'insert');
+                }
             }
         }
     }));
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        // Stop propagation to prevent global listeners (e.g. FolderTree) from intercepting
+        // But only if we handle the key? Or always?
+        // Let's propagate if we don't handle it, but for Arrows we handle.
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+            e.stopPropagation();
+        }
+
+        if (e.key === 'Escape' || e.key === 'Tab') {
+            e.preventDefault();
+            const treeContainer = document.querySelector('.tree-container') as HTMLElement;
+            treeContainer?.focus();
+            return;
+        }
+
+        if (e.key === 'ArrowDown') {
+            // Next Block
+            e.preventDefault();
+
+            // Find next block index
+            let nextIdx = -1;
+            for (let i = (activeBlockIndex !== null ? activeBlockIndex + 1 : 0); i < parsedItems.length; i++) {
+                if ('lines' in parsedItems[i] && (parsedItems[i] as any).type.startsWith('block-')) {
+                    nextIdx = i;
+                    break;
+                }
+            }
+            if (nextIdx !== -1) {
+                setActiveBlockIndex(nextIdx);
+                // Scroll to it
+                const el = containerRef.current?.querySelector(`[data-block-index='${nextIdx}']`);
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+
+            let prevIdx = -1;
+            for (let i = (activeBlockIndex !== null ? activeBlockIndex - 1 : parsedItems.length - 1); i >= 0; i--) {
+                if ('lines' in parsedItems[i] && (parsedItems[i] as any).type.startsWith('block-')) {
+                    prevIdx = i;
+                    break;
+                }
+            }
+            if (prevIdx !== -1) {
+                setActiveBlockIndex(prevIdx);
+                const el = containerRef.current?.querySelector(`[data-block-index='${prevIdx}']`);
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // Merge Shortcuts
+        if (activeBlockIndex !== null && onMerge) {
+            const item = parsedItems[activeBlockIndex];
+            if (item && 'lines' in item) {
+                const block = item as DiffBlock;
+                const isRemoved = block.type === 'block-removed';
+
+                if (e.key === 'ArrowRight' && e.shiftKey) {
+                    e.preventDefault();
+                    if (isRemoved) { // Red block -> Restores to right
+                        const content = block.lines.map(l => l.content);
+                        const anchor = block.lines[0].rightLine || 0;
+                        onMerge(content, 'right', anchor, 'insert');
+                    }
+                } else if (e.key === 'ArrowLeft' && e.shiftKey) {
+                    e.preventDefault();
+                    if (!isRemoved) { // Green block -> Apply to left
+                        const content = block.lines.map(l => l.content);
+                        const anchor = block.lines[0].leftLine || 0;
+                        onMerge(content, 'left', anchor, 'insert');
+                    }
+                }
+            }
+        }
+    };
 
     if (!diff) return <div className="p-4 text-gray-500">No Diff Data</div>;
 
@@ -231,12 +338,23 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(({ di
                     </div>
                 </>
             )}
-            <div className="agent-content" style={{ paddingLeft: showLineNumbers ? '8px' : '30px' }}>{line.content}</div>
+            <div className="agent-content" style={{ paddingLeft: '20px' }}>{line.content}</div>
         </div>
     );
 
+    const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        e.currentTarget.focus();
+    };
+
     return (
-        <div className="agent-view-container custom-scroll" ref={containerRef}>
+        <div className="agent-view-container custom-scroll" ref={containerRef}
+            style={{ padding: '10px', outline: 'none', border: '2px solid transparent' }}
+            tabIndex={0}
+            onKeyDown={handleKeyDown}
+            onClick={handleContainerClick}
+            onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)'}
+            onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+        >
             <div className="agent-diff-table">
                 {parsedItems.map((item, idx) => {
                     if ('lines' in item) {
@@ -244,9 +362,21 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(({ di
                         const block = item as DiffBlock;
                         const isRemoved = block.type === 'block-removed';
                         const blockClass = isRemoved ? 'group-removed' : 'group-added';
+                        const isActive = activeBlockIndex === idx;
 
                         return (
-                            <div key={idx} className={`diff-block-group ${blockClass}`} style={{ position: 'relative' }}>
+                            <div
+                                key={idx}
+                                data-block-index={idx}
+                                className={`diff-block-group ${blockClass} ${isActive ? 'active' : ''}`}
+                                style={{ position: 'relative', cursor: 'pointer' }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveBlockIndex(idx);
+                                    // Ensure container is focused so keyboard works
+                                    if (containerRef.current) containerRef.current.focus();
+                                }}
+                            >
                                 {block.lines.map((l, i) => renderLine(l, i))}
                                 <div className="merge-action-overlay" style={{
                                     position: 'absolute',
@@ -254,7 +384,9 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(({ di
                                     opacity: 0.6,
                                     transition: 'opacity 0.2s',
                                     top: '0px',
-                                    left: '1px'
+                                    left: showLineNumbers
+                                        ? (isRemoved ? '52px' : '108px')
+                                        : (isRemoved ? '2px' : '2px')
                                 }}
                                     onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
                                     onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
