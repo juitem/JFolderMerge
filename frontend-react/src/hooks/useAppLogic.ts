@@ -105,6 +105,13 @@ export const useAppLogic = () => {
     };
 
     const handleMerge = (node: FileNode, direction: 'left-to-right' | 'right-to-left') => {
+        const skipConfirm = config?.viewOptions?.confirmMerge === false;
+
+        if (skipConfirm) {
+            copyItem(node, direction, leftPath, rightPath).catch(e => showAlert("Merge Failed", e.message));
+            return;
+        }
+
         setConfirmState({
             isOpen: true,
             title: 'Confirm Merge',
@@ -120,6 +127,13 @@ export const useAppLogic = () => {
     };
 
     const handleDelete = (node: FileNode, side: 'left' | 'right') => {
+        const skipConfirm = config?.viewOptions?.confirmDelete === false;
+
+        if (skipConfirm) {
+            deleteItem(node, side, leftPath, rightPath).catch(e => showAlert("Delete Failed", e.message));
+            return;
+        }
+
         setConfirmState({
             isOpen: true,
             title: 'Confirm Delete',
@@ -206,6 +220,7 @@ export const useAppLogic = () => {
         openBrowse,
         handleBrowseSelect,
         handleHistorySelect,
-        handleSwap
+        handleSwap,
+        toggleViewOption: useConfig().toggleViewOption
     };
 };

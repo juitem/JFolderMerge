@@ -1,4 +1,4 @@
-import { Folder, FileText, Upload, Play, AlignJustify, Columns, Layout, FileCode } from 'lucide-react';
+import { Folder, FileText, Upload, Play, AlignJustify, Columns, Layout, FileCode, Bot, BookOpen, ListTree, ShieldCheck, ShieldAlert, Shield } from 'lucide-react';
 import { useConfig } from '../contexts/ConfigContext';
 import type { DiffMode } from '../types';
 
@@ -23,12 +23,22 @@ export function FilterToolbar({
     onBrowse, onCompare, loading,
     diffMode, setDiffMode
 }: FilterToolbarProps) {
-    const { config, toggleFilter, toggleDiffFilter } = useConfig();
+    const { config, toggleFilter, toggleDiffFilter, setViewOption } = useConfig();
+    const folderViewMode = config?.viewOptions?.folderViewMode || 'split';
 
     if (!config) return null;
 
     return (
         <div className="toolbar compact-toolbar">
+            <div className="filter-group" style={{ gap: '2px' }}>
+                <button className={`icon-btn ${folderViewMode === 'split' ? 'active' : ''}`} onClick={() => setViewOption('folderViewMode', 'split')} title="Split Tree View">
+                    <BookOpen size={16} />
+                </button>
+                <button className={`icon-btn ${folderViewMode === 'unified' ? 'active' : ''}`} onClick={() => setViewOption('folderViewMode', 'unified')} title="Unified Tree View">
+                    <ListTree size={16} />
+                </button>
+            </div>
+            <div className="separator"></div>
             <div className="filter-group">
                 <Folder size={16} className="filter-icon" />
                 <label className="checkbox-container" title="Show Added">
@@ -82,6 +92,9 @@ export function FilterToolbar({
                 </button>
                 <button className={`icon-btn ${diffMode === 'combined' ? 'active' : ''}`} onClick={() => setDiffMode('combined')} title="Combined View">
                     <Layout size={16} />
+                </button>
+                <button className={`icon-btn ${diffMode === 'agent' ? 'active' : ''}`} onClick={() => setDiffMode('agent')} title="Agent View">
+                    <Bot size={16} />
                 </button>
                 <button className={`icon-btn ${diffMode === 'raw' ? 'active' : ''}`} onClick={() => setDiffMode('raw')} title="Raw Content View">
                     <FileCode size={16} />
@@ -138,6 +151,21 @@ export function FilterToolbar({
                         <Upload size={14} />
                     </button>
                 </div>
+            </div>
+
+            <div className="separator"></div>
+
+            <div className="filter-group" style={{ gap: '2px' }}>
+                <button className={`icon-btn ${config.viewOptions?.confirmMerge !== false ? 'active' : ''}`}
+                    onClick={() => setViewOption('confirmMerge', config.viewOptions?.confirmMerge === false)}
+                    title={config.viewOptions?.confirmMerge !== false ? "Merge Confirmation: ON" : "Merge Confirmation: OFF"}>
+                    <ShieldCheck size={16} />
+                </button>
+                <button className={`icon-btn ${config.viewOptions?.confirmDelete !== false ? 'active' : ''}`}
+                    onClick={() => setViewOption('confirmDelete', config.viewOptions?.confirmDelete === false)}
+                    title={config.viewOptions?.confirmDelete !== false ? "Delete Confirmation: ON" : "Delete Confirmation: OFF"}>
+                    <ShieldAlert size={16} />
+                </button>
             </div>
 
             <button className="primary-btn compare-btn" onClick={onCompare} disabled={loading} style={{ marginLeft: 'auto' }}>

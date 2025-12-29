@@ -4,6 +4,7 @@ import type { DiffResult, DiffMode, Config } from '../types';
 import { UnifiedView } from './diff/UnifiedView';
 import { SideBySideView } from './diff/SideBySideView';
 import { RawView } from './diff/RawView';
+import { AgentView } from './diff/AgentView';
 
 interface DiffViewerProps {
     leftPathBase: string;
@@ -144,6 +145,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
                         rightRows={diffData.right_rows}
                         filters={config.diffFilters}
                         onMerge={handleLineMerge}
+                        showLineNumbers={!!config.viewOptions?.showLineNumbers}
                     />
                 )}
                 {mode === 'raw' && rawContent && (
@@ -160,9 +162,18 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
                                 rightRows={diffData.right_rows}
                                 filters={config.diffFilters}
                                 onMerge={handleLineMerge}
+                                showLineNumbers={!!config.viewOptions?.showLineNumbers}
                             />
                         </div>
                     </div>
+                )}
+                {mode === 'agent' && diffData && (
+                    <AgentView
+                        diff={diffData.diff}
+                        showLineNumbers={!!config.viewOptions?.showLineNumbers}
+                        fullRightPath={rightPathBase + '/' + relPath}
+                        showSame={!!config.diffFilters?.same}
+                    />
                 )}
 
             </div>

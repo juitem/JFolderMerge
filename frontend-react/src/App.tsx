@@ -53,6 +53,7 @@ function App() {
           setDiffMode={logic.setDiffMode}
           isExpanded={logic.isExpanded}
           setIsExpanded={logic.setIsExpanded}
+          onToggleViewOption={logic.toggleViewOption}
         />
       </MainLayout>
 

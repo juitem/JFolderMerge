@@ -52,7 +52,10 @@ export const api = {
     },
 
     async fetchDiff(leftPath: string, rightPath: string, mode: DiffMode | 'both'): Promise<DiffResult> {
-        const backendMode = mode === 'both' ? 'side-by-side' : mode;
+        let backendMode = mode;
+        if (mode === 'both') backendMode = 'side-by-side';
+        if (mode === 'agent') backendMode = 'unified'; // Backend doesn't know agent, use unified
+
         return request<DiffResult>('/api/diff', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

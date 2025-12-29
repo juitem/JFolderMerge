@@ -5,6 +5,8 @@ import { HistoryModal } from '../HistoryModal';
 import ConfirmModal from '../ConfirmModal';
 import type { Config } from '../../types';
 
+import { useConfig } from '../../contexts/ConfigContext';
+
 interface AppModalsProps {
     config: Config | null;
     // Browse State
@@ -39,6 +41,16 @@ interface AppModalsProps {
 }
 
 export const AppModals: React.FC<AppModalsProps> = (props) => {
+    const { setViewOption } = useConfig();
+    const [doNotAskAgain, setDoNotAskAgain] = React.useState(false);
+
+    // Reset checkbox when modal opens
+    React.useEffect(() => {
+        if (props.confirmState.isOpen) {
+            setDoNotAskAgain(false);
+        }
+    }, [props.confirmState.isOpen]);
+
     return (
         <>
             <BrowseModal
@@ -77,10 +89,23 @@ export const AppModals: React.FC<AppModalsProps> = (props) => {
                 message={props.confirmState.message}
                 onConfirm={() => {
                     if (props.confirmState.action) props.confirmState.action();
+
+                    // Handle Do Not Ask Again Logic
+                    if (doNotAskAgain && !props.confirmState.isAlert) {
+                        if (props.confirmState.title.includes('Merge')) {
+                            setViewOption('confirmMerge', false);
+                        } else if (props.confirmState.title.includes('Delete')) {
+                            setViewOption('confirmDelete', false);
+                        }
+                    }
+
                     props.setConfirmState((prev: any) => ({ ...prev, isOpen: false }));
                 }}
                 onCancel={() => props.setConfirmState((prev: any) => ({ ...prev, isOpen: false }))}
                 isAlert={props.confirmState.isAlert}
+                showDoNotAskAgain={!props.confirmState.isAlert && (props.confirmState.title.includes('Merge') || props.confirmState.title.includes('Delete'))}
+                doNotAskAgainChecked={doNotAskAgain}
+                onDoNotAskAgainChange={setDoNotAskAgain}
             />
 
             {props.aboutOpen && (

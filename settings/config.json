@@ -22,7 +22,12 @@
     "autoExpand": false,
     "useExternal": false,
     "currentDiffMode": "side-by-side",
-    "diffMode": "side-by-side"
+    "diffMode": "agent",
+    "folderViewMode": "unified",
+    "showLineNumbers": true,
+    "showFullContext": false,
+    "confirmMerge": true,
+    "confirmDelete": true
   },
   "savedExcludes": {
     "folders": ".git, .tmp, __pycache__, .vscode, .idea, .venv, venv, ROOTFS, jfoldermerge-vscode, node_modules, dist",

@@ -1,6 +1,6 @@
 import React from 'react';
 
-export const SideBySideView: React.FC<{ leftRows?: any[], rightRows?: any[], filters?: any, onMerge: any }> = ({ leftRows, rightRows, filters, onMerge }) => {
+export const SideBySideView: React.FC<{ leftRows?: any[], rightRows?: any[], filters?: any, onMerge: any, showLineNumbers?: boolean }> = ({ leftRows, rightRows, filters, onMerge, showLineNumbers }) => {
     if (!leftRows || !rightRows) return <div>No Split Data</div>;
 
     // Filter Logic: Skip rows where BOTH sides are hidden by filter
@@ -45,10 +45,10 @@ export const SideBySideView: React.FC<{ leftRows?: any[], rightRows?: any[], fil
         rows.push(
             <div key={i} className="diff-row-wrapper" style={{ display: 'flex', minHeight: '24px' }}>
                 <div className="diff-col left" style={{ flex: '1 1 50%', width: '50%', maxWidth: '50%' }}>
-                    <DiffRow row={l} side="left" otherRow={r} filters={filters} onMerge={onMerge} index={i} forceRender={true} />
+                    <DiffRow row={l} side="left" otherRow={r} filters={filters} onMerge={onMerge} index={i} forceRender={true} showLineNumber={showLineNumbers} />
                 </div>
                 <div className="diff-col right" style={{ flex: '1 1 50%', width: '50%', maxWidth: '50%' }}>
-                    <DiffRow row={r} side="right" otherRow={l} filters={filters} onMerge={onMerge} index={i} forceRender={true} />
+                    <DiffRow row={r} side="right" otherRow={l} filters={filters} onMerge={onMerge} index={i} forceRender={true} showLineNumber={showLineNumbers} />
                 </div>
             </div>
         );
@@ -62,7 +62,7 @@ export const SideBySideView: React.FC<{ leftRows?: any[], rightRows?: any[], fil
     )
 }
 
-const DiffRow: React.FC<{ row: any, side: 'left' | 'right', otherRow: any, filters?: any, onMerge: any, index: number, forceRender?: boolean }> = ({ row, side, otherRow, onMerge, index }) => {
+const DiffRow: React.FC<{ row: any, side: 'left' | 'right', otherRow: any, filters?: any, onMerge: any, index: number, forceRender?: boolean, showLineNumber?: boolean }> = ({ row, side, otherRow, onMerge, index, showLineNumber }) => {
     // Merge Logic Determination
     // Case 1: I have content. Target is Empty (Insert) or Different (Replace).
 
@@ -98,6 +98,20 @@ const DiffRow: React.FC<{ row: any, side: 'left' | 'right', otherRow: any, filte
 
     return (
         <div className={`diff-line ${row.type}`} data-idx={index}>
+            {showLineNumber && (
+                <span className="line-number" style={{
+                    display: 'inline-block',
+                    width: '30px',
+                    textAlign: 'right',
+                    marginRight: '8px',
+                    color: '#666',
+                    fontSize: '0.8rem',
+                    userSelect: 'none',
+                    opacity: 0.7
+                }}>
+                    {row.line || ''}
+                </span>
+            )}
             <div className="diff-actions">
                 {hasContent && (
                     <button className="merge-btn small" title={`Copy to ${side === 'left' ? 'Right' : 'Left'}`} onClick={() => {

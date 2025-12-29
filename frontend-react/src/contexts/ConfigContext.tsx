@@ -11,6 +11,8 @@ interface ConfigContextType {
     saveConfig: (newConfig: Config) => Promise<void>;
     toggleFilter: (key: string) => void;
     toggleDiffFilter: (key: string) => void;
+    toggleViewOption: (key: string) => void;
+    setViewOption: (key: string, value: any) => void;
 }
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
@@ -56,9 +58,22 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         const newFilters = { ...currentFilters, [key]: !currentFilters[key] };
         setConfig({ ...config, diffFilters: newFilters });
     };
+    const toggleViewOption = (key: string) => {
+        if (!config) return;
+        const currentOptions = config.viewOptions || {};
+        const newOptions = { ...currentOptions, [key]: !currentOptions[key] };
+        setConfig({ ...config, viewOptions: newOptions });
+    };
+
+    const setViewOption = (key: string, value: any) => {
+        if (!config) return;
+        const currentOptions = config.viewOptions || {};
+        const newOptions = { ...currentOptions, [key]: value };
+        setConfig({ ...config, viewOptions: newOptions });
+    };
 
     return (
-        <ConfigContext.Provider value={{ config, setConfig, loading, error, saveConfig, toggleFilter, toggleDiffFilter }}>
+        <ConfigContext.Provider value={{ config, setConfig, loading, error, saveConfig, toggleFilter, toggleDiffFilter, toggleViewOption, setViewOption }}>
             {children}
         </ConfigContext.Provider>
     );

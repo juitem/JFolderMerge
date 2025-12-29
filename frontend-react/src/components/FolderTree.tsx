@@ -126,13 +126,11 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
 
     return (
         <div className="tree-container">
-
-
-            <div className="split-tree-view">
-                <div id="tree-left" className="tree-column">
+            {config.viewOptions?.folderViewMode === 'unified' ? (
+                <div className="tree-column unified">
                     <TreeColumn
                         nodes={[root]}
-                        side="left"
+                        side="unified"
                         expandedPaths={expandedPaths}
                         focusedPath={focusedPath}
                         onToggle={toggleExpand}
@@ -141,26 +139,41 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
                         actions={{ onSelect, onMerge, onDelete }}
                     />
                 </div>
-                <div id="tree-right" className="tree-column">
-                    <TreeColumn
-                        nodes={[root]}
-                        side="right"
-                        expandedPaths={expandedPaths}
-                        focusedPath={focusedPath}
-                        onToggle={toggleExpand}
-                        config={config}
-                        searchQuery={searchQuery}
-                        actions={{ onSelect, onMerge, onDelete }}
-                    />
+            ) : (
+                <div className="split-tree-view">
+                    <div id="tree-left" className="tree-column">
+                        <TreeColumn
+                            nodes={[root]}
+                            side="left"
+                            expandedPaths={expandedPaths}
+                            focusedPath={focusedPath}
+                            onToggle={toggleExpand}
+                            config={config}
+                            searchQuery={searchQuery}
+                            actions={{ onSelect, onMerge, onDelete }}
+                        />
+                    </div>
+                    <div id="tree-right" className="tree-column">
+                        <TreeColumn
+                            nodes={[root]}
+                            side="right"
+                            expandedPaths={expandedPaths}
+                            focusedPath={focusedPath}
+                            onToggle={toggleExpand}
+                            config={config}
+                            searchQuery={searchQuery}
+                            actions={{ onSelect, onMerge, onDelete }}
+                        />
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
 
 interface TreeColumnProps {
     nodes: FileNode[];
-    side: 'left' | 'right';
+    side: 'left' | 'right' | 'unified';
     expandedPaths: Set<string>;
     focusedPath: string | null;
     onToggle: (path: string) => void;
@@ -173,47 +186,28 @@ interface TreeColumnProps {
     };
 }
 
-const TreeColumn: React.FC<TreeColumnProps> = ({ nodes, side, expandedPaths, focusedPath, onToggle, config, searchQuery, actions }) => {
-    if (!nodes) return null;
+const TreeColumn: React.FC<TreeColumnProps> = (props) => {
+    if (!props.nodes) return null;
 
     return (
         <>
-            {nodes.map((node, idx) => (
+            {props.nodes.map((node, idx) => (
                 <TreeNode
                     key={node.path + idx}
                     node={node}
-                    side={side}
-                    expandedPaths={expandedPaths}
-                    focusedPath={focusedPath}
-                    onToggle={onToggle}
-                    config={config}
-                    searchQuery={searchQuery}
-                    actions={actions}
+                    {...props}
                 />
             ))}
         </>
     );
 }
 
-interface TreeNodeProps {
+interface TreeNodeProps extends TreeColumnProps {
     node: FileNode;
-    side: 'left' | 'right';
-    expandedPaths: Set<string>;
-    focusedPath: string | null;
-    onToggle: (path: string) => void;
-    config: Config;
-    searchQuery?: string;
-    actions: {
-        onSelect: (node: FileNode) => void;
-        onMerge: (node: FileNode, dir: 'left-to-right' | 'right-to-left') => void;
-        onDelete: (node: FileNode, side: 'left' | 'right') => void;
-    };
 }
 
 const isNodeVisible = (node: FileNode, filters: Record<string, any>): boolean => {
-    // 1. If self is allowed, visible.
     if (filters[node.status] !== false) return true;
-    // 2. If directory, check descendants
     if (node.type === 'directory' && node.children) {
         return node.children.some(child => isNodeVisible(child, filters));
     }
@@ -224,27 +218,16 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, side, expandedPaths, focusedP
 
     const filters = config.folderFilters || { same: true, modified: true, added: true, removed: true };
 
-    // Check visibility recursively
     if (!isNodeVisible(node, filters)) {
-        return null; // Hidden by filter AND no visible children
+        return null;
     }
 
     const isExpanded = expandedPaths.has(node.path);
     const isDir = node.type === 'directory';
 
-    // Search Logic:
-    // If query exists:
-    // - Show if NAME matches query
-    // - OR (if Dir) if any visible children match query
-
-    // We need to know if we should render.
-    // This is recursive. If we are a leaf (file), check match.
-    // If directory, check self match OR children match.
-    // Optimization: This check is expensive on every render if not memoized.
-
     const matchesSearch = (n: FileNode, query: string): boolean => {
         if (!query) return true;
-        const name = (side === 'left' ? (n.left_name || n.name) : (n.right_name || n.name)).toLowerCase();
+        const name = (side === 'left' ? (n.left_name || n.name) : (side === 'right' ? (n.right_name || n.name) : n.name)).toLowerCase();
         if (name.includes(query.toLowerCase())) return true;
         if (n.children) {
             return n.children.some(child => matchesSearch(child, query));
@@ -253,13 +236,14 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, side, expandedPaths, focusedP
     };
 
     if (searchQuery && !matchesSearch(node, searchQuery)) {
-        return null; // Hidden by search
+        return null;
     }
 
-    // Alignment Logic
+    // Alignment Logic (Only for Split View)
     let isSpacer = false;
     if (side === 'left' && node.status === 'added') isSpacer = true;
     if (side === 'right' && node.status === 'removed') isSpacer = true;
+    // Unified view has no spacers
 
     if (isSpacer) {
         return (
@@ -283,7 +267,10 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, side, expandedPaths, focusedP
     }
 
     // Content Row
-    const fileName = side === 'left' ? (node.left_name || node.name) : (node.right_name || node.name);
+    let fileName = node.name;
+    if (side === 'left') fileName = node.left_name || node.name;
+    if (side === 'right') fileName = node.right_name || node.name;
+    // Unified: uses node.name
 
     const handleExpand = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -318,23 +305,66 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, side, expandedPaths, focusedP
                 )}
 
                 <div className="merge-actions">
-                    {(node.status === 'modified' || (node.status === 'added' && side === 'right') || (node.status === 'removed' && side === 'left')) && (
+                    {/* Unified Actions */}
+                    {side === 'unified' && (
                         <>
-                            <button className="merge-btn" onClick={(e) => {
-                                e.stopPropagation();
-                                const direction = side === 'left' ? 'left-to-right' : 'right-to-left';
-                                actions.onMerge(node, direction);
-                            }} title={side === 'left' ? "Copy to Right" : "Copy to Left"}>
-                                {side === 'left' ? '→' : '←'}
-                            </button>
-                            {/* Trash Button */}
-                            <button className="merge-btn delete-btn" onClick={(e) => {
-                                e.stopPropagation();
-                                actions.onDelete(node, side);
-                            }} title="Delete Item">
-                                🗑️
-                            </button>
+                            {/* Left Side Actions: [Trash Left] [->] */}
+                            {(node.status === 'modified' || node.status === 'removed') && (
+                                <>
+                                    <button className="merge-btn delete-btn" onClick={(e) => {
+                                        e.stopPropagation();
+                                        actions.onDelete(node, 'left');
+                                    }} title="Delete from Left">
+                                        🗑️
+                                    </button>
+                                    <button className="merge-btn" onClick={(e) => {
+                                        e.stopPropagation();
+                                        actions.onMerge(node, 'left-to-right');
+                                    }} title="Copy Left to Right">
+                                        →
+                                    </button>
+                                </>
+                            )}
+
+                            {/* Right Side Actions: [<-] [Trash Right] */}
+                            {(node.status === 'modified' || node.status === 'added') && (
+                                <>
+                                    <button className="merge-btn" onClick={(e) => {
+                                        e.stopPropagation();
+                                        actions.onMerge(node, 'right-to-left');
+                                    }} title="Copy Right to Left">
+                                        ←
+                                    </button>
+                                    <button className="merge-btn delete-btn" onClick={(e) => {
+                                        e.stopPropagation();
+                                        actions.onDelete(node, 'right');
+                                    }} title="Delete from Right">
+                                        🗑️
+                                    </button>
+                                </>
+                            )}
                         </>
+                    )}
+
+                    {/* Split View Actions */}
+                    {side !== 'unified' && (
+                        (node.status === 'modified' || (node.status === 'added' && side === 'right') || (node.status === 'removed' && side === 'left')) && (
+                            <>
+                                <button className="merge-btn" onClick={(e) => {
+                                    e.stopPropagation();
+                                    const direction = side === 'left' ? 'left-to-right' : 'right-to-left';
+                                    actions.onMerge(node, direction);
+                                }} title={side === 'left' ? "Copy to Right" : "Copy to Left"}>
+                                    {side === 'left' ? '→' : '←'}
+                                </button>
+                                <button className="merge-btn delete-btn" onClick={(e) => {
+                                    e.stopPropagation();
+                                    actions.onDelete(node, side);
+                                }} title="Delete Item">
+                                    🗑️
+                                </button>
+                            </>
+                        )
                     )}
                 </div>
             </div>

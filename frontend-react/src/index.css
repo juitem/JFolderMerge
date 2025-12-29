@@ -50,10 +50,10 @@ body {
     height: 100vh;
     /* Explicit viewport height to prevent page scroll */
     width: 100%;
-    padding: 20px;
+    padding: 1px 16px;
     box-sizing: border-box;
     /* Crucial */
-    gap: 16px;
+    gap: 0;
 }
 
 /* Glass Panels */
@@ -75,7 +75,7 @@ h3 {
 
 /* Header */
 .app-header {
-    height: 60px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -119,8 +119,8 @@ h3 {
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 12px 20px;
-    margin: 0 20px;
+    padding: 4px 20px;
+    margin: 0 16px;
     /* Aligned with main view */
     border-top: none;
     /* Attached to header if needed? No, separate panel. */
@@ -256,13 +256,14 @@ h3 {
 
 /* Toolbar */
 .toolbar {
-    padding: 12px 24px;
+    padding: 8px 16px;
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 16px;
     flex-wrap: wrap;
     background: rgba(0, 0, 0, 0.1);
     border-bottom: 1px solid var(--border-color);
+    margin-bottom: 0;
 }
 
 .toolbar.compact-toolbar {
@@ -340,10 +341,10 @@ h3 {
 .tree-row {
     display: flex;
     align-items: center;
-    padding: 6px 16px;
+    padding: 4px 16px;
     cursor: pointer;
     border-bottom: 1px solid rgba(255, 255, 255, 0.015);
-    height: 36px;
+    height: 28px;
     box-sizing: border-box;
 }
 
@@ -505,12 +506,15 @@ h3 {
     font-size: 13px;
     font-weight: 800;
     line-height: 1;
+    color: #555;
+    /* Default dim color */
 }
 
 .checkmark:after {
     content: "";
     /* Default updated by flags */
-    transform: scale(0);
+    transform: scale(1);
+    /* Always visible */
     transition: transform 0.2s;
 }
 
@@ -540,6 +544,11 @@ h3 {
 
 .checkmark.same:after {
     content: '=';
+}
+
+.checkmark.generic:after {
+    content: '✔';
+    font-size: 11px;
 }
 
 /* Specific filter colors */
@@ -825,4 +834,152 @@ h3 {
     background-color: rgba(239, 68, 68, 0.4);
     border-radius: 2px;
     text-decoration: line-through;
+}
+
+/* Agent View Styles */
+.agent-view-container {
+    flex: 1;
+    overflow: auto;
+    padding: 24px;
+    min-height: 0;
+}
+
+.agent-diff-block {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #e2e8f0;
+}
+
+.agent-diff-line {
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.agent-diff-line.added {
+    color: #4ade80;
+    /* Brighter Green */
+}
+
+.agent-diff-line.removed {
+    color: #f87171;
+    /* Brighter Red */
+}
+
+.agent-diff-line.header {
+    color: #60a5fa;
+    /* Blue */
+    margin: 8px 0;
+    font-weight: 600;
+    opacity: 0.9;
+}
+
+/* Enhanced Agent View Styles (Source Control Style) */
+.agent-diff-table {
+    display: flex;
+    flex-direction: column;
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    font-size: 13px;
+    line-height: 20px;
+    width: 100%;
+}
+
+.agent-diff-row {
+    display: flex;
+    width: 100%;
+}
+
+/* Background Colors */
+.agent-diff-row.added {
+    background-color: rgba(46, 160, 67, 0.15);
+    /* VSCode / GitHub Green */
+}
+
+.agent-diff-row.removed {
+    background-color: rgba(248, 81, 73, 0.15);
+    /* VSCode / GitHub Red */
+}
+
+.agent-diff-row.header {
+    background-color: rgba(56, 139, 253, 0.1);
+    color: #79c0ff;
+    border-top: 1px solid #30363d;
+    border-bottom: 1px solid #30363d;
+    padding: 4px 0;
+}
+
+/* Gutters (Line Numbers) */
+.agent-gutter {
+    width: 40px;
+    min-width: 40px;
+    text-align: right;
+    padding: 0 8px;
+    color: #6e7681;
+    user-select: none;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.noselect {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Content */
+.agent-content {
+    flex: 1;
+    padding-left: 8px;
+    /* Padding from gutter */
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: #e6edf3;
+}
+
+/* Text Colors (for added/removed text explicitly if needed, but background usually suffices) */
+/* .agent-diff-row.added .agent-content { color: ... } */
+
+
+/* Gap & Expansion Styles */
+.agent-diff-row.gap {
+    background-color: rgba(255, 255, 255, 0.08);
+    /* Brighter gap background */
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.agent-diff-row.gap:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+    /* Blue tint on hover */
+}
+
+.agent-gap-bar {
+    width: 100%;
+    text-align: center;
+    padding: 6px;
+    font-size: 0.8rem;
+    color: #6e7681;
+    user-select: none;
+}
+
+.agent-diff-row.expanded {
+    background-color: rgba(255, 255, 255, 0.02);
+    /* Slightly lighter for expanded context */
+}
+
+
+/* Unified Tree View */
+.tree-column.unified {
+    width: 100%;
+}
+
+.tree-column.unified .tree-item.focused>.tree-row {
+    background-color: #37373d;
+}
+
+.tree-column.unified .tree-row:hover {
+    background-color: #2a2d2e;
 }
