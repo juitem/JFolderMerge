@@ -4,9 +4,7 @@ import { Workspace } from './components/Workspace/Workspace';
 import { AppModals } from './components/Modals/AppModals';
 
 function App() {
-  console.log("App.tsx: Render Start");
   const logic = useAppLogic();
-  console.log("App.tsx: Hook finished", logic);
 
   if (logic.configError) return <div className="error-banner center-screen">{logic.configError}</div>;
   if (!logic.config && logic.configLoading) return <div className="loading center-screen">Loading Config...</div>;

@@ -2,16 +2,36 @@
   {
     "left_path": "/Users/juitem/Docker/ContainerFolder/JF",
     "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
-    "timestamp": "2025-12-28T22:22:03.640057"
+    "timestamp": "2025-12-29T22:14:16.621310"
   },
   {
-    "left_path": "test/A",
-    "right_path": "test/B",
-    "timestamp": "2025-12-28T21:27:52.645813"
+    "left_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/test/A",
+    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/test/B",
+    "timestamp": "2025-12-29T00:53:13.043681"
+  },
+  {
+    "left_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/frontend-react/src/Users/juitem/Docker/ContainerFolder/FolderComp/test/A",
+    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/test/B",
+    "timestamp": "2025-12-29T00:50:43.102186"
   },
   {
     "left_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
     "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
-    "timestamp": "2025-12-28T18:24:26.863890"
+    "timestamp": "2025-12-29T00:43:55.718226"
+  },
+  {
+    "left_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/frontend-react/Users/juitem/Docker/ContainerFolder/JF",
+    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
+    "timestamp": "2025-12-29T00:42:34.442109"
+  },
+  {
+    "left_path": "test/A",
+    "right_path": "test/B",
+    "timestamp": "2025-12-29T00:36:15.513873"
+  },
+  {
+    "left_path": "../test/A",
+    "right_path": "../test/B",
+    "timestamp": "2025-12-29T00:33:48.009809"
   }
 ]
