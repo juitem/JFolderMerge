@@ -217,7 +217,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                         <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
                             <div
                                 className="agent-apply-icon-box"
-                                style={{ width: 18, height: 18, cursor: 'pointer', color: 'white' }}
+                                style={{ width: 16, height: 16, cursor: 'pointer', color: 'white' }}
                                 title={`Revert ${activeNode.name} (Overwrite Agent with User version)`}
                                 onClick={() => props.onMerge(activeNode, 'left-to-right')}
                             >
@@ -225,7 +225,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                             </div>
                             <div
                                 className="agent-apply-icon-box"
-                                style={{ width: 18, height: 18, cursor: 'pointer', color: 'white' }}
+                                style={{ width: 16, height: 16, cursor: 'pointer', color: 'white' }}
                                 title={`Accept ${activeNode.name} (Merge Agent changes to User file)`}
                                 onClick={() => props.onMerge(activeNode, 'right-to-left')}
                             >

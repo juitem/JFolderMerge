@@ -183,7 +183,7 @@ const DiffRow: React.FC<{
                     <button className={`merge-btn small ${side === 'left' ? 'to-right' : 'to-left'}`} title={`Merge Empty to ${side === 'left' ? 'Right' : 'Left'} (Delete)`} onClick={() => {
                         onMerge("", side === 'left' ? 'right' : 'left', otherRow.line, 'delete', index);
                     }}>
-                        <Trash2 size={12} />
+                        <Trash2 size={12} strokeWidth={3} />
                     </button>
                 )}
             </div>
