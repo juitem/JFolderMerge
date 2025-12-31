@@ -1,38 +1,74 @@
-import { Folder, FileText, Upload, Play, AlignJustify, Columns, Layout, FileCode, Bot, BookOpen, ListTree } from 'lucide-react';
+import React from 'react';
+import { Folder, FileText, Play, BookOpen, ListTree, AlignJustify, PanelRight, ChevronLeft, ChevronRight, ShieldCheck, ShieldAlert, Maximize, Minimize } from 'lucide-react';
 import { useConfig } from '../contexts/ConfigContext';
 import type { DiffMode } from '../types';
 
 interface FilterToolbarProps {
-    excludeFolders: string;
-    setExcludeFolders: (s: string) => void;
-    excludeFiles: string;
-    setExcludeFiles: (s: string) => void;
-    onBrowse: (target: 'import-exclude-folders' | 'import-exclude-files') => void;
     onCompare: () => void;
     loading: boolean;
     diffMode: DiffMode;
     setDiffMode: (mode: DiffMode) => void;
+    onToggleFileView?: () => void;
+    onAdjustWidth?: (delta: number) => void;
 }
 
 export function FilterToolbar({
-    excludeFolders, setExcludeFolders,
-    excludeFiles, setExcludeFiles,
-    onBrowse, onCompare, loading,
-    diffMode, setDiffMode
+    onCompare, loading,
+    // diffMode, setDiffMode
+    onToggleFileView,
+    onAdjustWidth
 }: FilterToolbarProps) {
     const { config, toggleFilter, toggleDiffFilter, setViewOption } = useConfig();
     const folderViewMode = config?.viewOptions?.folderViewMode || 'split';
+
+
+    const [isFullScreen, setIsFullScreen] = React.useState(!!document.fullscreenElement);
+
+    const toggleFullScreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+            setIsFullScreen(true);
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+                setIsFullScreen(false);
+            }
+        }
+    };
+
+    React.useEffect(() => {
+        const handleChange = () => setIsFullScreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', handleChange);
+        return () => document.removeEventListener('fullscreenchange', handleChange);
+    }, []);
 
     if (!config) return null;
 
     return (
         <div className="toolbar compact-toolbar">
             <div className="filter-group" style={{ gap: '2px' }}>
+                <button className={`icon-btn ${isFullScreen ? 'active' : ''}`} onClick={toggleFullScreen} title={isFullScreen ? "Exit Full Screen" : "Enter Full Screen"}>
+                    {isFullScreen ? <Minimize size={16} /> : <Maximize size={16} />}
+                </button>
+                <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
                 <button className={`icon-btn ${folderViewMode === 'split' ? 'active' : ''}`} onClick={() => setViewOption('folderViewMode', 'split')} title="Split Tree View">
                     <BookOpen size={16} />
                 </button>
                 <button className={`icon-btn ${folderViewMode === 'unified' ? 'active' : ''}`} onClick={() => setViewOption('folderViewMode', 'unified')} title="Unified Tree View">
                     <ListTree size={16} />
+                </button>
+                <button className={`icon-btn ${folderViewMode === 'flat' ? 'active' : ''}`} onClick={() => setViewOption('folderViewMode', 'flat')} title="Flat Tree View (No Indent)">
+                    <AlignJustify size={16} style={{ transform: 'rotate(90deg)' }} />
+                </button>
+                <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
+                <button className="icon-btn" onClick={onToggleFileView} title="Toggle File View">
+                    <PanelRight size={16} />
+                </button>
+                <button className="icon-btn" onClick={() => onAdjustWidth?.(5)} title="Shrink File View (Widen Tree)">
+                    <ChevronRight size={16} />
+                </button>
+                <button className="icon-btn" onClick={() => onAdjustWidth?.(-5)} title="Expand File View (Shrink Tree)">
+                    <ChevronLeft size={16} />
                 </button>
             </div>
             <div className="separator"></div>
@@ -80,76 +116,30 @@ export function FilterToolbar({
 
             <div className="separator"></div>
 
-            <div className="filter-group" style={{ gap: '2px' }}>
-                <button className={`icon-btn ${diffMode === 'unified' ? 'active' : ''}`} onClick={() => setDiffMode('unified')} title="Unified View">
-                    <AlignJustify size={16} />
-                </button>
-                <button className={`icon-btn ${diffMode === 'side-by-side' ? 'active' : ''}`} onClick={() => setDiffMode('side-by-side')} title="Side-by-Side View">
-                    <Columns size={16} />
-                </button>
-                <button className={`icon-btn ${diffMode === 'combined' ? 'active' : ''}`} onClick={() => setDiffMode('combined')} title="Combined View">
-                    <Layout size={16} />
-                </button>
-                <button className={`icon-btn ${diffMode === 'agent' ? 'active' : ''}`} onClick={() => setDiffMode('agent')} title="Agent View">
-                    <Bot size={16} />
-                </button>
-                <button className={`icon-btn ${diffMode === 'raw' ? 'active' : ''}`} onClick={() => setDiffMode('raw')} title="Raw Content View">
-                    <FileCode size={16} />
-                </button>
-            </div>
 
 
 
-            <div className="separator"></div>
 
-            <div className="excludes-box" style={{ display: 'flex', gap: '5px' }}>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <input
-                        type="text"
-                        placeholder="Excl. Folders"
-                        value={excludeFolders}
-                        onChange={e => setExcludeFolders(e.target.value)}
-                        title="Exclude Folders (comma separated)"
-                        style={{ width: '100px', padding: '4px 8px', paddingRight: '24px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#222', color: '#eee', fontSize: '0.8rem' }}
-                    />
-                    <button
-                        onClick={() => onBrowse('import-exclude-folders')}
-                        style={{ position: 'absolute', right: '2px', background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', display: 'flex' }}
-                        title="Import Ignore Folders List"
-                    >
-                        <Upload size={14} />
+
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '4px', borderRight: '1px solid #444', paddingRight: '8px', marginRight: '4px' }}>
+                    <button className={`icon-btn ${config?.viewOptions?.confirmMerge !== false ? 'active' : ''}`}
+                        onClick={() => setViewOption('confirmMerge', config?.viewOptions?.confirmMerge === false)}
+                        title={config?.viewOptions?.confirmMerge !== false ? "Merge Confirmation: ON" : "Merge Confirmation: OFF"}>
+                        <ShieldCheck size={16} />
+                    </button>
+                    <button className={`icon-btn ${config?.viewOptions?.confirmDelete !== false ? 'active' : ''}`}
+                        onClick={() => setViewOption('confirmDelete', config?.viewOptions?.confirmDelete === false)}
+                        title={config?.viewOptions?.confirmDelete !== false ? "Delete Confirmation: ON" : "Delete Confirmation: OFF"}>
+                        <ShieldAlert size={16} />
                     </button>
                 </div>
 
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <input
-                        type="text"
-                        placeholder="Excl. Files"
-                        value={excludeFiles}
-                        onChange={e => setExcludeFiles(e.target.value)}
-                        title="Exclude Files (comma separated)"
-                        style={{ width: '100px', padding: '4px 8px', paddingRight: '24px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#222', color: '#eee', fontSize: '0.8rem' }}
-                    />
-                    <button
-                        onClick={() => onBrowse('import-exclude-files')}
-                        style={{ position: 'absolute', right: '2px', background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', display: 'flex' }}
-                        title="Import Ignore Files List"
-                    >
-                        <Upload size={14} />
-                    </button>
-                </div>
+                <button className="primary-btn compare-btn" onClick={onCompare} disabled={loading} style={{ fontSize: '14px' }}>
+                    <Play size={16} style={{ marginRight: '6px' }} />
+                    {loading ? 'Running...' : 'Compare'}
+                </button>
             </div>
-
-            <div className="separator"></div>
-
-            <div className="filter-group" style={{ gap: '2px' }}>
-                {/* Shield buttons moved to MainLayout */}
-            </div>
-
-            <button className="primary-btn compare-btn" onClick={onCompare} disabled={loading} style={{ marginLeft: 'auto' }}>
-                <Play size={16} style={{ marginRight: '6px' }} />
-                {loading ? 'Running...' : 'Compare'}
-            </button>
         </div>
     );
 }

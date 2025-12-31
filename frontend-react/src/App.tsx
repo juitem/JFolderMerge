@@ -16,6 +16,7 @@ function App() {
       <MainLayout
         // Header
         onSaveSettings={logic.handleSaveSettings}
+        onResetSettings={logic.handleResetSettings}
         onOpenAbout={() => logic.setAboutOpen(true)}
         // Toolbar
         searchQuery={logic.searchQuery}
@@ -38,6 +39,15 @@ function App() {
         onSwap={logic.handleSwap}
         // Error
         error={combinedError}
+        // File
+        selectedFilePath={logic.selectedNode?.path}
+        onToggleFileView={() => logic.setIsExpanded(!logic.isExpanded)}
+        onAdjustWidth={logic.handleAdjustWidth}
+
+        // Stats
+        globalStats={logic.globalStats}
+        currentFolderStats={logic.currentFolderStats}
+        fileLineStats={logic.fileLineStats}
       >
         <Workspace
           treeData={logic.treeData}
@@ -54,7 +64,16 @@ function App() {
           setDiffMode={logic.setDiffMode}
           isExpanded={logic.isExpanded}
           setIsExpanded={logic.setIsExpanded}
-          onToggleViewOption={logic.toggleViewOption}
+          leftPanelWidth={logic.leftPanelWidth}
+
+          excludeFolders={logic.excludeFolders}
+          setExcludeFolders={logic.setExcludeFolders}
+          excludeFiles={logic.excludeFiles}
+          setExcludeFiles={logic.setExcludeFiles}
+
+          onBrowse={logic.openBrowse}
+          onReload={logic.handleReload}
+          onStatsUpdate={logic.updateFileLineStats}
         />
       </MainLayout>
 

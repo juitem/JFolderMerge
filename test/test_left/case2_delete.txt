@@ -1,0 +1,8 @@
+Start of file.
+[REMOVE START]
+Element 1: This item should be removed.
+Element 2: This item is also unnecessary.
+Element 3: Cleaning up the code.
+Element 4: Removing legacy features.
+[REMOVE END]
+End of file.

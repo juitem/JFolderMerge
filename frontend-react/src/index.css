@@ -8,6 +8,8 @@
     --accent-hover: #2563eb;
     --success: #10b981;
     --danger: #ef4444;
+    --danger-soft: #fb7185;
+    --danger-vibrant: #f43f5e;
     --warning: #f59e0b;
     --font-family: 'Inter', system-ui, -apple-system, sans-serif;
 
@@ -75,11 +77,12 @@ h3 {
 
 /* Header */
 .app-header {
-    height: 40px;
+    min-height: 40px;
+    height: auto;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24px;
+    padding: 4px 24px;
     flex-shrink: 0;
 }
 
@@ -378,6 +381,7 @@ h3 {
     overflow: hidden;
     text-overflow: ellipsis;
     margin-right: 8px;
+    transition: all 0.25s ease;
 }
 
 .item-status {
@@ -424,16 +428,156 @@ h3 {
 
 .tree-row .delete-btn {
     width: 32px;
-    /* Smaller delete button */
-    background: rgba(239, 68, 68, 0.2);
-    /* Red tint */
-    border-color: rgba(239, 68, 68, 0.4);
+    background: rgba(251, 113, 133, 0.1);
+    /* danger-soft tint */
+    border-color: rgba(251, 113, 133, 0.3);
+    color: var(--danger-soft);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.merge-btn.to-left {
+    background: rgba(16, 185, 129, 0.08);
+    /* subtle green tint */
+    border-color: rgba(59, 130, 246, 0.6);
+    /* Distinct blue border */
+    color: var(--success);
+}
+
+.merge-btn.to-left:hover {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+
+.merge-btn.to-right {
+    background: rgba(236, 72, 153, 0.08);
+    /* subtle pink tint */
+    border-color: rgba(59, 130, 246, 0.6);
+    /* Distinct blue border */
+    color: #ec4899;
+}
+
+.merge-btn.to-right:hover {
+    background: #ec4899;
+    border-color: #ec4899;
+    color: white;
 }
 
 .tree-row .delete-btn:hover {
-    background: var(--danger);
-    border-color: var(--danger);
+    background: var(--danger-vibrant);
+    border-color: var(--danger-vibrant);
     color: white;
+    transform: scale(1.1);
+    box-shadow: 0 0 12px rgba(244, 63, 94, 0.4);
+}
+
+/* --- Visual Hover Feedback (Action Previews) --- */
+
+/* 1. Deletion Preview: When hovering Trash icon */
+.tree-row:has(.delete-btn:hover) {
+    background: rgba(244, 63, 94, 0.12) !important;
+}
+
+.tree-row:has(.delete-btn:hover) .item-name {
+    text-decoration: line-through;
+    opacity: 0.45;
+    color: var(--danger-soft);
+    filter: blur(0.4px);
+}
+
+/* 2. Merge Preview (To Left): When hovering Accept icon */
+.tree-row:has(.merge-btn.to-left:hover) {
+    background: rgba(16, 185, 129, 0.12) !important;
+}
+
+/* 3. Merge Preview (To Right): When hovering Revert icon */
+.tree-row:has(.merge-btn.to-right:hover) {
+    background: rgba(236, 72, 153, 0.12) !important;
+}
+
+/* Optional: Subtle glow to the name when merging */
+.tree-row:has(.merge-btn:hover) .item-name {
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+}
+
+/* --- File View (Diff) Hover Feedback --- */
+
+/* 1. Overwriting Right: Hovering "→" on Left side */
+.diff-row:has(.diff-col.left .to-right:hover) .diff-col.right .diff-line {
+    background: rgba(236, 72, 153, 0.15) !important;
+}
+
+/* 2. Overwriting Left: Hovering "←" on Right side */
+.diff-row:has(.diff-col.right .to-left:hover) .diff-col.left .diff-line {
+    background: rgba(16, 185, 129, 0.15) !important;
+}
+
+/* 3. Deletion Preview (Right): Hovering "←" on Left side (when it's a delete action) */
+.diff-row:has(.diff-col.left .to-left:hover) .diff-col.right .diff-line {
+    background: rgba(244, 63, 94, 0.15) !important;
+}
+
+.diff-row:has(.diff-col.left .to-left:hover) .diff-col.right .diff-text {
+    text-decoration: line-through;
+    opacity: 0.45;
+    filter: blur(0.4px);
+}
+
+/* 4. Deletion Preview (Left): Hovering "→" on Right side (when it's a delete action) */
+.diff-row:has(.diff-col.right .to-right:hover) .diff-col.left .diff-line {
+    background: rgba(244, 63, 94, 0.15) !important;
+}
+
+.diff-row:has(.diff-col.right .to-right:hover) .diff-col.left .diff-text {
+    text-decoration: line-through;
+    opacity: 0.45;
+    filter: blur(0.4px);
+}
+
+/* Smooth transitions for diff text */
+.diff-text {
+    transition: all 0.2s ease;
+}
+
+/* --- Agent View (Block-Level) Hover Feedback --- */
+
+/* 1. Deletion Preview: Hovering trash icon on a block group */
+.diff-block-group:has(.agent-delete-btn:hover) {
+    background: rgba(244, 63, 94, 0.12) !important;
+    border-color: rgba(244, 63, 94, 0.4) !important;
+}
+
+.diff-block-group:has(.agent-delete-btn:hover) .agent-diff-line {
+    text-decoration: line-through;
+    opacity: 0.45;
+    filter: blur(0.4px);
+    color: var(--danger-soft) !important;
+}
+
+/* 2. Merge Preview: Hovering merge icon on a block group */
+.diff-block-group:has(.agent-merge-btn:hover) {
+    background: rgba(16, 185, 129, 0.12) !important;
+    border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+.diff-block-group:has(.agent-merge-btn:hover) .agent-diff-line {
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+}
+
+.vs-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    margin: 0 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    letter-spacing: 0.5px;
 }
 
 .item-status.added {
@@ -719,9 +863,9 @@ h3 {
 
 .diff-line {
     display: flex;
-    align-items: center;
-    padding: 0 12px;
-    min-height: 24px;
+    align-items: flex-start;
+    padding: 1px 12px;
+    min-height: 16px;
 }
 
 .diff-line.added {
@@ -744,6 +888,12 @@ h3 {
     word-break: break-all;
 }
 
+.diff-text.no-wrap {
+    white-space: pre;
+    word-break: normal;
+    overflow-x: visible;
+}
+
 .unified-container,
 .split-diff-container,
 .raw-diff-container {
@@ -764,7 +914,7 @@ h3 {
 
 .diff-col {
     flex: 1;
-    overflow-y: auto;
+    overflow: hidden;
     width: 50%;
     /* Force equal width */
     min-width: 0;
@@ -792,6 +942,8 @@ h3 {
     justify-content: center;
     margin-right: 12px;
     flex-shrink: 0;
+    padding-top: 2px;
+    /* Align with text */
 }
 
 .merge-actions {
@@ -912,7 +1064,7 @@ h3 {
     color: #79c0ff;
     border-top: 1px solid #30363d;
     border-bottom: 1px solid #30363d;
-    padding: 4px 0;
+    padding: 2px 0;
 }
 
 /* Gutters (Line Numbers) */
@@ -1039,4 +1191,117 @@ h3 {
 .chevron.expanded {
     transform: rotate(90deg);
     color: var(--text-primary);
+}
+
+/* Tree Indentation */
+.tree-children {
+    padding-left: 10px;
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+    /* Guide line */
+}
+
+/* Flat View Styles */
+.tree-children.flat {
+    padding-left: 0 !important;
+    border-left: none !important;
+}
+
+/* In Flat View: Folders stick to left, Files get same indent */
+.tree-children.flat .tree-row {
+    padding-left: 4px;
+    /* Default small padding */
+}
+
+/* Specific indent for files in flat mode - User requested same as folders */
+.tree-children.flat .tree-row.file-row {
+    padding-left: 4px;
+    position: relative;
+}
+
+.depth-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.5rem;
+    /* Ultra tiny text */
+    font-weight: 800;
+    color: var(--text-secondary);
+    margin-right: 1px;
+    line-height: 1;
+
+    /* Superscript positioning */
+    position: relative;
+    top: -5px;
+    opacity: 0.8;
+    background: transparent;
+}
+
+/* Active State - Removed (Left / Trashable) -> Read Background */
+.diff-block-group.group-removed.active {
+    outline-color: #f87171 !important;
+    background-color: rgba(239, 68, 68, 0.15);
+    /* Red tint */
+}
+
+/* Active State - Added (Right / Keepable) -> Green Background */
+.diff-block-group.group-added.active {
+    outline-color: #4ade80 !important;
+    background-color: rgba(74, 222, 128, 0.15);
+    /* Green tint */
+}
+
+/* Agent View Merge Buttons - Compact & Elegant Styling */
+.agent-apply-btn {
+    display: flex;
+    align-items: center;
+    background: rgba(251, 146, 60, 0.08);
+    border: 1px solid rgba(251, 146, 60, 0.25);
+    border-radius: 12px;
+    padding: 1px 6px;
+    /* Symmetric padding */
+    gap: 4px;
+    /* Tighter gap */
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    height: 22px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.agent-apply-btn:hover {
+    background: rgba(251, 146, 60, 0.15);
+    border-color: rgba(251, 146, 60, 0.5);
+    transform: translateY(-0.5px);
+    box-shadow: 0 2px 8px rgba(251, 146, 60, 0.12);
+}
+
+.agent-apply-btn:active {
+    transform: translateY(0);
+    opacity: 0.8;
+}
+
+.agent-apply-icon-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    background: #fb923c;
+    color: #fff;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.agent-apply-text {
+    font-size: 0.65rem;
+    font-weight: 750;
+    color: #fb923c;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+.agent-apply-btn:hover .agent-apply-text {
+    filter: brightness(1.05);
 }

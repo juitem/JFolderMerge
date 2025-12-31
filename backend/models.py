@@ -52,6 +52,8 @@ class SaveRequest(BaseModel):
     content: str
     
 class ConfigUpdateRequest(BaseModel):
+    left: Optional[str] = None
+    right: Optional[str] = None
     folderFilters: Optional[dict] = None
     diffFilters: Optional[dict] = None
     viewOptions: Optional[dict] = None

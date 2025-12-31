@@ -11,54 +11,37 @@ if [ ! -d "venv" ]; then
     ./venv/bin/pip install -r requirements.txt
 fi
 
-# Argument parsing logic (Matches run.sh style)
+# Argument parsing logic
 # usage: ./run_react.sh [LEFT] [RIGHT] [PORT]
 DEFAULT_PORT=8000
-DEFAULT_LEFT="/Users/juitem/Docker/ContainerFolder/JF"
-DEFAULT_RIGHT="/Users/juitem/Docker/ContainerFolder/FolderComp"
-
-# Fallback to test dirs if defaults don't exist
-[[ ! -d $DEFAULT_LEFT ]] && DEFAULT_LEFT="$DIR/test/A"
-[[ ! -d $DEFAULT_RIGHT ]] && DEFAULT_RIGHT="$DIR/test/B"
-
-# Ensure test dirs exist if defaults become test dirs
-[[ ! -d "test/A" ]] && mkdir -p test/A
-[[ ! -d "test/B" ]] && mkdir -p test/B
+PORT=$DEFAULT_PORT
+EXTRA_ARGS=""
 
 if [ "$#" -eq 1 ]; then
     if [[ "$1" =~ ^[0-9]+$ ]]; then
         PORT=$1
-        LEFT=$DEFAULT_LEFT
-        RIGHT=$DEFAULT_RIGHT
     else
-        # Arg provided but not a number? Assume it's a path, but we need 2 paths usually.
-        # Fallback to defaults for others?
-        LEFT=$1
-        RIGHT=$DEFAULT_RIGHT
-        PORT=$DEFAULT_PORT
+        # Only one arg provided and not a number? Assume it's the left path.
+        LEFT_ABS=$(./venv/bin/python3 -c "import os; import sys; print(os.path.abspath(sys.argv[1]))" "$1")
+        EXTRA_ARGS="--left $LEFT_ABS"
     fi
 elif [ "$#" -ge 2 ]; then
-    LEFT=${1:-$DEFAULT_LEFT}
-    RIGHT=${2:-$DEFAULT_RIGHT}
+    LEFT_ABS=$(./venv/bin/python3 -c "import os; import sys; print(os.path.abspath(sys.argv[1]))" "$1")
+    RIGHT_ABS=$(./venv/bin/python3 -c "import os; import sys; print(os.path.abspath(sys.argv[1]))" "$2")
     PORT=${3:-$DEFAULT_PORT}
-else
-    LEFT=$DEFAULT_LEFT
-    RIGHT=$DEFAULT_RIGHT
-    PORT=$DEFAULT_PORT
+    EXTRA_ARGS="--left $LEFT_ABS --right $RIGHT_ABS"
 fi
-
-# Resolve absolute paths using Python for better compatibility
-LEFT_ABS=$(./venv/bin/python3 -c "import os; print(os.path.abspath('$LEFT'))")
-RIGHT_ABS=$(./venv/bin/python3 -c "import os; print(os.path.abspath('$RIGHT'))")
 
 # Start Backend
 echo "[RunReact] Starting Backend on http://localhost:$PORT..."
-echo "[RunReact] Comparing:"
-echo "  Left:  $LEFT_ABS"
-echo "  Right: $RIGHT_ABS"
+if [ -n "$EXTRA_ARGS" ]; then
+    echo "[RunReact] Using explicit CLI paths: $EXTRA_ARGS"
+else
+    echo "[RunReact] No paths provided, using saved configuration or defaults."
+fi
 
-# Pass the resolved paths to the backend
-./venv/bin/python3 -m backend.main --left "$LEFT_ABS" --right "$RIGHT_ABS" --port "$PORT" &
+# Pass the resolved paths to the backend only if they exist
+./venv/bin/python3 -m backend.main $EXTRA_ARGS --port "$PORT" &
 BACKEND_PID=$!
 
 # Function to handle cleanup

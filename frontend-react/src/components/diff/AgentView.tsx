@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { api } from '../../api';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
+import { useKeyLogger } from '../../hooks/useKeyLogger';
 
 interface DiffLine {
     type: 'same' | 'added' | 'removed' | 'header' | 'gap' | 'empty';
@@ -23,40 +24,38 @@ interface AgentViewProps {
     showLineNumbers?: boolean;
     fullRightPath?: string;
     showSame?: boolean;
-    onMerge?: (lines: string[], targetSide: 'left' | 'right', anchorLine: number, type: 'insert' | 'delete') => void;
+    onMerge?: (lines: string[], targetSide: 'left' | 'right', anchorLine: number, type: 'insert' | 'delete' | 'replace', deleteCount?: number) => void;
     onNextFile?: () => void;
     onPrevFile?: () => void;
 }
 
 export interface AgentViewHandle {
-    scrollToChange: (type: 'added' | 'removed' | 'any', direction: 'prev' | 'next') => void;
-    mergeActiveBlock: () => void;
+    scrollToChange: (type: 'added' | 'removed' | 'any', direction: 'prev' | 'next' | 'first' | 'last') => void;
+    mergeActiveBlock: () => void; // Merge (Green) / Delete (Delete Left) - ACCEPT
+    deleteActiveBlock: () => void; // Revert (Trash) / Restore (Arrow) - REJECT
 }
 
 export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((props, ref) => {
-    const { diff, showLineNumbers = true, fullRightPath, showSame = false, onMerge, onNextFile, onPrevFile } = props;
-    // We store expanded lines in a map: gapKey -> string[]
+    const { diff, showLineNumbers = true, fullRightPath, showSame = false, onMerge } = props;
     const [expandedContent, setExpandedContent] = useState<Record<string, string[]>>({});
     const [loadingGaps, setLoadingGaps] = useState<Record<string, boolean>>({});
     const [activeBlockIndex, setActiveBlockIndex] = useState<number | null>(null);
 
-    // Reset expansion when diff changes
+    const containerRef = React.useRef<HTMLDivElement>(null);
+
     useEffect(() => {
         setExpandedContent({});
         setLoadingGaps({});
-        // Don't reset activeBlockIndex here; wait for parsedItems to recalculate
-        // checking equality or re-evaluating index.
-    }, [diff]);
+        setActiveBlockIndex(null);
+    }, [diff, fullRightPath]);
 
     const parsedItems = useMemo(() => {
         if (!diff) return [];
         const items: DiffItem[] = [];
         let leftLn = 0;
         let rightLn = 0;
-
         let currentBlock: DiffBlock | null = null;
         let lastRightLn = 0;
-        // let lastLeftLn = 0; // Not strictly needed if we assume added blocks anchor to current left
 
         const flushBlock = () => {
             if (currentBlock) {
@@ -66,9 +65,7 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
         };
 
         for (const line of diff) {
-            if (line.startsWith('---') || line.startsWith('+++')) {
-                continue;
-            }
+            if (line.startsWith('---') || line.startsWith('+++')) continue;
             if (line.startsWith('@@')) {
                 flushBlock();
                 const match = line.match(/@@\s-(\d+)(?:,\d+)?\s\+(\d+)(?:,\d+)?\s@@/);
@@ -76,7 +73,6 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
                     const newLeftLn = parseInt(match[1], 10) - 1;
                     const newRightLn = parseInt(match[2], 10) - 1;
 
-                    // Gap Detection
                     if (newRightLn > rightLn) {
                         const gapSize = newRightLn - rightLn;
                         if (gapSize > 0) {
@@ -84,27 +80,22 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
                                 type: 'gap',
                                 content: `Expand ${gapSize} lines`,
                                 gapStart: rightLn + 1,
-                                gapEnd: newRightLn,
-                                rightLine: undefined
+                                gapEnd: newRightLn
                             });
                         }
                     }
                     leftLn = newLeftLn;
                     rightLn = newRightLn;
-                    lastRightLn = rightLn; // update anchor
+                    lastRightLn = rightLn;
                 }
             } else if (line.startsWith('-')) {
                 leftLn++;
-                // Removed line: has leftLine, but no rightLine.
-                // It effectively sits "at" the current rightLine position (lastRightLn).
                 const lineObj: DiffLine = {
                     type: 'removed',
                     content: line.substring(1),
                     leftLine: leftLn,
-                    // We attach the anchor info needed for the button
-                    rightLine: lastRightLn // Use rightLine property to store the "Insert Anchor" for removed blocks
+                    rightLine: lastRightLn
                 };
-
                 if (currentBlock && currentBlock.type === 'block-removed') {
                     currentBlock.lines.push(lineObj);
                 } else {
@@ -113,16 +104,14 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
                 }
             } else if (line.startsWith('+')) {
                 rightLn++;
-                // Store leftLine as anchor (current leftLn)
                 const lineObj: DiffLine = { type: 'added', content: line.substring(1), rightLine: rightLn, leftLine: leftLn };
-
                 if (currentBlock && currentBlock.type === 'block-added') {
                     currentBlock.lines.push(lineObj);
                 } else {
                     flushBlock();
                     currentBlock = { type: 'block-added', lines: [lineObj] };
                 }
-                lastRightLn = rightLn; // Added lines advance right counter
+                lastRightLn = rightLn;
             } else if (line.startsWith(' ')) {
                 flushBlock();
                 leftLn++;
@@ -138,7 +127,6 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
         return items;
     }, [diff]);
 
-    // Effect: Handle Global Context Toggle (mapped to showSame prop)
     useEffect(() => {
         if (showSame && fullRightPath) {
             const gaps = parsedItems.filter(l => (l as any).type === 'gap') as DiffLine[];
@@ -166,43 +154,19 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
         }
     }, [showSame, parsedItems, fullRightPath]);
 
-    // Intelligent Block Selection Restoration
-    const prevParsedItemsRef = React.useRef<DiffItem[]>([]);
     useEffect(() => {
-        if (activeBlockIndex !== null && prevParsedItemsRef.current.length > 0) {
-            // We had a selection. Did it disappear?
-            // If the item at activeBlockIndex is no longer a block, or parsedItems length changed significantly...
-            // Simple heuristic used: If current index is not a block, find next block.
-            const currentItem = parsedItems[activeBlockIndex];
-            const isBlock = currentItem && 'lines' in currentItem && (currentItem as any).type.startsWith('block-');
-
-            if (!isBlock) {
-                // Search forward for next block
-                let nextIdx = -1;
-                for (let i = activeBlockIndex; i < parsedItems.length; i++) {
-                    if ('lines' in parsedItems[i] && (parsedItems[i] as any).type.startsWith('block-')) {
-                        nextIdx = i;
-                        break;
-                    }
-                }
-                // If not found forward, search backward? Or just 0?
-                // User prefers "Next".
-                if (nextIdx !== -1) {
-                    setActiveBlockIndex(nextIdx);
-                } else {
-                    // Try finding first available block if none forward
-                    for (let i = 0; i < parsedItems.length; i++) {
-                        if ('lines' in parsedItems[i] && (parsedItems[i] as any).type.startsWith('block-')) {
-                            setActiveBlockIndex(i);
-                            break;
-                        }
-                    }
+        if (parsedItems.length > 0) {
+            if (activeBlockIndex === null) {
+                const firstBlockIdx = parsedItems.findIndex(item => 'lines' in item);
+                if (firstBlockIdx !== -1) {
+                    setActiveBlockIndex(firstBlockIdx);
+                    setTimeout(() => {
+                        const el = containerRef.current?.querySelector(`[data-block-index='${firstBlockIdx}']`);
+                        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
                 }
             }
-            // Ensure focus is kept on container to allow rapid keyboard usage
-            containerRef.current?.focus();
         }
-        prevParsedItemsRef.current = parsedItems;
     }, [parsedItems]);
 
     const handleExpand = async (start: number, end: number) => {
@@ -222,336 +186,288 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
         }
     };
 
-    const containerRef = React.useRef<HTMLDivElement>(null);
+    const scrollToChangeInternal = (type: 'added' | 'removed' | 'any', direction: 'prev' | 'next' | 'first' | 'last') => {
+        if (!diff || parsedItems.length === 0) return;
+        const isMatch = (item: DiffItem) => {
+            if (!('lines' in item)) return false;
+            const block = item as DiffBlock;
+            if (type === 'any') return true;
+            if (type === 'added' && block.type === 'block-added') return true;
+            if (type === 'removed' && block.type === 'block-removed') return true;
+            return false;
+        };
+
+        const start = activeBlockIndex !== null ? activeBlockIndex : (direction === 'next' ? -1 : parsedItems.length);
+        let foundIdx = -1;
+
+        if (direction === 'first') {
+            foundIdx = parsedItems.findIndex(isMatch);
+        } else if (direction === 'last') {
+            for (let i = parsedItems.length - 1; i >= 0; i--) if (isMatch(parsedItems[i])) { foundIdx = i; break; }
+        } else if (direction === 'next') {
+            for (let i = start + 1; i < parsedItems.length; i++) if (isMatch(parsedItems[i])) { foundIdx = i; break; }
+            if (foundIdx === -1) for (let i = 0; i <= start; i++) if (isMatch(parsedItems[i])) { foundIdx = i; break; }
+        } else {
+            for (let i = start - 1; i >= 0; i--) if (isMatch(parsedItems[i])) { foundIdx = i; break; }
+            if (foundIdx === -1) for (let i = parsedItems.length - 1; i >= start; i--) if (isMatch(parsedItems[i])) { foundIdx = i; break; }
+        }
+
+        if (foundIdx !== -1) {
+            setActiveBlockIndex(foundIdx);
+            setTimeout(() => {
+                const el = containerRef.current?.querySelector(`[data-block-index='${foundIdx}']`);
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 0);
+        }
+    };
 
     React.useImperativeHandle(ref, () => ({
-        scrollToChange: (type: 'added' | 'removed' | 'any', direction: 'prev' | 'next') => {
-            scrollToChangeInternal(type, direction);
-        },
+        scrollToChange: (type, direction) => scrollToChangeInternal(type, direction),
         mergeActiveBlock: () => {
-            if (activeBlockIndex === null || !diff) return;
-
-            // Find block by index
+            if (activeBlockIndex === null) return;
             const item = parsedItems[activeBlockIndex];
             if (!item || !('lines' in item)) return;
-
             const block = item as DiffBlock;
-            const isRemoved = block.type === 'block-removed';
-
             if (onMerge) {
                 const content = block.lines.map(l => l.content);
-                if (isRemoved) {
-                    const anchor = block.lines[0].rightLine || 0;
-                    onMerge(content, 'right', anchor, 'insert');
+                const anchor = block.lines[0].leftLine || 0;
+                if (block.type === 'block-removed') {
+                    onMerge(content, 'left', anchor, 'delete');
                 } else {
-                    const anchor = block.lines[0].leftLine || 0;
-                    onMerge(content, 'left', anchor, 'insert');
+                    let deleteCount = 0;
+                    if (activeBlockIndex > 0) {
+                        const prev = parsedItems[activeBlockIndex - 1];
+                        if ('lines' in prev && (prev as DiffBlock).type === 'block-removed') deleteCount = (prev as DiffBlock).lines.length;
+                    }
+                    deleteCount > 0 ? onMerge(content, 'left', anchor, 'replace', deleteCount) : onMerge(content, 'left', anchor, 'insert');
+                }
+            }
+        },
+        deleteActiveBlock: () => {
+            if (activeBlockIndex === null) return;
+            const item = parsedItems[activeBlockIndex];
+            if (!item || !('lines' in item)) return;
+            const block = item as DiffBlock;
+            if (onMerge) {
+                const content = block.lines.map(l => l.content);
+                const startLine = block.lines[0].rightLine || 0;
+                if (block.type === 'block-removed') {
+                    let nextIsAdded = false;
+                    if (activeBlockIndex + 1 < parsedItems.length) {
+                        const next = parsedItems[activeBlockIndex + 1];
+                        if ('lines' in next && (next as DiffBlock).type === 'block-added') nextIsAdded = true;
+                    }
+                    if (nextIsAdded) {
+                        const nextItem = parsedItems[activeBlockIndex + 1] as DiffBlock;
+                        onMerge(content, 'right', nextItem.lines[0].rightLine || 0, 'replace', nextItem.lines.length);
+                    } else {
+                        onMerge(content, 'right', startLine, 'insert');
+                    }
+                } else {
+                    let prevIsRemoved = false;
+                    if (activeBlockIndex > 0) {
+                        const prev = parsedItems[activeBlockIndex - 1];
+                        if ('lines' in prev && (prev as DiffBlock).type === 'block-removed') prevIsRemoved = true;
+                    }
+                    if (prevIsRemoved) {
+                        const prevItem = parsedItems[activeBlockIndex - 1] as DiffBlock;
+                        onMerge(prevItem.lines.map(l => l.content), 'right', startLine, 'replace', block.lines.length);
+                    } else {
+                        onMerge(content, 'right', startLine, 'delete');
+                    }
                 }
             }
         }
     }));
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        // Stop propagation to prevent global listeners (e.g. FolderTree) from intercepting
-        // But only if we handle the key? Or always?
-        // Let's propagate if we don't handle it, but for Arrows we handle.
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-            e.stopPropagation();
-        }
+    const { logKey } = useKeyLogger('AgentView');
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        logKey(e, { activeBlockIndex });
         if (e.key === 'Escape' || e.key === 'Tab') {
             e.preventDefault();
-            const treeContainer = document.querySelector('.tree-container') as HTMLElement;
-            treeContainer?.focus();
+            (document.querySelector('.tree-container') as HTMLElement)?.focus();
             return;
         }
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'a', 's', 'e', 'r'].includes(e.key)) e.stopPropagation();
 
-        if (e.key === 'ArrowDown') {
-            // Next Block
-            e.preventDefault();
-
-            // Find next block index
-            let nextIdx = -1;
-            for (let i = (activeBlockIndex !== null ? activeBlockIndex + 1 : 0); i < parsedItems.length; i++) {
-                if ('lines' in parsedItems[i] && (parsedItems[i] as any).type.startsWith('block-')) {
-                    nextIdx = i;
-                    break;
-                }
-            }
-            if (nextIdx !== -1) {
-                setActiveBlockIndex(nextIdx);
-                // Scroll to it
-                const el = containerRef.current?.querySelector(`[data-block-index='${nextIdx}']`);
-                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-
-            let prevIdx = -1;
-            for (let i = (activeBlockIndex !== null ? activeBlockIndex - 1 : parsedItems.length - 1); i >= 0; i--) {
-                if ('lines' in parsedItems[i] && (parsedItems[i] as any).type.startsWith('block-')) {
-                    prevIdx = i;
-                    break;
-                }
-            }
-            if (prevIdx !== -1) {
-                setActiveBlockIndex(prevIdx);
-                const el = containerRef.current?.querySelector(`[data-block-index='${prevIdx}']`);
-                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }
-
-        // Merge Shortcuts
-        if (activeBlockIndex !== null && onMerge) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); navigateBlock('next'); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); navigateBlock('prev'); }
+        else if (activeBlockIndex !== null && onMerge && e.shiftKey) {
             const item = parsedItems[activeBlockIndex];
             if (item && 'lines' in item) {
                 const block = item as DiffBlock;
-                const isRemoved = block.type === 'block-removed';
-
-                if (e.key === 'ArrowRight' && e.shiftKey) {
+                if (e.key === 'ArrowRight') {
                     e.preventDefault();
-                    if (isRemoved) { // Red block -> Restores to right
-                        const content = block.lines.map(l => l.content);
-                        const anchor = block.lines[0].rightLine || 0;
-                        onMerge(content, 'right', anchor, 'insert');
+                    if (block.type === 'block-removed') {
+                        onMerge(block.lines.map(l => l.content), 'right', block.lines[0].rightLine || 0, 'insert');
+                    } else {
+                        let prevIsRemoved = false;
+                        if (activeBlockIndex > 0) {
+                            const prev = parsedItems[activeBlockIndex - 1];
+                            if ('lines' in prev && (prev as DiffBlock).type === 'block-removed') prevIsRemoved = true;
+                        }
+                        if (!prevIsRemoved) onMerge(block.lines.map(l => l.content), 'right', block.lines[0].rightLine || 0, 'delete');
                     }
-                } else if (e.key === 'ArrowLeft' && e.shiftKey) {
+                } else if (e.key === 'ArrowLeft') {
                     e.preventDefault();
-                    if (!isRemoved) { // Green block -> Apply to left
-                        const content = block.lines.map(l => l.content);
+                    if (block.type === 'block-added') {
+                        let deleteCount = 0;
+                        if (activeBlockIndex > 0) {
+                            const prev = parsedItems[activeBlockIndex - 1];
+                            if ('lines' in prev && (prev as DiffBlock).type === 'block-removed') deleteCount = (prev as DiffBlock).lines.length;
+                        }
                         const anchor = block.lines[0].leftLine || 0;
-                        onMerge(content, 'left', anchor, 'insert');
+                        deleteCount > 0 ? onMerge(block.lines.map(l => l.content), 'left', anchor, 'replace', deleteCount) : onMerge(block.lines.map(l => l.content), 'left', anchor, 'insert');
+                    } else {
+                        let nextIsAdded = false;
+                        if (activeBlockIndex + 1 < parsedItems.length) {
+                            const next = parsedItems[activeBlockIndex + 1];
+                            if ('lines' in next && (next as DiffBlock).type === 'block-added') nextIsAdded = true;
+                        }
+                        if (!nextIsAdded) onMerge(block.lines.map(l => l.content), 'left', block.lines[0].leftLine || 0, 'delete');
                     }
                 }
             }
         }
-
-
-        // Navigation Shortcuts
-        // a: Prev Added, s: Next Added
-        // e: Prev Removed, r: Next Removed
-        if (e.key === 'a') {
-            e.preventDefault();
-            // Prev Added
-            const instance = ref && 'current' in ref ? ref.current : null;
-            // logic inline or via handle? We are inside component.
-            // Reuse scrollToChange logic via ref not efficient.
-            // Impl directly:
-            scrollToChangeInternal('added', 'prev');
-        } else if (e.key === 's') {
-            e.preventDefault();
-            scrollToChangeInternal('added', 'next');
-        } else if (e.key === 'e') {
-            e.preventDefault();
-            scrollToChangeInternal('removed', 'prev');
-        } else if (e.key === 'r') {
-            e.preventDefault();
-            scrollToChangeInternal('removed', 'next');
-        }
+        else if (e.key === 'a') { e.preventDefault(); scrollToChangeInternal('added', 'prev'); }
+        else if (e.key === 's') { e.preventDefault(); scrollToChangeInternal('added', 'next'); }
+        else if (e.key === 'e') { e.preventDefault(); scrollToChangeInternal('removed', 'prev'); }
+        else if (e.key === 'r') { e.preventDefault(); scrollToChangeInternal('removed', 'next'); }
     };
 
-    const scrollToChangeInternal = (type: 'added' | 'removed' | 'any', direction: 'prev' | 'next') => {
-        if (!containerRef.current) return;
-
-        const selector = type === 'any' ? '.diff-block-group' : (type === 'added' ? '.group-added' : '.group-removed');
-        const elements = Array.from(containerRef.current.querySelectorAll(selector));
-        if (elements.length === 0) return;
-
-        const container = containerRef.current;
-        const containerRect = container.getBoundingClientRect();
-
-        let targetEl: Element | null = null;
-        let bestCandidate: Element | null = null;
-        const VIEWPORT_OFFSET = 50; // Buffer
-
+    const navigateBlock = (direction: 'next' | 'prev') => {
+        let newIdx = -1;
+        const start = activeBlockIndex !== null ? activeBlockIndex : (direction === 'next' ? -1 : parsedItems.length);
         if (direction === 'next') {
-            // Find first element strictly below the offset
-            targetEl = elements.find(el => {
-                const rect = el.getBoundingClientRect();
-                return rect.top > containerRect.top + VIEWPORT_OFFSET;
-            }) || elements[0];
-
-            // If we are at the bottom, cycle? Or just stay?
-            // Existing logic wrap-around or stick.
-            if (!targetEl) targetEl = elements[0];
-
+            for (let i = start + 1; i < parsedItems.length; i++) if ('lines' in parsedItems[i]) { newIdx = i; break; }
         } else {
-            // Prev
-            for (let i = elements.length - 1; i >= 0; i--) {
-                const rect = elements[i].getBoundingClientRect();
-                if (rect.top < containerRect.top - VIEWPORT_OFFSET) {
-                    targetEl = elements[i];
-                    break;
-                }
-            }
-            if (!targetEl) targetEl = elements[elements.length - 1]; // Cycle to bottom
+            for (let i = start - 1; i >= 0; i--) if ('lines' in parsedItems[i]) { newIdx = i; break; }
         }
-
-        if (targetEl) {
-            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            const idx = (targetEl as HTMLElement).dataset.blockIndex;
-            if (idx !== undefined) setActiveBlockIndex(parseInt(idx, 10));
+        if (newIdx !== -1) {
+            setActiveBlockIndex(newIdx);
+            setTimeout(() => {
+                const el = containerRef.current?.querySelector(`[data-block-index='${newIdx}']`);
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 0);
         }
     };
-
-    if (!diff) return <div className="p-4 text-gray-500">No Diff Data</div>;
 
     const renderLine = (line: DiffLine, idx: number) => (
         <div key={idx} className={`agent-diff-row ${line.type}`}>
             {showLineNumbers && (
                 <>
-                    <div className="agent-gutter noselect">
-                        {/* For added lines, we stored anchor in leftLine, but shouldn't display it */}
-                        {line.type === 'added' ? '' : (line.leftLine || '')}
-                    </div>
-                    <div className="agent-gutter noselect">
-                        {/* For removed lines, we stored anchor in rightLine, but we shouldn't display it as line number if it's the anchor */}
-                        {line.type === 'removed' ? '' : (line.rightLine || '')}
-                    </div>
+                    <div className="agent-gutter noselect">{line.type === 'added' ? '' : line.leftLine || ''}</div>
+                    <div className="agent-gutter noselect">{line.type === 'removed' ? '' : line.rightLine || ''}</div>
                 </>
             )}
-            <div className="agent-content" style={{ paddingLeft: '20px' }}>{line.content}</div>
+            <div className="agent-content" style={{ paddingLeft: '60px' }}>{line.content}</div>
         </div>
     );
 
-    const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        e.currentTarget.focus();
-    };
+    if (!diff) return <div className="p-4 text-gray-500">No Diff Data</div>;
 
     return (
         <div className="agent-view-container custom-scroll" ref={containerRef}
-            style={{ padding: '10px', outline: 'none', border: '2px solid transparent' }}
+            style={{ padding: '10px', outline: 'none', border: '2px solid transparent', position: 'relative' }}
             tabIndex={0}
             onKeyDown={handleKeyDown}
-            onClick={handleContainerClick}
+            onClick={(e) => e.currentTarget.focus()}
             onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)'}
             onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
         >
             <div className="agent-diff-table">
                 {parsedItems.map((item, idx) => {
                     if ('lines' in item) {
-                        // Block
                         const block = item as DiffBlock;
-                        const isRemoved = block.type === 'block-removed';
-                        const blockClass = isRemoved ? 'group-removed' : 'group-added';
+                        const blockClass = block.type === 'block-removed' ? 'group-removed' : 'group-added';
                         const isActive = activeBlockIndex === idx;
 
                         return (
-                            <div
-                                key={idx}
-                                data-block-index={idx}
+                            <div key={idx} data-block-index={idx}
                                 className={`diff-block-group ${blockClass} ${isActive ? 'active' : ''}`}
                                 style={{ position: 'relative', cursor: 'pointer' }}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setActiveBlockIndex(idx);
-                                    // Ensure container is focused so keyboard works
-                                    if (containerRef.current) containerRef.current.focus();
-                                }}
+                                onClick={(e) => { e.stopPropagation(); setActiveBlockIndex(idx); containerRef.current?.focus(); }}
                             >
                                 {block.lines.map((l, i) => renderLine(l, i))}
                                 <div className="merge-action-overlay" style={{
-                                    position: 'absolute',
-                                    zIndex: 10,
-                                    opacity: 0.6,
-                                    transition: 'opacity 0.2s',
-                                    top: '0px',
-                                    left: showLineNumbers
-                                        ? (isRemoved ? '52px' : '108px')
-                                        : (isRemoved ? '2px' : '2px')
+                                    position: 'absolute', zIndex: 10, opacity: 0.6, transition: 'opacity 0.2s',
+                                    top: '0px', left: '0px', right: '0px', height: '100%', pointerEvents: 'none'
                                 }}
                                     onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
                                     onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
                                 >
-                                    {isRemoved && onMerge && (
-                                        <button className="icon-btn xs" title="Copy to Right (Restore)"
-                                            style={{
-                                                background: 'rgba(50,0,0,0.8)',
-                                                color: '#f87171',
-                                                border: '1px solid #f87171',
-                                                borderRadius: '0',
-                                                width: '20px',
-                                                height: '20px',
-                                                padding: 0,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}
-                                            onClick={() => {
-                                                const anchor = block.lines[0].rightLine || 0; // Stored anchor
-                                                const content = block.lines.map(l => l.content);
-                                                onMerge(content, 'right', anchor, 'insert');
-                                            }}
-                                        >
-                                            <ArrowRight size={12} />
-                                        </button>
-                                    )}
-                                    {!isRemoved && onMerge && (
-                                        <button className="icon-btn xs" title="Copy to Left (Apply)"
-                                            style={{
-                                                background: 'rgba(0,50,0,0.8)',
-                                                color: '#4ade80',
-                                                border: '1px solid #4ade80',
-                                                borderRadius: '0',
-                                                width: '20px',
-                                                height: '20px',
-                                                padding: 0,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}
-                                            onClick={() => {
-                                                // Added Block (Right). Copy to Left.
-                                                // We stored the anchor in block.lines[0].leftLine
-                                                const anchor = block.lines[0].leftLine || 0;
-                                                const content = block.lines.map(l => l.content);
-                                                onMerge(content, 'left', anchor, 'insert');
-                                            }}
-                                        >
-                                            <ArrowLeft size={12} />
-                                        </button>
+                                    {onMerge && (
+                                        <>
+                                            <div style={{ position: 'absolute', top: 0, left: showLineNumbers ? '52px' : '5px', pointerEvents: 'auto' }}>
+                                                {block.type === 'block-removed' ? (
+                                                    <button className="icon-btn xs agent-merge-btn" title="Copy to Right (Restore)"
+                                                        style={{ background: 'rgba(50,0,0,0.8)', color: '#ec4899', border: '1px solid #ec4899', borderRadius: '0', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        onClick={(e) => { e.stopPropagation(); const anchor = block.lines[0].rightLine || 0; onMerge(block.lines.map(l => l.content), 'right', anchor, 'insert'); }}
+                                                    >
+                                                        <ArrowRight size={12} />
+                                                    </button>
+                                                ) : (
+                                                    <button className="icon-btn xs agent-merge-btn" title="Delete from Right (Revert)"
+                                                        style={{ background: 'rgba(50,0,0,0.8)', color: '#ec4899', border: '1px solid #ec4899', borderRadius: '0', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        onClick={(e) => { e.stopPropagation(); onMerge(block.lines.map(l => l.content), 'right', block.lines[0].rightLine || 0, 'delete'); }}
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div style={{ position: 'absolute', top: 0, left: showLineNumbers ? '106px' : '30px', pointerEvents: 'auto' }}>
+                                                {block.type === 'block-removed' ? (
+                                                    <button className="icon-btn xs agent-merge-btn" title="Delete from Left (Accept Removal)"
+                                                        style={{ background: 'rgba(50,0,0,0.8)', color: '#4ade80', border: '1px solid #4ade80', borderRadius: '0', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        onClick={(e) => { e.stopPropagation(); onMerge(block.lines.map(l => l.content), 'left', block.lines[0].leftLine || 0, 'delete'); }}
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                ) : (
+                                                    <button className="icon-btn xs agent-merge-btn" title="Merge to Left"
+                                                        style={{ background: 'rgba(0,50,0,0.8)', color: '#4ade80', border: '1px solid #4ade80', borderRadius: '0', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const content = block.lines.map(l => l.content);
+                                                            const anchor = block.lines[0].leftLine || 0;
+                                                            let deleteCount = 0;
+                                                            if (idx > 0) {
+                                                                const prev = parsedItems[idx - 1];
+                                                                if ('lines' in prev && (prev as DiffBlock).type === 'block-removed') deleteCount = (prev as DiffBlock).lines.length;
+                                                            }
+                                                            deleteCount > 0 ? onMerge(content, 'left', anchor, 'replace', deleteCount) : onMerge(content, 'left', anchor, 'insert');
+                                                        }}
+                                                    >
+                                                        <ArrowLeft size={12} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             </div>
                         );
                     }
-
                     const line = item as DiffLine;
-
                     if (line.type === 'gap') {
                         const key = `${line.gapStart}-${line.gapEnd}`;
                         const expandedLines = expandedContent[key];
-
                         if (expandedLines || showSame) {
-                            if (!expandedLines) {
-                                return (
-                                    <div key={idx} className="agent-diff-row gap">
-                                        <div className="agent-gap-bar">Loading Context...</div>
-                                    </div>
-                                );
-                            }
+                            if (!expandedLines) return <div key={idx} className="agent-diff-row gap"><div className="agent-gap-bar">Loading Context...</div></div>;
                             return expandedLines.map((content, i) => (
                                 <div key={`${key}-${i}`} className="agent-diff-row same expanded">
-                                    {showLineNumbers && (
-                                        <>
-                                            <div className="agent-gutter noselect"></div>
-                                            <div className="agent-gutter noselect">{(line.gapStart || 0) + i}</div>
-                                        </>
-                                    )}
+                                    {showLineNumbers && (<><div className="agent-gutter noselect"></div><div className="agent-gutter noselect">{(line.gapStart || 0) + i}</div></>)}
                                     <div className="agent-content">{content}</div>
                                 </div>
                             ));
                         }
-
                         return (
                             <div key={idx} className="agent-diff-row gap" onClick={() => line.gapStart && line.gapEnd && handleExpand(line.gapStart, line.gapEnd)}>
-                                <div className="agent-gap-bar">
-                                    {loadingGaps[key] ? 'Loading...' : `↕ ${line.content}`}
-                                </div>
+                                <div className="agent-gap-bar">{loadingGaps[key] ? 'Loading...' : `↕ ${line.content}`}</div>
                             </div>
                         );
                     }
-
                     return renderLine(line, idx);
                 })}
             </div>

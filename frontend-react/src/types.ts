@@ -27,7 +27,7 @@ export interface Config {
     // UI Settings (Persisted)
     folderFilters?: Record<string, boolean>;
     diffFilters?: Record<string, boolean>;
-    viewOptions?: Record<string, boolean | string>;
+    viewOptions?: Record<string, boolean | string | number>; // e.g. folderViewMode, showLineNumbers, diffViewWrap, leftPanelWidth
     savedExcludes?: {
         folders?: string;
         files?: string;

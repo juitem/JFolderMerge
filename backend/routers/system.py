@@ -18,8 +18,8 @@ HISTORY_FILE = "settings/history.json"
 def load_config():
     # 1. Defaults
     config = {
-        "left": "test/A",
-        "right": "test/B",
+        "left": "test/test_left",
+        "right": "test/test_right",
         "ignoreFoldersPath": "settings/ignore_folders",
         "ignoreFilesPath": "settings/ignore_files",
         "defaultIgnoreFolderFile": "default",
@@ -67,6 +67,8 @@ def save_config(req: ConfigUpdateRequest):
             pass
             
     # Update with new values
+    if req.left is not None: file_config["defaultLeftPath"] = req.left
+    if req.right is not None: file_config["defaultRightPath"] = req.right
     if req.folderFilters is not None: file_config["folderFilters"] = req.folderFilters
     if req.diffFilters is not None: file_config["diffFilters"] = req.diffFilters
     if req.viewOptions is not None: file_config["viewOptions"] = req.viewOptions

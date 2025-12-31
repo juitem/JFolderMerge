@@ -2,7 +2,32 @@
   {
     "left_path": "/Users/juitem/Docker/ContainerFolder/JF",
     "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
-    "timestamp": "2025-12-30T06:02:33.323725"
+    "timestamp": "2026-01-01T05:42:58.260692"
+  },
+  {
+    "left_path": "",
+    "right_path": "",
+    "timestamp": "2026-01-01T05:29:54.353689"
+  },
+  {
+    "left_path": "/Users/juitem/Docker/ContainerFolder/JF/test/test_left",
+    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/test/test_right",
+    "timestamp": "2026-01-01T03:50:06.872446"
+  },
+  {
+    "left_path": "/Users/juitem/Docker/ContainerFolder/JF/test_left",
+    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/test/test_right",
+    "timestamp": "2026-01-01T00:50:27.843664"
+  },
+  {
+    "left_path": "/Users/juitem/Docker/ContainerFolder/JF",
+    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/",
+    "timestamp": "2025-12-31T23:47:59.451259"
+  },
+  {
+    "left_path": "test/A",
+    "right_path": "test/B",
+    "timestamp": "2025-12-31T23:38:45.336065"
   },
   {
     "left_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
@@ -23,20 +48,5 @@
     "left_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
     "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
     "timestamp": "2025-12-29T00:43:55.718226"
-  },
-  {
-    "left_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/frontend-react/Users/juitem/Docker/ContainerFolder/JF",
-    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
-    "timestamp": "2025-12-29T00:42:34.442109"
-  },
-  {
-    "left_path": "test/A",
-    "right_path": "test/B",
-    "timestamp": "2025-12-29T00:36:15.513873"
-  },
-  {
-    "left_path": "../test/A",
-    "right_path": "../test/B",
-    "timestamp": "2025-12-29T00:33:48.009809"
   }
 ]

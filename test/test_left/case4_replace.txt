@@ -1,0 +1,11 @@
+Common Header
+function oldLogic() {
+    console.log("This is the OLD implementation.");
+    var x = 10;
+    var y = 20;
+    return x + y;
+}
+// Legacy comment 1
+// Legacy comment 2
+// Legacy comment 3
+Common Footer

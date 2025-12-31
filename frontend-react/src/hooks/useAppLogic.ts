@@ -19,6 +19,7 @@ export const useAppLogic = () => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [diffMode, setDiffMode] = useState<DiffMode>('side-by-side');
     const [aboutOpen, setAboutOpen] = useState(false);
+    const [leftPanelWidth, setLeftPanelWidth] = useState(50); // Default 50% for split
 
     // Modal States
     const [confirmState, setConfirmState] = useState<{
@@ -56,13 +57,38 @@ export const useAppLogic = () => {
     useEffect(() => {
         if (config && !configInitialized.current) {
             configInitialized.current = true;
-            if (!leftPath && config.left) setLeftPath(config.left);
-            if (!rightPath && config.right) setRightPath(config.right);
-            if (!excludeFolders && config.savedExcludes?.folders) setExcludeFolders(config.savedExcludes.folders);
-            if (!excludeFiles && config.savedExcludes?.files) setExcludeFiles(config.savedExcludes.files);
+            // Always set from config on first load, even if local state was temporarily typed into
+            if (config.left) setLeftPath(config.left);
+            if (config.right) setRightPath(config.right);
+
+            if (config.savedExcludes?.folders) setExcludeFolders(config.savedExcludes.folders);
+            if (config.savedExcludes?.files) setExcludeFiles(config.savedExcludes.files);
             if (config.viewOptions?.diffMode) setDiffMode(config.viewOptions.diffMode as DiffMode);
+
+            // Initial Width Load logic is handled by the mode-watcher effect below, 
+            // but we need to ensure it runs at least once. 
+            // The effect below has [config?.viewOptions?.folderViewMode] dependency, so it will run when config loads.
         }
     }, [config]);
+
+    // Mode-specific width persistence
+    useEffect(() => {
+        if (!config) return;
+        const mode = (config.viewOptions?.folderViewMode as string) || 'split';
+        const key = `leftPanelWidth_${mode}`;
+
+        // Check if there is a saved width for this specific mode
+        const savedWidth = config.viewOptions?.[key];
+
+        if (savedWidth) {
+            setLeftPanelWidth(Number(savedWidth));
+        } else {
+            // Defaults
+            if (mode === 'unified') setLeftPanelWidth(20);
+            else if (mode === 'split') setLeftPanelWidth(50);
+            else setLeftPanelWidth(30);
+        }
+    }, [config?.viewOptions?.folderViewMode]);
 
     // -- Handlers --
 
@@ -79,6 +105,9 @@ export const useAppLogic = () => {
     const handleSaveSettings = async () => {
         if (!config) return;
         try {
+            const mode = (config.viewOptions?.folderViewMode as string) || 'split';
+            const widthKey = `leftPanelWidth_${mode}`;
+
             const toSave = {
                 ...config,
                 left: leftPath,
@@ -89,7 +118,8 @@ export const useAppLogic = () => {
                 },
                 viewOptions: {
                     ...config.viewOptions,
-                    diffMode: diffMode
+                    diffMode: diffMode,
+                    [widthKey]: leftPanelWidth
                 }
             };
             await saveConfig(toSave);
@@ -99,9 +129,51 @@ export const useAppLogic = () => {
         }
     };
 
+    const handleResetSettings = async () => {
+        if (!confirm("Are you sure you want to reset all settings to default?")) return;
+        try {
+            // Reset local state
+            setExcludeFolders("");
+            setExcludeFiles("");
+            setLeftPanelWidth(50);
+            setDiffMode('side-by-side');
+
+            // Save cleared config
+            const defaultConfig = {
+                left: config?.left || "",
+                right: config?.right || "",
+                savedExcludes: { folders: "", files: "" },
+                viewOptions: {
+                    darkMode: true,
+                    folderViewMode: 'split',
+                    showLineNumbers: true,
+                    diffMode: 'side-by-side',
+                    leftPanelWidth_split: 50,
+                    leftPanelWidth_unified: 20,
+                    leftPanelWidth_flat: 30
+                }
+            };
+
+            await api.saveConfig(defaultConfig);
+            // Optionally reload? useConfig hook should update automatically.
+            showAlert("Settings Reset", "All settings have been reset to default.");
+        } catch (e: any) {
+            showAlert("Reset Failed", "Failed to reset settings: " + e.message);
+        }
+    };
+
     const onCompare = () => {
         setSelectedNode(null);
         compare(leftPath, rightPath, excludeFiles, excludeFolders);
+
+        // Auto-save paths as defaults (persisting the EXACT values used for comparison)
+        if (config) {
+            saveConfig({
+                ...config,
+                left: leftPath,
+                right: rightPath
+            });
+        }
     };
 
     const handleMerge = (node: FileNode, direction: 'left-to-right' | 'right-to-left') => {
@@ -189,6 +261,104 @@ export const useAppLogic = () => {
         setRightPath(temp);
     };
 
+    // --- Stats Calculation Logic ---
+    const [globalStats, setGlobalStats] = useState<{ added: number, removed: number, modified: number }>({ added: 0, removed: 0, modified: 0 });
+    const [currentFolderStats, setCurrentFolderStats] = useState<{ added: number, removed: number, modified: number } | null>(null);
+    const [fileLineStats, setFileLineStats] = useState<{ added: number, removed: number, groups: number } | null>(null);
+
+    // Calculate Global Stats when treeData changes
+    useEffect(() => {
+        if (!treeData) {
+            setGlobalStats({ added: 0, removed: 0, modified: 0 });
+            return;
+        }
+
+        const stats = { added: 0, removed: 0, modified: 0 };
+        const traverse = (node: FileNode) => {
+            if (node.type === 'file') {
+                if (node.status === 'added') stats.added++;
+                if (node.status === 'removed') stats.removed++;
+                if (node.status === 'modified') stats.modified++;
+            }
+            if (node.children) node.children.forEach(traverse);
+        };
+        traverse(treeData);
+        setGlobalStats(stats);
+    }, [treeData]);
+
+    // Calculate Current Folder Stats when selectedNode or treeData changes
+    useEffect(() => {
+        if (!treeData || !selectedNode) {
+            setCurrentFolderStats(null);
+            return;
+        }
+
+        // Find parent folder of selectedNode
+        let parentStats = { added: 0, removed: 0, modified: 0 };
+        let found = false;
+
+        const traverseToFindParent = (node: FileNode): boolean => {
+            if (node.children) {
+                if (node.children.some(child => child.path === selectedNode.path)) {
+                    const stats = { added: 0, removed: 0, modified: 0 };
+                    const countStats = (n: FileNode) => {
+                        if (n.type === 'file') {
+                            if (n.status === 'added') stats.added++;
+                            if (n.status === 'removed') stats.removed++;
+                            if (n.status === 'modified') stats.modified++;
+                        }
+                        if (n.children) n.children.forEach(countStats);
+                    };
+                    countStats(node);
+                    parentStats = stats;
+                    found = true;
+                    return true;
+                }
+                for (const child of node.children) {
+                    if (traverseToFindParent(child)) return true;
+                }
+            }
+            return false;
+        };
+
+        if (treeData.children?.some(c => c.path === selectedNode.path)) {
+            const stats = { added: 0, removed: 0, modified: 0 };
+            const countStats = (n: FileNode) => {
+                if (n.type === 'file') {
+                    if (n.status === 'added') stats.added++;
+                    if (n.status === 'removed') stats.removed++;
+                    if (n.status === 'modified') stats.modified++;
+                }
+                if (n.children) n.children.forEach(countStats);
+            };
+            countStats(treeData);
+            parentStats = stats;
+            found = true;
+        } else {
+            traverseToFindParent(treeData);
+        }
+
+        if (found) {
+            setCurrentFolderStats(parentStats);
+        } else {
+            setCurrentFolderStats(null);
+        }
+
+    }, [treeData, selectedNode]);
+
+    // Callback to update file line stats from DiffViewer
+    const updateFileLineStats = (added: number, removed: number, groups: number) => {
+        setFileLineStats({ added, removed, groups });
+    };
+
+    const handleAdjustWidth = (delta: number) => {
+        setLeftPanelWidth(prev => {
+            const next = prev + delta;
+            // Clamp between 10% and 50%
+            return Math.max(10, Math.min(50, next));
+        });
+    };
+
     // Return everything needed by UI
     return {
         // Config & Loading
@@ -205,6 +375,7 @@ export const useAppLogic = () => {
         isExpanded, setIsExpanded,
         diffMode, setDiffMode,
         aboutOpen, setAboutOpen,
+        leftPanelWidth,
         treeData,
 
         // Modal States
@@ -214,6 +385,7 @@ export const useAppLogic = () => {
 
         // Actions
         handleSaveSettings,
+        handleResetSettings,
         onCompare,
         handleMerge,
         handleDelete,
@@ -221,6 +393,14 @@ export const useAppLogic = () => {
         handleBrowseSelect,
         handleHistorySelect,
         handleSwap,
-        toggleViewOption: useConfig().toggleViewOption
+        handleReload,
+        handleAdjustWidth,
+        toggleViewOption: useConfig().toggleViewOption,
+
+        // Stats
+        globalStats,
+        currentFolderStats,
+        fileLineStats,
+        updateFileLineStats
     };
 };

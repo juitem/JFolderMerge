@@ -1,0 +1,5 @@
+Line 1: Keep this line.
+Line 2: This is the ORIGINAL line.
+Line 3: Keep this line too.
+Line 4: Another common line.
+Line 5: End of file.

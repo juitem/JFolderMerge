@@ -118,7 +118,7 @@ export const AppModals: React.FC<AppModalsProps> = (props) => {
                         </div>
                         <div className="modal-body" style={{ textAlign: 'center', padding: '20px' }}>
                             <div style={{ marginBottom: '15px' }}><JLogo size={64} style={{ display: 'inline-block' }} /></div>
-                            <h2 style={{ marginBottom: '10px' }}>J-Folder Merge</h2>
+                            <h2 style={{ marginBottom: '10px' }}>J's Visual Folder Merge</h2>
                             <p style={{ color: '#888', marginBottom: '20px' }}>Oscar Series</p>
                             <p>By: Juitem JoonWoo Kim</p>
                             <p><a href="mailto:juitem@gmail.com" style={{ color: '#646cff' }}>juitem@gmail.com</a></p>

@@ -15,17 +15,26 @@ interface DiffViewerProps {
     config: Config;
     onNextFile?: () => void;
     onPrevFile?: () => void;
+    onReload?: () => void;
+    onStatsUpdate?: (added: number, removed: number, groups: number) => void;
 }
 
 export interface DiffViewerHandle {
-    scrollToChange: (type: 'added' | 'removed' | 'any', direction: 'prev' | 'next') => void;
+    scrollToChange: (type: 'added' | 'removed' | 'any', direction: 'prev' | 'next' | 'first' | 'last') => void;
     mergeActiveBlock: () => void;
+    deleteActiveBlock: () => void;
+    reload: () => Promise<void>;
 }
 
 export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
-    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile
+    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate
 }, ref) => {
     const [mode, setMode] = useState<DiffMode>(initialMode);
+
+    // ... (lines 33-40 skipped in diff, but I must match context if I replace start)
+    // Actually, I can just replace the definition line.
+
+
 
     // Sync if initialMode changes (though usually App passes persisted state)
     useEffect(() => {
@@ -38,21 +47,31 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
     const [diffData, setDiffData] = useState<DiffResult | null>(null);
     const [rawContent, setRawContent] = useState<{ left: string, right: string } | null>(null);
 
+
+
     const agentViewRef = useRef<AgentViewHandle>(null);
 
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
         scrollToChange: (type, direction) => {
-            if (mode === 'agent' && agentViewRef.current) {
+            if ((mode === 'agent' || mode === 'combined') && agentViewRef.current) {
                 agentViewRef.current.scrollToChange(type, direction);
             } else {
                 console.log("Scroll to change not implemented for mode:", mode);
             }
         },
         mergeActiveBlock: () => {
-            if (mode === 'agent' && agentViewRef.current) {
+            if ((mode === 'agent' || mode === 'combined') && agentViewRef.current) {
                 agentViewRef.current.mergeActiveBlock();
             }
+        },
+        deleteActiveBlock: () => {
+            if ((mode === 'agent' || mode === 'combined') && agentViewRef.current) {
+                agentViewRef.current.deleteActiveBlock();
+            }
+        },
+        reload: async () => {
+            await fetchDiff();
         }
     }));
 
@@ -106,6 +125,102 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
         fetchDiff();
     }, [relPath, mode, leftPathBase, rightPathBase]);
 
+    // Calculate and report stats
+    useEffect(() => {
+        if (!diffData || !onStatsUpdate) return;
+
+        let added = 0;
+        let removed = 0;
+        let groups = 0;
+
+        if (diffData.diff) {
+            // Unified Stats
+            diffData.diff.forEach(line => {
+                if (line.startsWith('@@')) {
+                    groups++;
+                    return;
+                }
+                if (line.startsWith('+') && !line.startsWith('+++')) added++;
+                if (line.startsWith('-') && !line.startsWith('---')) removed++;
+            });
+        } else if (diffData.left_rows && diffData.right_rows) {
+            // Side By Side Stats
+            const count = Math.max(diffData.left_rows.length, diffData.right_rows.length);
+            let inChange = false;
+
+            for (let i = 0; i < count; i++) {
+                const l = diffData.left_rows[i];
+                const r = diffData.right_rows[i];
+
+                // For line counts
+                if (l && l.type !== 'same' && l.type !== 'empty') removed++;
+                if (r && r.type !== 'same' && r.type !== 'empty') added++;
+
+                // For group counts
+                const isBlockRow = (l && l.type !== 'same') || (r && r.type !== 'same');
+
+                if (isBlockRow) {
+                    if (!inChange) {
+                        groups++;
+                        inChange = true;
+                    }
+                } else {
+                    inChange = false;
+                }
+            }
+        }
+
+        onStatsUpdate(added, removed, groups);
+    }, [diffData]);
+
+    // Stats Notification
+    useEffect(() => {
+        if (diffData) {
+            // Calculate added/removed lines from diffData
+            let added = 0;
+            let removed = 0;
+            if (diffData.diff) {
+                // Unified diff parsing
+                diffData.diff.forEach(line => {
+                    if (line.startsWith('+') && !line.startsWith('+++')) added++;
+                    if (line.startsWith('-') && !line.startsWith('---')) removed++;
+                });
+            } else if (diffData.left_rows && diffData.right_rows) {
+                // Side by side parsing
+                // Or just use summary if available? Backend doesn't send summary.
+                // Naive count:
+                // Actually difficult to sum exactly from rows without duplicating.
+                // Simplified: Just use Unified diff length if available? 
+                // Wait, if mode is SideBySide, do we have diffData.diff?
+                // The backend usually returns both if we ask?
+                // `api.fetchDiff` returns `DiffResult`.
+                // If mode='side-by-side', `diff` field might be empty?
+                // Let's check `api.ts`.
+            }
+            // Fallback: If `diff` exists, use it.
+            if (diffData && diffData.diff) {
+                let a = 0;
+                let r = 0;
+                diffData.diff.forEach(l => {
+                    const code = l[0];
+                    if (code === '+') a++;
+                    if (code === '-') r++;
+                });
+                // Actually diffData.diff is string[] in type definition? No, usually DiffData is complex.
+                // let's check types.
+                // In `types.ts`, `diff?: string[]`.
+                // So yes.
+                // Note: Unified view lines might contain prefixes.
+                // Assuming standard unified diff format strings.
+            }
+        }
+    }, [diffData]);
+
+    // Better Approach:
+    // Only report specific stats if available.
+    // Actually, `DiffViewer` props needs `onStatsUpdate`.
+    // Let's modify `DiffViewer` to accept it first.
+
     const handleLineMerge = async (sourceText: string, targetSide: 'left' | 'right', targetLineIndex: number | null, type: 'insert' | 'replace' | 'delete', viewIndex: number) => {
         setLoading(true);
         try {
@@ -145,13 +260,14 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
 
             // 4. Refresh
             await fetchDiff();
+            onReload?.(); // Refresh global tree
         } catch (e: any) {
             setError("Merge failed: " + e.message);
             setLoading(false);
         }
     };
 
-    const handleAgentMerge = async (linesToMerge: string[], targetSide: 'left' | 'right', anchorLine: number, type: 'insert' | 'delete') => {
+    const handleAgentMerge = async (linesToMerge: string[], targetSide: 'left' | 'right', anchorLine: number, type: 'insert' | 'delete' | 'replace', deleteCount: number = 0) => {
         setLoading(true);
         try {
             const targetPathBase = targetSide === 'left' ? leftPathBase : rightPathBase;
@@ -172,6 +288,14 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                 // Insert lines AFTER anchorLine (1-based)
                 // If anchorLine is 0, insert at beginning.
                 lines.splice(anchorLine, 0, ...linesToMerge);
+            } else if (type === 'replace') {
+                // Replace logic: Delete X lines ending at anchorLine, then Insert.
+                // anchorLine is 1-based end of the block to be replaced (from parsing state).
+                // deleteCount is number of lines to remove.
+                const startIndex = anchorLine - deleteCount;
+                if (startIndex >= 0 && startIndex < lines.length) {
+                    lines.splice(startIndex, deleteCount, ...linesToMerge);
+                }
             }
 
             // 3. Save
@@ -179,6 +303,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
 
             // 4. Refresh
             await fetchDiff();
+            onReload?.(); // Refresh global tree
         } catch (e: any) {
             setError("Merge failed: " + e.message);
             setLoading(false);
@@ -204,6 +329,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         filters={config.diffFilters}
                         onMerge={handleLineMerge}
                         showLineNumbers={!!config.viewOptions?.showLineNumbers}
+                        wrap={!!config.viewOptions?.diffViewWrap}
                     />
                 )}
                 {mode === 'raw' && rawContent && (
@@ -211,8 +337,17 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                 )}
                 {mode === 'combined' && diffData && (
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-                        <div style={{ flex: 1, minHeight: 0, borderBottom: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
-                            <UnifiedView diff={diffData.diff} filters={config.diffFilters} />
+                        <div style={{ flex: 1.3, minHeight: 0, borderBottom: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
+                            <AgentView
+                                ref={agentViewRef}
+                                diff={diffData.diff}
+                                showLineNumbers={!!config.viewOptions?.showLineNumbers}
+                                fullRightPath={rightPathBase + '/' + relPath}
+                                showSame={!!config.diffFilters?.same}
+                                onMerge={handleAgentMerge}
+                                onNextFile={onNextFile}
+                                onPrevFile={onPrevFile}
+                            />
                         </div>
                         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                             <SideBySideView
@@ -221,6 +356,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                                 filters={config.diffFilters}
                                 onMerge={handleLineMerge}
                                 showLineNumbers={!!config.viewOptions?.showLineNumbers}
+                                wrap={!!config.viewOptions?.diffViewWrap}
                             />
                         </div>
                     </div>

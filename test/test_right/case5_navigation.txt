@@ -1,0 +1,7 @@
+1. Common Start
+2. [Right Only: Section X]
+3. Common Middle 1
+4. [Right Only: Section Y]
+5. Common Middle 2
+6. Common End
+7. [Right Only: Footer Z]

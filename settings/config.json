@@ -1,37 +1,29 @@
 {
-  "defaultLeftPath": "/Users/juitem/Docker/ContainerFolder/FolderComp",
-  "defaultRightPath": "/Users/juitem/Docker/ContainerFolder/JF",
-  "ignoreFoldersPath": "settings/ignore_folders",
-  "ignoreFilesPath": "settings/ignore_files",
-  "defaultIgnoreFolderFile": "default",
-  "defaultIgnoreFileFile": "default",
-  "serverPort": 8000,
-  "folderFilters": {
-    "added": true,
-    "removed": true,
-    "modified": true,
-    "same": false
-  },
-  "diffFilters": {
-    "added": true,
-    "removed": true,
-    "modified": true,
-    "same": false
-  },
+  "defaultLeftPath": "/Users/juitem/Docker/ContainerFolder/JF",
+  "defaultRightPath": "/Users/juitem/Docker/ContainerFolder/FolderComp",
   "viewOptions": {
-    "autoExpand": false,
-    "useExternal": false,
-    "currentDiffMode": "side-by-side",
-    "diffMode": "agent",
-    "folderViewMode": "unified",
-    "showLineNumbers": false,
-    "showFullContext": false,
-    "confirmMerge": false,
-    "confirmDelete": true,
-    "darkMode": false
+    "darkMode": true,
+    "folderViewMode": "flat",
+    "showLineNumbers": true,
+    "diffMode": "side-by-side",
+    "leftPanelWidth_split": 50,
+    "leftPanelWidth_unified": 20,
+    "leftPanelWidth_flat": 30
   },
   "savedExcludes": {
-    "folders": ".git, .tmp, __pycache__, .vscode, .idea, .venv, venv, ROOTFS, jfoldermerge-vscode, node_modules, dist",
-    "files": ".tmp, *.pyc, .DS_Store"
+    "folders": "",
+    "files": ""
+  },
+  "folderFilters": {
+    "same": false,
+    "removed": true,
+    "modified": true,
+    "added": true
+  },
+  "diffFilters": {
+    "same": false,
+    "modified": true,
+    "added": true,
+    "removed": true
   }
 }

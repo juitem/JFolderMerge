@@ -13,6 +13,8 @@ interface ConfigContextType {
     toggleDiffFilter: (key: string) => void;
     toggleViewOption: (key: string) => void;
     setViewOption: (key: string, value: any) => void;
+    zoomLevel: number;
+    setZoomLevel: (level: number | ((prev: number) => number)) => void;
 }
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
@@ -72,8 +74,23 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         setConfig({ ...config, viewOptions: newOptions });
     };
 
+    // Zoom State (Local, not persisted in Config for now or maybe viewOptions later? 
+    // User requested buttons so maybe transient is fine, but viewOptions is better if we want persistence.
+    // Let's stick to local state for now as 'zoom' isn't in Config type yet without backend change.
+    // Wait, Config type is defined in types.ts. I won't change backend types if I can avoid it.
+    // I'll keep it local to Context but not saved to backend 'config.json' unless strictly needed.
+    const [zoomLevel, setZoomLevel] = useState(1);
+
+    useEffect(() => {
+        // Apply zoom to root
+        // Using font-size percentage on html is a clean way to scale rem-based layout
+        // Default is 100% (16px). 
+        // Range: 0.5 (50%) to 2.0 (200%).
+        document.documentElement.style.fontSize = `${zoomLevel * 100}%`;
+    }, [zoomLevel]);
+
     return (
-        <ConfigContext.Provider value={{ config, setConfig, loading, error, saveConfig, toggleFilter, toggleDiffFilter, toggleViewOption, setViewOption }}>
+        <ConfigContext.Provider value={{ config, setConfig, loading, error, saveConfig, toggleFilter, toggleDiffFilter, toggleViewOption, setViewOption, zoomLevel, setZoomLevel }}>
             {children}
         </ConfigContext.Provider>
     );
