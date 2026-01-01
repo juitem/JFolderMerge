@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { FileNode, Config } from '../../types';
 
 // Helper: Is Node Visible based on Config Filters?
@@ -56,8 +56,6 @@ export const useTreeNavigation = (
             if (!isNodeVisible(n, filters)) return;
             if (searchQuery && !matchesSearch(n, searchQuery)) return;
 
-            // Clone node to add depth without mutating original data
-            // (Or just mutate if we own the data? Better to shallow clone for React)
             const nodeWithDepth = { ...n, depth };
 
             list.push(nodeWithDepth);
@@ -69,79 +67,194 @@ export const useTreeNavigation = (
         return list;
     }, [root, config, searchQuery, expandedPaths]);
 
+    // [AUTO-EXPAND] Compute ALL potential searchable nodes (Ignoring collapse state)
+    const allNodes = useMemo(() => {
+        if (!root || !config) return [];
+        const list: FileNode[] = [];
+        const filters = config.folderFilters || { same: true, modified: true, added: true, removed: true };
+
+        const traverse = (n: FileNode) => {
+            // Respect filters & Search, but NOT expansion
+            if (!isNodeVisible(n, filters)) return;
+            if (searchQuery && !matchesSearch(n, searchQuery)) return;
+
+            list.push(n);
+            if (n.type === 'directory' && n.children) {
+                n.children.forEach(traverse);
+            }
+        };
+        traverse(root);
+        return list;
+    }, [root, config, searchQuery]);
+
+    // [STABILITY] Derived Focus State (Synchronous)
+    // Instead of waiting for useEffect to repair, we calculate the "Effective" focus during render.
+    // This prevents "flicker" and ensures moveFocus always starts from a valid place.
+    const lastValidIndex = useRef<number>(0); // Default to 0
+
+    // 1. Resolve Effective Focus
+    let effectivePath = focusedPath;
+    let effectiveIndex = -1;
+
+    // Check availability
+    if (visibleNodes.length > 0) {
+        // Try strict match
+        if (focusedPath) {
+            effectiveIndex = visibleNodes.findIndex(n => n.path === focusedPath);
+        }
+
+        // If invalid, fallback to last known valid index (Clamped)
+        if (effectiveIndex === -1) {
+            let fallback = lastValidIndex.current;
+            if (fallback >= visibleNodes.length) fallback = visibleNodes.length - 1;
+            if (fallback < 0) fallback = 0;
+
+            effectiveIndex = fallback;
+            effectivePath = visibleNodes[fallback]?.path || null;
+
+            // [OPTIONAL] Sync back to state immediately? 
+            // Better to let visual be stable, and update state on next interaction or effect?
+            // If we don't sync, 'focusedPath' remains null/stale in state vs effective.
+            // Let's rely on 'effectivePath' for rendering and interaction.
+        } else {
+            // Update cache
+            lastValidIndex.current = effectiveIndex;
+        }
+    } else {
+        effectivePath = null;
+        effectiveIndex = -1;
+    }
+
+    // 2. Navigation Actions use Effective Path
+    const moveFocus = useCallback((delta: number) => {
+        if (visibleNodes.length === 0) return;
+
+        // Start from Effective Index (never -1 if list has items)
+        let currentIndex = effectiveIndex;
+
+        // Double check bounds (paranoid)
+        if (currentIndex === -1) currentIndex = 0;
+
+        let nextIndex = currentIndex + delta;
+
+        // [LOGIC] Wrap Handling
+        if (nextIndex < 0) {
+            nextIndex = visibleNodes.length - 1; // Wrap to Bottom
+        } else if (nextIndex >= visibleNodes.length) {
+            nextIndex = 0; // Wrap to Top
+        }
+
+        const nextNode = visibleNodes[nextIndex];
+
+        // [DEBUG]
+        console.debug(`[Navigation] Move ${currentIndex} -> ${nextIndex} (${nextNode.path})`);
+
+        setFocusedPath(nextNode.path);
+        // Updating state will trigger re-render, and effectiveIndex will match new path
+    }, [visibleNodes, effectiveIndex]); // Depend on effectiveIndex (derived)
+
+    // Unused repair effect removed.
+
+    const focusNode = useCallback((path: string) => {
+        setFocusedPath(path);
+    }, []);
+
     // 3. Navigation Actions
     const toggleExpand = useCallback((path: string) => {
+        // [DESIGN] Prevent Root from being collapsed to ensure tree visibility
+        if (root && path === root.path) return;
+
         setExpandedPaths(prev => {
             const next = new Set(prev);
             if (next.has(path)) next.delete(path);
             else next.add(path);
             return next;
         });
-    }, []);
-
-
-    const focusNode = useCallback((path: string) => {
-        setFocusedPath(path);
-        // We might want to scroll into view here or in the UI layer
-    }, []);
-
-    const moveFocus = useCallback((delta: number) => {
-        if (visibleNodes.length === 0) return;
-
-        let currentIndex = -1;
-        if (focusedPath) {
-            currentIndex = visibleNodes.findIndex(n => n.path === focusedPath);
-        }
-
-        let nextIndex = currentIndex + delta;
-        // Wrap around? Or clamp? 
-        // User requested Wrap-around in previous tasks.
-        if (nextIndex < 0) nextIndex = visibleNodes.length - 1;
-        if (nextIndex >= visibleNodes.length) nextIndex = 0;
-
-        const nextNode = visibleNodes[nextIndex];
-        setFocusedPath(nextNode.path);
-
-        // Auto-select ONLY if it's a file? Or just focus?
-        // Usually just focus. 
-    }, [visibleNodes, focusedPath]);
+    }, [root]);
 
     const selectNextChange = useCallback(() => {
-        if (visibleNodes.length === 0) return;
-        let currentIndex = -1;
-        if (focusedPath) currentIndex = visibleNodes.findIndex(n => n.path === focusedPath);
+        // [AUTO-EXPAND] Use allNodes (ignoring collapse state) to find hidden changes
+        if (!allNodes || allNodes.length === 0) return;
 
-        // Scan forward
-        for (let i = 1; i <= visibleNodes.length; i++) {
-            const idx = (currentIndex + i) % visibleNodes.length;
-            const node = visibleNodes[idx];
+        let currentIndex = -1;
+        if (effectivePath) currentIndex = allNodes.findIndex(n => n.path === effectivePath);
+
+        // Scan forward in ALL nodes
+        for (let i = 1; i <= allNodes.length; i++) {
+            const idx = (currentIndex + i) % allNodes.length;
+            const node = allNodes[idx];
+
+            // Skip directories for "Next Change" (usually want files), or allow? 
+            // Usually we want *files* with changes.
             if (node.status !== 'same' && node.type !== 'directory') {
+                // FOUND!
+                // 1. Expand Parents
+                const parts = node.path.split('/');
+                const parentsToExpand = new Set<string>();
+                let currentPath = "";
+                // Reconstruct paths: /root, /root/A, ...
+                // Assuming path starts with /
+                for (let j = 1; j < parts.length - 1; j++) {
+                    currentPath += "/" + parts[j];
+                    parentsToExpand.add(currentPath);
+                }
+
+                if (parentsToExpand.size > 0) {
+                    setExpandedPaths(prev => {
+                        const next = new Set(prev);
+                        parentsToExpand.forEach(p => next.add(p));
+                        return next;
+                    });
+                }
+
+                // 2. Focus
                 setFocusedPath(node.path);
                 if (onSelect) onSelect(node);
                 return;
             }
         }
-    }, [visibleNodes, focusedPath, onSelect]);
+    }, [allNodes, effectivePath, onSelect]);
 
     const selectPrevChange = useCallback(() => {
-        if (visibleNodes.length === 0) return;
+        if (!allNodes || allNodes.length === 0) return;
+
         let currentIndex = -1;
-        if (focusedPath) currentIndex = visibleNodes.findIndex(n => n.path === focusedPath);
+        if (effectivePath) currentIndex = allNodes.findIndex(n => n.path === effectivePath);
 
         // Scan backward
-        for (let i = 1; i <= visibleNodes.length; i++) {
-            const idx = (currentIndex - i + visibleNodes.length) % visibleNodes.length;
-            const node = visibleNodes[idx];
+        for (let i = 1; i <= allNodes.length; i++) {
+            const idx = (currentIndex - i + allNodes.length) % allNodes.length;
+            const node = allNodes[idx];
+
             if (node.status !== 'same' && node.type !== 'directory') {
+                // FOUND!
+                // 1. Expand Parents
+                const parts = node.path.split('/');
+                const parentsToExpand = new Set<string>();
+                let currentPath = "";
+                for (let j = 1; j < parts.length - 1; j++) {
+                    currentPath += "/" + parts[j];
+                    parentsToExpand.add(currentPath);
+                }
+
+                if (parentsToExpand.size > 0) {
+                    setExpandedPaths(prev => {
+                        const next = new Set(prev);
+                        parentsToExpand.forEach(p => next.add(p));
+                        return next;
+                    });
+                }
+
+                // 2. Focus
                 setFocusedPath(node.path);
                 if (onSelect) onSelect(node);
                 return;
             }
         }
-    }, [visibleNodes, focusedPath, onSelect]);
+    }, [allNodes, effectivePath, onSelect]);
 
     return {
-        focusedPath,
+        focusedPath: effectivePath, // Return Derived Focus
         setFocusedPath,
         expandedPaths,
         toggleExpand,
@@ -149,6 +262,6 @@ export const useTreeNavigation = (
         moveFocus,
         selectNextChange,
         selectPrevChange,
-        focusNode // Expose
+        focusNode
     };
 };

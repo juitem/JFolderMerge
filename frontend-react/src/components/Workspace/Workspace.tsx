@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FolderX, FileX, FileDiff, Bot, Layout, Columns, Rows, FileCode, WrapText } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FolderX, FileX, FileDiff, Bot, Layout, Columns, Rows, FileCode, WrapText, ChevronsUp, ChevronsDown } from 'lucide-react';
 import { FolderTree, type FolderTreeHandle } from '../FolderTree';
 
 import { useConfig } from '../../contexts/ConfigContext';
@@ -232,11 +232,30 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                     )}
 
                     <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexShrink: 0 }}>
-                        <button className="icon-btn" style={{ padding: 2, color: '#60a5fa' }} onClick={() => folderTreeRef.current?.selectPrevChangedNode()} title="Prev Changed File">
+                        <button className="icon-btn" style={{ padding: 2, color: '#60a5fa' }} onClick={() => {
+                            folderTreeRef.current?.selectPrevChangedNode();
+                            folderTreeRef.current?.focus();
+                        }} title="Prev Changed File">
                             <ChevronUp size={16} />
                         </button>
-                        <button className="icon-btn" style={{ padding: 2, color: '#60a5fa' }} onClick={() => folderTreeRef.current?.selectNextChangedNode()} title="Next Changed File">
+                        <button className="icon-btn" style={{ padding: 2, color: '#60a5fa' }} onClick={() => {
+                            folderTreeRef.current?.selectNextChangedNode();
+                            folderTreeRef.current?.focus();
+                        }} title="Next Changed File">
                             <ChevronDown size={16} />
+                        </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexShrink: 0, marginLeft: '4px' }}>
+                        <button className="icon-btn" style={{ padding: 2, color: '#aaa' }} onClick={() => {
+                            folderTreeRef.current?.selectFirst();
+                        }} title="Go to First Item">
+                            <ChevronsUp size={16} />
+                        </button>
+                        <button className="icon-btn" style={{ padding: 2, color: '#aaa' }} onClick={() => {
+                            folderTreeRef.current?.selectLast();
+                        }} title="Go to Last Item">
+                            <ChevronsDown size={16} />
                         </button>
                     </div>
 
@@ -288,9 +307,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                         selectedNode={props.selectedNode}
                         config={props.config}
                         onSelect={(node) => {
-                            if (props.selectedNode?.path === node.path) {
-                                props.onReload?.();
-                            }
+                            // Removed auto-reload on re-select per user feedback
                             props.onSelectNode(node);
                         }}
                         onMerge={props.onMerge}
@@ -312,7 +329,11 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                         {/* Generic Adapter Header */}
                         <div className="diff-header-bar">
                             <div className="window-controls" style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                                <button className="icon-btn" onClick={() => { props.onSelectNode(null); props.setIsExpanded(false); }} title="Close View">
+                                <button className="icon-btn" onClick={() => {
+                                    props.onSelectNode(null);
+                                    props.setIsExpanded(false);
+                                    folderTreeRef.current?.focus();
+                                }} title="Close View">
                                     <X size={16} />
                                 </button>
                                 <button className="icon-btn" onClick={() => props.setIsExpanded(!props.isExpanded)} title={props.isExpanded ? "Restore View" : "Toggle Full Screen"}>

@@ -4,13 +4,14 @@ import { useKeyLogger } from '../hooks/useKeyLogger';
 import type { FileNode, Config } from '../types';
 import { VirtualTreeList } from './tree/VirtualTreeList';
 import { treeService } from '../services/tree/TreeService';
+import { layoutService } from '../services/layout/LayoutService';
 import { contextService, ContextKeys } from '../services/context/ContextService';
 
 // Interfaces match previous definition to prevent breakage
 export interface FolderTreeProps {
     root: FileNode;
     config: Config;
-    onSelect: (node: FileNode) => void;
+    onSelect: (node: FileNode | null) => void;
     onMerge: (node: FileNode, direction: 'left-to-right' | 'right-to-left') => void;
     onDelete: (node: FileNode, side: 'left' | 'right') => void;
     searchQuery?: string;
@@ -22,15 +23,24 @@ export interface FolderTreeProps {
 export interface FolderTreeHandle {
     selectNextNode: () => void;
     selectPrevNode: () => void;
+    selectFirst: () => void;
+    selectLast: () => void;
     selectNextChangedNode: () => void;
     selectPrevChangedNode: () => void;
     focus: () => void;
 }
 
 // Re-implemented FolderTree using Headless Hook
-export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
+const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
     root, config, onSelect, onMerge, onDelete, searchQuery = "", selectedNode, onFocus
 }, ref) => {
+
+    // 0. Wrapper for Navigation Selection
+    const onNavigationSelect = React.useCallback((node: FileNode) => {
+        if (selectedNode) {
+            onSelect(node);
+        }
+    }, [selectedNode, onSelect]);
 
     // 1. Use Headless Navigation Hook
     const {
@@ -42,7 +52,7 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
         moveFocus,
         selectNextChange,
         selectPrevChange
-    } = useTreeNavigation(root, config, searchQuery, onSelect);
+    } = useTreeNavigation(root, config, searchQuery, onNavigationSelect);
 
     // 2. Sync External Selection to Internal Focus
     useEffect(() => {
@@ -51,14 +61,32 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
         }
     }, [selectedNode, setFocusedPath]);
 
-    // 3. Expose Methods via Ref (Backward Compatibility)
-    // 3. Expose Methods via Ref (Backward Compatibility)
+    // 3. Expose Methods via Ref
     const treeId = React.useRef(`tree-${Math.random().toString(36).substr(2, 9)}`).current;
+
+
 
     // Internal handle implementation
     const handle = React.useMemo(() => ({
+        moveFocus: (dir: number) => moveFocus(dir), // Exposed for TreeService
         selectNextNode: () => moveFocus(1),
         selectPrevNode: () => moveFocus(-1),
+        selectFirst: () => {
+            if (visibleNodes.length > 0) {
+                const first = visibleNodes[0];
+                setFocusedPath(first.path);
+                containerRef.current?.focus();
+                if (first.type === 'file') onSelect(first);
+            }
+        },
+        selectLast: () => {
+            if (visibleNodes.length > 0) {
+                const last = visibleNodes[visibleNodes.length - 1];
+                setFocusedPath(last.path);
+                containerRef.current?.focus();
+                if (last.type === 'file') onSelect(last);
+            }
+        },
         selectNextChangedNode: selectNextChange,
         selectPrevChangedNode: selectPrevChange,
         focus: () => {
@@ -87,36 +115,52 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
 
     // Register with TreeService
     useEffect(() => {
-        // @ts-ignore - Handle type mismatch (we added methods)
+        // @ts-ignore
         treeService.register(treeId, handle);
         return () => treeService.unregister(treeId);
     }, [treeId, handle]);
 
     // Handle Focus/Blur for Context
+    const focusTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
     const handleFocus = () => {
         // @ts-ignore
         contextService.set(ContextKeys.TREE_FOCUSED, true);
         treeService.setActive(treeId);
+
+        // Debounce onFocus to prevent rapid re-renders in parent
         if (onFocus && focusedPath) {
-            const node = visibleNodes.find(n => n.path === focusedPath);
-            if (node) onFocus(node);
+            if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
+            focusTimeoutRef.current = setTimeout(() => {
+                const node = visibleNodes.find(n => n.path === focusedPath);
+                if (node) onFocus(node);
+            }, 50);
         }
     };
 
+    // Clear timeout on unmount
+    useEffect(() => () => {
+        if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
+    }, []);
+
+    // Sync focus when path changes (only if active)
+    useEffect(() => {
+        const isActive = document.activeElement === containerRef.current;
+        if (isActive && focusedPath && onFocus) {
+            if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
+            focusTimeoutRef.current = setTimeout(() => {
+                const node = visibleNodes.find(n => n.path === focusedPath);
+                if (node) onFocus(node);
+            }, 50);
+        }
+    }, [focusedPath, visibleNodes, onFocus]);
+
     const handleBlur = () => {
-        // We delay clearing context slightly in case focus moves to a child or related element? 
-        // For now, strict:
-        // contextService.set(ContextKeys.TREE_FOCUSED, false);
-        // actually, we might want to keep it 'active' if we are just interacting with a toolbar?
-        // Let's rely on the next element stealing focus to set its own context.
-        // But we should unset ours.
         // @ts-ignore
         contextService.set(ContextKeys.TREE_FOCUSED, false);
     };
 
     // 4. Keyboard Handling (Local)
-    // We keep this local for now to mimic previous behavior, 
-    // but in future this will move to CommandContext.
     const containerRef = useRef<HTMLDivElement>(null);
     const { logKey } = useKeyLogger('FolderTree');
 
@@ -136,38 +180,66 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
                 break;
             case 'ArrowRight': {
                 const node = visibleNodes.find(n => n.path === focusedPath);
-                if (node && node.type === 'directory') {
-                    if (!expandedPaths.has(node.path)) toggleExpand(node.path);
-                    else moveFocus(1); // Move to child
+                if (node) {
+                    if (e.ctrlKey) {
+                        if (node.status === 'added') onDelete(node, 'right');
+                        else if (node.status === 'removed') onMerge(node, 'left-to-right');
+                        else if (node.status === 'modified') onMerge(node, 'left-to-right');
+                    } else if (node.type === 'directory') {
+                        if (!expandedPaths.has(node.path)) toggleExpand(node.path);
+                        else moveFocus(1); // Move to child
+                    }
                 }
                 break;
             }
             case 'ArrowLeft': {
                 const node = visibleNodes.find(n => n.path === focusedPath);
                 if (node) {
-                    if (node.type === 'directory' && expandedPaths.has(node.path)) {
+                    if (e.ctrlKey) {
+                        if (node.status === 'added') onMerge(node, 'right-to-left');
+                        else if (node.status === 'removed') onDelete(node, 'left');
+                        else if (node.status === 'modified') onMerge(node, 'right-to-left');
+                    } else if (node.type === 'directory' && expandedPaths.has(node.path)) {
                         toggleExpand(node.path);
                     } else {
-                        // Jump to parent logic is tricky in flattened list without parent ref
-                        // But we can approximate by finding the directory prefix
-                        // Current Hook logic doesn't support "Jump to Parent" explicitly yet.
-                        // Let's implement a simple "move up" or "collapse"
-                        // Or just moveFocus(-1)? No, that's prev sibling.
-                        // We need "Select Parent".
-                        // Logic: Find closest preceding directory that is a prefix of current path.
-                        // We can add this to the hook later. 
-                        // For now, let's keep it simple: Just move up.
-                        moveFocus(-1);
+                        // Jump to Parent Logic
+                        const currentIndex = visibleNodes.indexOf(node);
+                        let parentIndex = -1;
+                        for (let i = currentIndex - 1; i >= 0; i--) {
+                            if ((visibleNodes[i] as any).depth < (node as any).depth) {
+                                parentIndex = i;
+                                break;
+                            }
+                        }
+                        if (parentIndex !== -1) {
+                            moveFocus(parentIndex - currentIndex);
+                        }
                     }
                 }
                 break;
             }
-            case ' ':
+            case ' ': {
+                const node = visibleNodes.find(n => n.path === focusedPath);
+                if (node) {
+                    if (node.type === 'directory') toggleExpand(node.path);
+                    else {
+                        if (selectedNode?.path === node.path) {
+                            onSelect(null);
+                        } else {
+                            onSelect(node);
+                        }
+                    }
+                }
+                break;
+            }
             case 'Enter': {
                 const node = visibleNodes.find(n => n.path === focusedPath);
                 if (node) {
                     if (node.type === 'directory') toggleExpand(node.path);
-                    else onSelect(node);
+                    else {
+                        onSelect(node);
+                        layoutService.focusContent();
+                    }
                 }
                 break;
             }
@@ -206,6 +278,25 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
         return stats;
     }, [root]);
 
+    // Shared Click Handler
+    const handleNodeSelect = React.useCallback((n: FileNode) => {
+        if (n.type === 'directory') {
+            toggleExpand(n.path);
+            containerRef.current?.focus();
+        } else {
+            onSelect(n);
+            containerRef.current?.focus();
+        }
+    }, [toggleExpand, onSelect]);
+
+    // Memoize Actions Object to prevent child re-renders
+    const actions = React.useMemo(() => ({
+        onSelect: handleNodeSelect,
+        onMerge,
+        onDelete,
+        onFocus
+    }), [onSelect, onMerge, onDelete, onFocus, toggleExpand]); // toggleExpand is stable from hook but good to include
+
     return (
         <div
             className="tree-container custom-scroll"
@@ -214,7 +305,6 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
             onKeyDown={handleKeyDown}
             onFocus={handleFocus}
             onBlur={handleBlur}
-            style={{ position: 'relative', outline: 'none', display: 'flex', flexDirection: 'column', height: '100%' }}
         >
             {visibleNodes.length === 0 ? (
                 <div style={{ padding: '20px', textAlign: 'center', opacity: 0.5, fontSize: '0.9rem' }}>
@@ -227,10 +317,11 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
                         side="unified"
                         expandedPaths={expandedPaths}
                         focusedPath={focusedPath}
+                        selectedPath={selectedNode?.path} // Pass Selection
                         onToggle={toggleExpand}
                         config={config}
                         searchQuery={searchQuery}
-                        actions={{ onSelect, onMerge, onDelete, onFocus }}
+                        actions={actions}
                         folderStats={folderStats}
                     />
                 </div>
@@ -242,10 +333,11 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
                             side="left"
                             expandedPaths={expandedPaths}
                             focusedPath={focusedPath}
+                            selectedPath={selectedNode?.path} // Pass Selection
                             onToggle={toggleExpand}
                             config={config}
                             searchQuery={searchQuery}
-                            actions={{ onSelect, onMerge, onDelete, onFocus }}
+                            actions={actions}
                             folderStats={folderStats}
                         />
                     </div>
@@ -255,10 +347,11 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
                             side="right"
                             expandedPaths={expandedPaths}
                             focusedPath={focusedPath}
+                            selectedPath={selectedNode?.path} // Pass Selection
                             onToggle={toggleExpand}
                             config={config}
                             searchQuery={searchQuery}
-                            actions={{ onSelect, onMerge, onDelete, onFocus }}
+                            actions={actions}
                             folderStats={folderStats}
                         />
                     </div>
@@ -267,3 +360,5 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
         </div>
     );
 });
+
+export const FolderTree = React.memo(FolderTreeComponent);

@@ -19,11 +19,13 @@ interface VirtualTreeListProps {
         onFocus?: (node: FileNode) => void;
     };
     side: 'left' | 'right' | 'unified';
+    selectedPath?: string | null;
 }
 
 export const VirtualTreeList: React.FC<VirtualTreeListProps> = ({
     visibleNodes,
     focusedPath,
+    selectedPath,
     expandedPaths,
     onToggle,
     config,
@@ -39,7 +41,12 @@ export const VirtualTreeList: React.FC<VirtualTreeListProps> = ({
         if (focusedPath) {
             const index = visibleNodes.findIndex(n => n.path === focusedPath);
             if (index !== -1 && virtuosoRef.current) {
-                virtuosoRef.current.scrollToIndex({ index, align: 'center' });
+                // Use specific alignment for boundaries to improve wrap-around feel
+                let align: 'start' | 'center' | 'end' = 'center';
+                if (index === 0) align = 'start';
+                else if (index === visibleNodes.length - 1) align = 'end';
+
+                virtuosoRef.current.scrollToIndex({ index, align });
             }
         }
     }, [focusedPath, visibleNodes]);
@@ -53,6 +60,7 @@ export const VirtualTreeList: React.FC<VirtualTreeListProps> = ({
                 itemContent={(_, node) => {
                     const isExpanded = expandedPaths.has(node.path);
                     const isFocused = node.path === focusedPath;
+                    const isSelected = !!selectedPath && node.path === selectedPath;
                     const stats = folderStats.get(node.path);
 
                     return (
@@ -61,6 +69,7 @@ export const VirtualTreeList: React.FC<VirtualTreeListProps> = ({
                             side={side}
                             isExpanded={isExpanded}
                             isFocused={isFocused}
+                            isSelected={isSelected}
                             onToggle={onToggle}
                             config={config}
                             searchQuery={searchQuery}

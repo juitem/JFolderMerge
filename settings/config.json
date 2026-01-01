@@ -7,7 +7,7 @@
     "showLineNumbers": true,
     "diffMode": "agent",
     "leftPanelWidth_split": 50,
-    "leftPanelWidth_unified": 30,
+    "leftPanelWidth_unified": 40,
     "leftPanelWidth_flat": 30,
     "confirmMerge": false,
     "wordWrap": true

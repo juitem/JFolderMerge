@@ -47,6 +47,10 @@ class KeybindingService {
 
     private registerDefaults() {
         // Navigation - Scoped to Tree Focus to prevent stealing from inputs
+        // Navigation - Scoped to Tree Focus
+        // REMOVED: Delegating specific tree navigation to FolderTree component to avoid double-handling
+        // and to support complex logic (e.g. Jump to Parent on Left Arrow).
+        /*
         this.register({
             key: 'ArrowUp',
             commandId: CommandId.NAV_UP,
@@ -72,6 +76,7 @@ class KeybindingService {
             commandId: CommandId.NAV_SELECT,
             when: (ctx) => ctx.get(ContextKeys.TREE_FOCUSED)
         });
+        */
 
         // Focus Toggling (Tab)
         // If Tree is focused -> Tab -> Focus Editor

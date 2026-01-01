@@ -1,5 +1,5 @@
 import React from 'react';
-import { Folder, FileText, Play, BookOpen, ListTree, AlignJustify, PanelRight, ChevronLeft, ChevronRight, ShieldCheck, ShieldAlert, Maximize, Minimize, Lock, LockOpen } from 'lucide-react';
+import { Folder, FileText, Play, BookOpen, ListTree, AlignJustify, PanelRight, ChevronLeft, ChevronRight, ShieldCheck, ShieldAlert, Maximize, Minimize, Lock, LockOpen, Globe } from 'lucide-react';
 import { useConfig } from '../contexts/ConfigContext';
 import type { DiffMode } from '../types';
 
@@ -12,6 +12,9 @@ interface FilterToolbarProps {
     onAdjustWidth?: (delta: number) => void;
     isLocked?: boolean;
     setIsLocked?: (b: boolean) => void;
+    globalStats?: { added: number, removed: number, modified: number };
+    currentFolderStats?: { added: number, removed: number, modified: number } | null;
+    fileLineStats?: { added: number, removed: number, groups: number } | null;
 }
 
 export function FilterToolbar({
@@ -20,7 +23,10 @@ export function FilterToolbar({
     onToggleFileView,
     onAdjustWidth,
     isLocked,
-    setIsLocked
+    setIsLocked,
+    globalStats,
+    currentFolderStats,
+    fileLineStats
 }: FilterToolbarProps) {
     const { config, toggleFilter, toggleDiffFilter, setViewOption } = useConfig();
     const folderViewMode = config?.viewOptions?.folderViewMode || 'split';
@@ -99,6 +105,10 @@ export function FilterToolbar({
             <div className="separator"></div>
             <div className="filter-group">
                 <Folder size={16} className="filter-icon" />
+                <label className="checkbox-container" title="Show Modified">
+                    <input type="checkbox" checked={config.folderFilters?.modified ?? true} onChange={() => toggleFilter('modified')} />
+                    <span className="checkmark modified"></span>
+                </label>
                 <label className="checkbox-container" title="Show Added">
                     <input type="checkbox" checked={config.folderFilters?.added ?? true} onChange={() => toggleFilter('added')} />
                     <span className="checkmark added"></span>
@@ -106,10 +116,6 @@ export function FilterToolbar({
                 <label className="checkbox-container" title="Show Removed">
                     <input type="checkbox" checked={config.folderFilters?.removed ?? true} onChange={() => toggleFilter('removed')} />
                     <span className="checkmark removed"></span>
-                </label>
-                <label className="checkbox-container" title="Show Modified">
-                    <input type="checkbox" checked={config.folderFilters?.modified ?? true} onChange={() => toggleFilter('modified')} />
-                    <span className="checkmark modified"></span>
                 </label>
                 <label className="checkbox-container" title="Show Same">
                     <input type="checkbox" checked={config.folderFilters?.same ?? true} onChange={() => toggleFilter('same')} />
@@ -121,6 +127,10 @@ export function FilterToolbar({
 
             <div className="filter-group">
                 <FileText size={16} className="filter-icon" />
+                <label className="checkbox-container" title="Show Modified Lines">
+                    <input type="checkbox" checked={config.diffFilters?.modified ?? true} onChange={() => toggleDiffFilter('modified')} />
+                    <span className="checkmark modified"></span>
+                </label>
                 <label className="checkbox-container" title="Show Added Lines">
                     <input type="checkbox" checked={config.diffFilters?.added ?? true} onChange={() => toggleDiffFilter('added')} />
                     <span className="checkmark added"></span>
@@ -129,14 +139,51 @@ export function FilterToolbar({
                     <input type="checkbox" checked={config.diffFilters?.removed ?? true} onChange={() => toggleDiffFilter('removed')} />
                     <span className="checkmark removed"></span>
                 </label>
-                <label className="checkbox-container" title="Show Modified Lines">
-                    <input type="checkbox" checked={config.diffFilters?.modified ?? true} onChange={() => toggleDiffFilter('modified')} />
-                    <span className="checkmark modified"></span>
-                </label>
                 <label className="checkbox-container" title="Show Same Lines">
                     <input type="checkbox" checked={config.diffFilters?.same ?? false} onChange={() => toggleDiffFilter('same')} />
                     <span className="checkmark same"></span>
                 </label>
+            </div>
+
+            <div className="separator"></div>
+
+            {/* Stats Group */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {/* Global Stats */}
+                {globalStats && (
+                    <span style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, opacity: 0.9 }}>
+                        <Globe size={16} style={{ color: 'var(--text-secondary)' }} />
+                        <span style={{ color: '#f59e0b' }}>!{globalStats.modified}</span>
+                        <span style={{ color: '#10b981' }}>+{globalStats.added}</span>
+                        <span style={{ color: '#ef4444' }}>-{globalStats.removed}</span>
+                    </span>
+                )}
+
+                {/* Current Folder Stats */}
+                {currentFolderStats && (
+                    <span style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.8 }}>
+                        <Folder size={16} style={{ color: 'var(--text-secondary)' }} />
+                        <span style={{ color: '#f59e0b' }}>!{currentFolderStats.modified}</span>
+                        <span style={{ color: '#10b981' }}>+{currentFolderStats.added}</span>
+                        <span style={{ color: '#ef4444' }}>-{currentFolderStats.removed}</span>
+                    </span>
+                )}
+
+                {/* File Line Stats */}
+                {fileLineStats && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <FileText size={16} style={{ color: 'var(--text-secondary)', opacity: 0.8 }} />
+                        <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: '4px' }}>
+                            <span style={{ fontSize: '14px', fontWeight: 800, fontStyle: 'italic', color: '#f59e0b', textShadow: 'none' }}>
+                                {fileLineStats.groups}
+                            </span>
+                            <span style={{ fontSize: '11px', display: 'flex', gap: '3px', fontWeight: 600, color: 'var(--text-secondary)', opacity: 0.8 }}>
+                                <span style={{ color: '#10b981' }}>+{fileLineStats.added}</span>
+                                <span style={{ color: '#ef4444' }}>-{fileLineStats.removed}</span>
+                            </span>
+                        </div>
+                    </span>
+                )}
             </div>
 
             <div className="separator"></div>

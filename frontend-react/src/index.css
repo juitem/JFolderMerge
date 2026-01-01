@@ -92,6 +92,7 @@ h3 {
     letter-spacing: -0.02em;
     background: linear-gradient(135deg, #60a5fa 0%, #c084fc 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     display: flex;
     align-items: center;
@@ -302,8 +303,20 @@ h3 {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    /* Fix Layout Shift: Reserve border space always */
     background: rgba(0, 0, 0, 0.1);
-    border-right: 1px solid var(--border-color);
+    border: 1px solid transparent;
+    /* Always present (top/left/bottom) */
+    border-right-color: var(--border-color);
+    /* Visible right border by default */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.left-panel:focus-within {
+    border-color: var(--accent-color) !important;
+    /* Border width doesn't change (1px -> 1px), so no movement */
+    box-shadow: 0 0 0 1px var(--accent-color);
+    /* Glow */
 }
 
 .right-panel {
@@ -362,13 +375,31 @@ h3 {
     /* Adjust for border */
 }
 
+/* Swap: Collapsed folders get the accent, Expanded get normal/dim? */
+/* "The two colors should be opposite" */
+/* Collapsed Directory = Accent (Blue) - "Previous was better" */
+.tree-row.directory:not(.expanded) .node-name {
+    color: var(--accent-color);
+    font-weight: 500;
+}
+
+/* Expanded Directory = Normal (White) */
+.tree-row.directory.expanded .node-name {
+    color: var(--text-primary);
+    font-weight: normal;
+}
+
+.tree-container:focus .tree-row.focused-row {
+    /* Focus Navigation Style (Cursor) - Only show when container is focused */
+    background: rgba(255, 255, 255, 0.05);
+    outline: 2px solid var(--accent-color);
+    outline-offset: -2px;
+    z-index: 10;
+}
+
+/* Subtle indicator even when not focused (optional, but let's keep it clean first) */
 .tree-row.focused-row {
-    background: rgba(59, 130, 246, 0.4);
-    /* Stronger background */
-    box-shadow: inset 4px 0 0 0 var(--accent-color);
-    /* Thicker indicator */
-    outline: 1px solid rgba(59, 130, 246, 0.5);
-    /* Explicit outline to ensure visibility */
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .item-name {

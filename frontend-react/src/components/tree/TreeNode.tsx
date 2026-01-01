@@ -7,6 +7,7 @@ export interface TreeNodeProps {
     side: 'left' | 'right' | 'unified';
     isExpanded: boolean;
     isFocused: boolean;
+    isSelected?: boolean;
     onToggle: (path: string) => void;
     actions: {
         onSelect: (node: FileNode) => void;
@@ -24,11 +25,12 @@ export interface TreeNodeProps {
     expandedPaths?: Set<string>;
 }
 
-export const TreeNode: React.FC<TreeNodeProps> = ({
+const TreeNodeComponent: React.FC<TreeNodeProps> = ({
     node,
     side,
     isExpanded,
     isFocused,
+    isSelected,
     onToggle,
     actions,
     style,
@@ -45,7 +47,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
     return (
         <div
-            className={`tree-node ${isFocused ? 'focused' : ''} ${node.status}`}
+            className={`tree-row tree-node ${isFolder ? 'directory' : 'file'} ${isFocused ? 'focused-row' : ''} ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''} ${node.status}`}
             onClick={() => actions.onSelect(node)}
             data-node-path={node.path}
             style={{
@@ -66,8 +68,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 style={{
                     width: '16px',
                     display: 'inline-block',
-                    // Hide toggle in flat mode to enforce "flat" look, per user expectation of "consistent horizontal position"
-                    visibility: (isFolder && !isFlat) ? 'visible' : 'hidden',
+                    // Hide toggle in flat mode OR for Root (depth 0) to enforce stability
+                    visibility: (isFolder && !isFlat && depth > 0) ? 'visible' : 'hidden',
                     transform: isExpanded ? 'rotate(90deg)' : 'none',
                     transition: 'transform 0.1s'
                 }}
@@ -122,3 +124,5 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         </div>
     );
 };
+
+export const TreeNode = React.memo(TreeNodeComponent);

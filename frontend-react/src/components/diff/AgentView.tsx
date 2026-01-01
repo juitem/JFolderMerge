@@ -347,41 +347,76 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
 
         if (e.key === 'ArrowDown') { e.preventDefault(); navigateBlock('next'); }
         else if (e.key === 'ArrowUp') { e.preventDefault(); navigateBlock('prev'); }
-        else if (activeBlockIndex !== null && onMerge && e.shiftKey) {
-            // ... (keep existing arrow key merge logic or reuse functions if exact match)
-            // For now, keeping original logic for ArrowRight/Left as it was slightly specific with keys
+        else if (activeBlockIndex !== null && onMerge && (e.shiftKey || e.altKey)) {
+            // Shift + Arrow: Merge Single Block ONLY (Strict)
+            // Alt + Arrow: Merge Pair Block (Smart Replace if applicable)
+
             const item = parsedItems[activeBlockIndex];
             if (item && 'lines' in item) {
                 const block = item as DiffBlock;
+                const isPairMerge = e.altKey;
+
                 if (e.key === 'ArrowRight') {
+                    // Left -> Right (Revert/Overwrite Right)
                     e.preventDefault();
                     if (block.type === 'block-removed') {
+                        // Removed Block: Copy to Right (Restore)
                         onMerge(block.lines.map(l => l.content), 'right', block.lines[0].rightLine || 0, 'insert');
                     } else {
+                        // Added Block: DELETE from Right (Revert)
                         let prevIsRemoved = false;
-                        if (activeBlockIndex > 0) {
+                        if (isPairMerge && activeBlockIndex > 0) {
                             const prev = parsedItems[activeBlockIndex - 1];
                             if ('lines' in prev && (prev as DiffBlock).type === 'block-removed') prevIsRemoved = true;
                         }
-                        if (!prevIsRemoved) onMerge(block.lines.map(l => l.content), 'right', block.lines[0].rightLine || 0, 'delete');
+
+                        if (prevIsRemoved) {
+                            // Pair Merge: Revert BOTH (Replace Right with Left-Removed content? No, Revert means undo.)
+                            // Actually, standard "Revert" on a Modified chunk allows you to choose to revert the whole chunk.
+                            // If we click the 'Revert' button on an Agent View, it usually just deletes the added block on the right.
+                            // But user wants "Merge Pair".
+                            // If I have Removed (Lines 1-3) then Added (Lines 1-5).
+                            // If I am on Added and press Alt-Right (Revert).
+                            // Logic: Restore lines 1-3 (from prev block) AND Delete lines 1-5 (current block).
+                            // This is effectively "Replace Right 1-5 with Left 1-3".
+
+                            const prevItem = parsedItems[activeBlockIndex - 1] as DiffBlock;
+                            onMerge(prevItem.lines.map(l => l.content), 'right', block.lines[0].rightLine || 0, 'replace', block.lines.length);
+                        } else {
+                            // Single Merge: Just delete this added block from right.
+                            onMerge(block.lines.map(l => l.content), 'right', block.lines[0].rightLine || 0, 'delete');
+                        }
                     }
                 } else if (e.key === 'ArrowLeft') {
+                    // Right -> Left (Merge/Accept)
                     e.preventDefault();
                     if (block.type === 'block-added') {
+                        // Added Block: Merge to Left
                         let deleteCount = 0;
-                        if (activeBlockIndex > 0) {
+                        if (isPairMerge && activeBlockIndex > 0) {
                             const prev = parsedItems[activeBlockIndex - 1];
                             if ('lines' in prev && (prev as DiffBlock).type === 'block-removed') deleteCount = (prev as DiffBlock).lines.length;
                         }
+
                         const anchor = block.lines[0].leftLine || 0;
                         deleteCount > 0 ? onMerge(block.lines.map(l => l.content), 'left', anchor, 'replace', deleteCount) : onMerge(block.lines.map(l => l.content), 'left', anchor, 'insert');
                     } else {
+                        // Removed Block: Delete from Left (Accept Removal)
                         let nextIsAdded = false;
-                        if (activeBlockIndex + 1 < parsedItems.length) {
+                        if (isPairMerge && activeBlockIndex + 1 < parsedItems.length) {
                             const next = parsedItems[activeBlockIndex + 1];
                             if ('lines' in next && (next as DiffBlock).type === 'block-added') nextIsAdded = true;
                         }
-                        if (!nextIsAdded) onMerge(block.lines.map(l => l.content), 'left', block.lines[0].leftLine || 0, 'delete');
+
+                        if (nextIsAdded) {
+                            // Pair Merge: We are on Removed, Next is Added. User wants "Accept Pair".
+                            // Means: Replace Left (Removed) with Right (Added).
+                            const nextItem = parsedItems[activeBlockIndex + 1] as DiffBlock;
+                            onMerge(nextItem.lines.map(l => l.content), 'left', block.lines[0].leftLine || 0, 'replace', block.lines.length);
+                        } else {
+                            // Single Merge: Just delete this block from left.
+                            onMerge(block.lines.map(l => l.content), 'left', block.lines[0].leftLine || 0, 'delete');
+                        }
                     }
                 }
             }
@@ -475,16 +510,24 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
                 <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }}></div>
 
                 {/* Merge Group */}
-                <div style={{ display: 'flex', gap: '4px' }}>
-                    <button className="icon-btn small" onClick={() => {
-                        if (activeBlockIndex !== null) handleDeleteBlock();
-                    }} title="Merge Left to Right (Overwrite Right)">
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="merge-btn small"
+                        style={{ width: 'auto', padding: '0 8px', gap: '4px', fontSize: '0.8rem', height: '24px' }}
+                        onClick={() => {
+                            if (activeBlockIndex !== null) handleDeleteBlock();
+                        }} title="Merge Left to Right (Overwrite Right)">
                         <ArrowRight size={14} />
+                        Merge
+                        <sup style={{ color: '#ec4899', fontWeight: 800, marginLeft: '2px' }}>R</sup>
                     </button>
-                    <button className="icon-btn small" onClick={() => {
-                        if (activeBlockIndex !== null) handleMergeBlock();
-                    }} title="Merge Right to Left (Overwrite Left)">
+                    <button className="merge-btn small"
+                        style={{ width: 'auto', padding: '0 8px', gap: '4px', fontSize: '0.8rem', height: '24px' }}
+                        onClick={() => {
+                            if (activeBlockIndex !== null) handleMergeBlock();
+                        }} title="Merge Right to Left (Overwrite Left)">
                         <ArrowLeft size={14} />
+                        Merge
+                        <sup style={{ color: '#10b981', fontWeight: 800, marginLeft: '2px' }}>L</sup>
                     </button>
                 </div>
             </div>

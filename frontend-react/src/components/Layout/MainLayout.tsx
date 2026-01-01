@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ReactNode } from 'react';
-import { Save, Moon, Sun, ZoomIn, ZoomOut, RotateCcw, Globe, FolderOpen, FileText } from 'lucide-react';
+import { Save, Moon, Sun, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { FilterToolbar } from '../FilterToolbar';
 import { useConfig } from '../../contexts/ConfigContext';
 import { PathControls } from '../PathControls';
@@ -73,46 +73,6 @@ export const MainLayout: React.FC<MainLayoutProps> = (props) => {
                     </h1>
                 </div>
                 <div className="header-actions">
-                    {/* Global Stats */}
-                    {props.globalStats && (
-                        <span style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, opacity: 0.9, marginRight: '16px' }}>
-                            <Globe size={16} />
-                            <span style={{ color: '#ef4444' }}>-{props.globalStats.removed}</span>
-                            <span style={{ color: '#f59e0b' }}>!{props.globalStats.modified}</span>
-                            <span style={{ color: '#10b981' }}>+{props.globalStats.added}</span>
-                        </span>
-                    )}
-
-                    {/* Current Folder Stats */}
-                    {props.currentFolderStats && (
-                        <span style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.8, marginRight: '20px', borderLeft: '1px solid rgba(255,255,255,0.2)', paddingLeft: '16px' }}>
-                            <FolderOpen size={16} />
-                            <span style={{ color: '#ef4444' }}>-{props.currentFolderStats.removed}</span>
-                            <span style={{ color: '#f59e0b' }}>!{props.currentFolderStats.modified}</span>
-                            <span style={{ color: '#10b981' }}>+{props.currentFolderStats.added}</span>
-                        </span>
-                    )}
-
-                    {/* File Line Stats (New Location) */}
-                    {props.fileLineStats && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginRight: '20px', borderLeft: '1px solid rgba(255,255,255,0.2)', paddingLeft: '16px' }}>
-                            <FileText size={16} style={{ color: 'var(--text-secondary)', opacity: 0.8 }} />
-                            <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: '4px' }}>
-                                {/* Group Count (Main) */}
-                                <span style={{ fontSize: '14px', fontWeight: 800, fontStyle: 'italic', color: '#f59e0b', textShadow: 'none' }}>
-                                    {props.fileLineStats.groups}
-                                </span>
-                                {/* Line Counts (Inline) */}
-                                <span style={{ fontSize: '11px', display: 'flex', gap: '3px', fontWeight: 600, color: 'var(--text-secondary)', opacity: 0.8 }}>
-                                    (
-                                    <span style={{ color: '#10b981' }}>+{props.fileLineStats.added}</span>
-                                    <span style={{ color: '#ef4444' }}>-{props.fileLineStats.removed}</span>
-                                    )
-                                </span>
-                            </div>
-                        </span>
-                    )}
-
                     {/* File Name Display */}
                     {props.selectedFilePath && (
                         <div style={{
@@ -162,6 +122,9 @@ export const MainLayout: React.FC<MainLayoutProps> = (props) => {
                 onAdjustWidth={props.onAdjustWidth}
                 isLocked={props.isLocked}
                 setIsLocked={props.setIsLocked}
+                globalStats={props.globalStats}
+                currentFolderStats={props.currentFolderStats}
+                fileLineStats={props.fileLineStats}
             />
 
             {/* Path Controls */}
