@@ -1,104 +1,117 @@
-import type { FileNode } from '../../types';
-import { TreeColumn } from './TreeColumn';
-import type { TreeColumnProps } from './TreeColumn';
+import React from 'react';
+import type { FileNode, Config } from '../../types';
 import { TreeRowActions } from './TreeRowActions';
 
-export const TreeNode: React.FC<TreeColumnProps & { node: FileNode }> = ({
-    node, side, expandedPaths, focusedPath, onToggle, config, searchQuery, actions, depth = 0, folderStats
+export interface TreeNodeProps {
+    node: FileNode;
+    side: 'left' | 'right' | 'unified';
+    isExpanded: boolean;
+    isFocused: boolean;
+    onToggle: (path: string) => void;
+    actions: {
+        onSelect: (node: FileNode) => void;
+        onMerge: (node: FileNode, direction: 'left-to-right' | 'right-to-left') => void;
+        onDelete: (node: FileNode, side: 'left' | 'right') => void;
+        onFocus?: (node: FileNode) => void;
+    };
+    // stats removed from props or ignored if unused
+    stats?: { added: number, removed: number, modified: number };
+    style?: React.CSSProperties;
+    config: Config;
+    searchQuery: string;
+    focusedPath?: string | null;
+    folderStats?: Map<string, any>;
+    expandedPaths?: Set<string>;
+}
+
+export const TreeNode: React.FC<TreeNodeProps> = ({
+    node,
+    side,
+    isExpanded,
+    isFocused,
+    onToggle,
+    actions,
+    style,
+    config // Make sure config is used
 }) => {
-    // Visibility Check (Should match hook logic)
-    const filters = config.folderFilters || { same: true, modified: true, added: true, removed: true };
-
-    // Simple helpers to keep code dense
-    const isVisible = (n: FileNode): boolean => {
-        if (filters[n.status] !== false) return true;
-        if (n.type === 'directory' && n.children) return n.children.some(c => isVisible(c));
-        return false;
-    };
-
-    if (!isVisible(node)) return null;
-
-    // Search Check
-    const matches = (n: FileNode): boolean => {
-        if (!searchQuery) return true;
-        const q = searchQuery.toLowerCase();
-        return n.name.toLowerCase().includes(q) ||
-            (n.children?.some(matches) ?? false);
-    };
-    if (!matches(node)) return null;
-
-    const isExpanded = expandedPaths.has(node.path);
-    const isDir = node.type === 'directory';
-    const isFocused = node.path === focusedPath;
-
-    // Alignment logic
-    let isSpacer = false;
-    if (side === 'left' && node.status === 'added') isSpacer = true;
-    if (side === 'right' && node.status === 'removed') isSpacer = true;
-
-    if (isSpacer) {
-        return (
-            <div className={`tree-item ${isFocused ? 'focused' : ''}`} data-node-path={node.path}>
-                <div className={`tree-row spacer ${isFocused ? 'focused-row' : ''}`} />
-                {isDir && isExpanded && <div className="tree-children visible"><TreeColumn nodes={node.children || []} side={side} expandedPaths={expandedPaths} focusedPath={focusedPath} onToggle={onToggle} config={config} actions={actions} depth={depth + 1} folderStats={folderStats} /></div>}
-            </div>
-        );
-    }
-
-    // Name Rendering
-    let fileName: React.ReactNode = node.name;
-    if (depth === 0 && side === 'unified') {
-        fileName = <>{node.left_name || node.name}<span className="vs-badge">vs</span>{node.right_name || node.name}</>;
-    } else {
-        if (side === 'left') fileName = node.left_name || node.name;
-        if (side === 'right') fileName = node.right_name || node.name;
-    }
-
-    const stats = isDir && folderStats ? folderStats.get(node.path) : null;
     const isFlat = config.viewOptions?.folderViewMode === 'flat';
-    const showStats = isDir && isFlat && stats && (stats.removed > 0 || stats.modified > 0 || stats.added > 0);
+
+    // In flat mode, use fixed padding for ALL items to align them.
+    // In tree mode, use depth-based padding.
+    const depth = node.depth || 0;
+    const paddingLeft = isFlat ? 4 : (depth * 16 + 4);
+
+    const isFolder = node.type === 'directory';
 
     return (
-        <div className={`tree-item ${isFocused ? 'focused' : ''}`} data-status={node.status} data-node-path={node.path}>
-            <div
-                className={`tree-row ${isDir ? '' : 'file-row'} ${isFocused ? 'focused-row' : ''}`}
+        <div
+            className={`tree-node ${isFocused ? 'focused' : ''} ${node.status}`}
+            onClick={() => actions.onSelect(node)}
+            data-node-path={node.path}
+            style={{
+                ...style, // Absolute position from VirtualList
+                paddingLeft: `${paddingLeft}px`,
+                display: 'flex',
+                alignItems: 'center',
+                cursor: 'pointer'
+            }}
+        >
+            {/* Expansion Toggle */}
+            <span
+                className="toggle-icon"
                 onClick={(e) => {
                     e.stopPropagation();
-                    if (isDir) { onToggle(node.path); actions.onFocus?.(node); }
-                    else { actions.onSelect(node); actions.onFocus?.(node); }
+                    if (isFolder) onToggle(node.path);
+                }}
+                style={{
+                    width: '16px',
+                    display: 'inline-block',
+                    // Hide toggle in flat mode to enforce "flat" look, per user expectation of "consistent horizontal position"
+                    visibility: (isFolder && !isFlat) ? 'visible' : 'hidden',
+                    transform: isExpanded ? 'rotate(90deg)' : 'none',
+                    transition: 'transform 0.1s'
                 }}
             >
-                {isDir ? (
-                    <span className={`chevron ${isExpanded ? 'expanded' : ''}`} style={{ display: 'flex' }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                    </span>
-                ) : <span style={{ width: '16px', display: 'inline-flex' }} />}
+                ▶
+            </span>
 
-                <span className="item-name">
-                    {isFlat && depth > 0 && <span className="depth-badge">{depth}</span>}
-                    {fileName}
-                    {showStats && (
-                        <sup style={{ marginLeft: '6px', fontSize: '0.65rem', fontWeight: 700 }}>
-                            {stats!.removed > 0 && <span style={{ color: '#ef4444', marginRight: '3px' }}>-{stats!.removed}</span>}
-                            {stats!.modified > 0 && <span style={{ color: '#f59e0b', marginRight: '3px' }}>!{stats!.modified}</span>}
-                            {stats!.added > 0 && <span style={{ color: '#10b981' }}>+{stats!.added}</span>}
-                        </sup>
-                    )}
-                </span>
-
-                {node.status !== 'same' && (
-                    <span className={`item-status ${node.status}`} title={node.status}>
-                        {node.status === 'added' ? 'A' : node.status === 'removed' ? 'R' : 'M'}
+            {/* Icon Area with Depth Badge */}
+            <div style={{ position: 'relative', marginRight: '6px', display: 'flex', alignItems: 'center' }}>
+                {/* Depth Badge for Flat View */}
+                {isFlat && isFolder && (
+                    <span className="depth-badge" style={{
+                        position: 'absolute',
+                        top: '-6px',
+                        left: '-4px',
+                        fontSize: '0.6rem',
+                        fontWeight: 'bold',
+                        color: '#94a3b8',
+                        zIndex: 1
+                    }}>
+                        {depth}
                     </span>
                 )}
-
-                <TreeRowActions node={node} side={side} actions={actions} />
+                <span>
+                    {isFolder ? (isExpanded ? '📂' : '📁') : '📄'}
+                </span>
             </div>
-            {isDir && isExpanded && (
-                <div className={`tree-children visible ${isFlat ? 'flat' : ''}`}>
-                    <TreeColumn nodes={node.children || []} side={side} expandedPaths={expandedPaths} focusedPath={focusedPath} onToggle={onToggle} config={config} actions={actions} depth={depth + 1} folderStats={folderStats} />
-                </div>
+
+            {/* Name */}
+            <span className="node-name" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {node.name}
+            </span>
+
+            {/* Status Icon */}
+            {node.status && node.status !== 'same' && (
+                <span className={`item-status ${node.status}`}>
+                    {node.status === 'added' ? '+' :
+                        node.status === 'removed' ? '-' :
+                            node.status === 'modified' ? '!' : ''}
+                </span>
             )}
+
+            {/* Actions */}
+            <TreeRowActions node={node} side={side} actions={actions} />
         </div>
     );
 };

@@ -10,6 +10,7 @@ export interface FileNode {
     children?: FileNode[];
     left_name?: string;
     right_name?: string;
+    depth?: number; // Added for flat-list rendering
 }
 
 // TreeData is usually just the Root FileNode (merged)

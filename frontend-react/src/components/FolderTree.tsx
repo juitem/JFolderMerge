@@ -2,7 +2,9 @@ import React, { useRef, useEffect } from 'react';
 import { useTreeNavigation } from '../hooks/logic/useTreeNavigation';
 import { useKeyLogger } from '../hooks/useKeyLogger';
 import type { FileNode, Config } from '../types';
-import { TreeColumn } from './tree/TreeColumn';
+import { VirtualTreeList } from './tree/VirtualTreeList';
+import { treeService } from '../services/tree/TreeService';
+import { contextService, ContextKeys } from '../services/context/ContextService';
 
 // Interfaces match previous definition to prevent breakage
 export interface FolderTreeProps {
@@ -50,15 +52,67 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
     }, [selectedNode, setFocusedPath]);
 
     // 3. Expose Methods via Ref (Backward Compatibility)
-    React.useImperativeHandle(ref, () => ({
+    // 3. Expose Methods via Ref (Backward Compatibility)
+    const treeId = React.useRef(`tree-${Math.random().toString(36).substr(2, 9)}`).current;
+
+    // Internal handle implementation
+    const handle = React.useMemo(() => ({
         selectNextNode: () => moveFocus(1),
         selectPrevNode: () => moveFocus(-1),
         selectNextChangedNode: selectNextChange,
         selectPrevChangedNode: selectPrevChange,
         focus: () => {
             if (containerRef.current) containerRef.current.focus();
+        },
+        toggleExpand, // Added for command support
+        selectCurrent: () => { // Added for command support
+            const node = visibleNodes.find(n => n.path === focusedPath);
+            if (node) {
+                if (node.type === 'directory') toggleExpand(node.path);
+                else onSelect(node);
+            }
+        },
+        // Helpers for commands
+        expandPath: (path: string) => {
+            if (!expandedPaths.has(path)) toggleExpand(path);
+        },
+        collapsePath: (path: string) => {
+            if (expandedPaths.has(path)) toggleExpand(path);
+        },
+        refresh: () => { } // distinct from reload?
+    }), [moveFocus, selectNextChange, selectPrevChange, toggleExpand, visibleNodes, focusedPath, onSelect, expandedPaths]);
+
+    // Expose to Parent
+    React.useImperativeHandle(ref, () => handle);
+
+    // Register with TreeService
+    useEffect(() => {
+        // @ts-ignore - Handle type mismatch (we added methods)
+        treeService.register(treeId, handle);
+        return () => treeService.unregister(treeId);
+    }, [treeId, handle]);
+
+    // Handle Focus/Blur for Context
+    const handleFocus = () => {
+        // @ts-ignore
+        contextService.set(ContextKeys.TREE_FOCUSED, true);
+        treeService.setActive(treeId);
+        if (onFocus && focusedPath) {
+            const node = visibleNodes.find(n => n.path === focusedPath);
+            if (node) onFocus(node);
         }
-    }));
+    };
+
+    const handleBlur = () => {
+        // We delay clearing context slightly in case focus moves to a child or related element? 
+        // For now, strict:
+        // contextService.set(ContextKeys.TREE_FOCUSED, false);
+        // actually, we might want to keep it 'active' if we are just interacting with a toolbar?
+        // Let's rely on the next element stealing focus to set its own context.
+        // But we should unset ours.
+        // @ts-ignore
+        contextService.set(ContextKeys.TREE_FOCUSED, false);
+    };
 
     // 4. Keyboard Handling (Local)
     // We keep this local for now to mimic previous behavior, 
@@ -158,12 +212,18 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
             ref={containerRef}
             tabIndex={0}
             onKeyDown={handleKeyDown}
-            style={{ position: 'relative', outline: 'none' }}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            style={{ position: 'relative', outline: 'none', display: 'flex', flexDirection: 'column', height: '100%' }}
         >
-            {config.viewOptions?.folderViewMode === 'unified' || config.viewOptions?.folderViewMode === 'flat' ? (
-                <div className="tree-column unified">
-                    <TreeColumn
-                        nodes={[root]}
+            {visibleNodes.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', opacity: 0.5, fontSize: '0.9rem' }}>
+                    No files to display.
+                </div>
+            ) : config.viewOptions?.folderViewMode === 'unified' || config.viewOptions?.folderViewMode === 'flat' ? (
+                <div className="tree-column unified" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    <VirtualTreeList
+                        visibleNodes={visibleNodes}
                         side="unified"
                         expandedPaths={expandedPaths}
                         focusedPath={focusedPath}
@@ -175,10 +235,10 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
                     />
                 </div>
             ) : (
-                <div className="split-tree-view">
-                    <div id="tree-left" className="tree-column">
-                        <TreeColumn
-                            nodes={[root]}
+                <div className="split-tree-view" style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+                    <div id="tree-left" className="tree-column" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                        <VirtualTreeList
+                            visibleNodes={visibleNodes}
                             side="left"
                             expandedPaths={expandedPaths}
                             focusedPath={focusedPath}
@@ -189,9 +249,9 @@ export const FolderTree = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
                             folderStats={folderStats}
                         />
                     </div>
-                    <div id="tree-right" className="tree-column">
-                        <TreeColumn
-                            nodes={[root]}
+                    <div id="tree-right" className="tree-column" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                        <VirtualTreeList
+                            visibleNodes={visibleNodes}
                             side="right"
                             expandedPaths={expandedPaths}
                             focusedPath={focusedPath}

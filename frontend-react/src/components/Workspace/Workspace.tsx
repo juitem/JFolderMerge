@@ -1,10 +1,11 @@
 import React from 'react';
-import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FolderX, FileX, FileDiff, Bot, Layout, Columns, Rows, FileCode } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FolderX, FileX, FileDiff, Bot, Layout, Columns, Rows, FileCode, WrapText } from 'lucide-react';
 import { FolderTree, type FolderTreeHandle } from '../FolderTree';
 
 import { useConfig } from '../../contexts/ConfigContext';
 import type { FileNode, Config, DiffMode } from '../../types';
 import { viewerRegistry } from '../../viewers/ViewerRegistry';
+import { layoutService } from '../../services/layout/LayoutService';
 
 interface WorkspaceProps {
     // Tree Props
@@ -82,6 +83,29 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
         return viewerRegistry.findAdapter(props.selectedNode);
     }, [props.selectedNode]);
 
+    // Register with LayoutService
+    React.useEffect(() => {
+        layoutService.register({
+            focusContent: () => {
+                // Focus the Right Panel Container
+                // We could also try to focus the specific adapter via ref, but container focus is generic.
+                // We need a ref to the right panel.
+                const rightPanel = document.querySelector('.right-panel') as HTMLElement;
+                if (rightPanel) rightPanel.focus();
+
+                // If we had an adapter handle, we could call that.
+                // For now, assume focusing the container or its first focusable child is enough.
+                // Or find .agent-view-container?
+                setTimeout(() => {
+                    const agentView = document.querySelector('.agent-view-container') as HTMLElement;
+                    if (agentView) agentView.focus();
+                    else rightPanel?.focus();
+                }, 0);
+            }
+        });
+        return () => layoutService.unregister();
+    }, []);
+
     // Save Command (Ctrl/Cmd + S)
     React.useEffect(() => {
         const handleKeyDown = async (e: KeyboardEvent) => {
@@ -90,10 +114,6 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                 console.log("Triggering Save via Shortcut");
                 if (currentAdapter?.save) {
                     await currentAdapter.save();
-                } else {
-                    // Fallback or Global Save?
-                    // Maybe trigger a "Save All" if no adapter? 
-                    // For now, only viewer save.
                 }
             }
         };
@@ -283,7 +303,10 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
             </div>
 
             {/* Right Panel: Adapter View */}
-            <div className={`right-panel custom-scroll ${(props.selectedNode && !props.isLocked) ? 'open' : ''}`} style={{ ...rightStyle, position: 'relative' }}>
+            <div className={`right-panel custom-scroll ${(props.selectedNode && !props.isLocked) ? 'open' : ''}`}
+                style={{ ...rightStyle, position: 'relative', outline: 'none' }}
+                tabIndex={-1} // Allow programmatic focus
+            >
                 {currentAdapter && props.selectedNode ? (
                     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                         {/* Generic Adapter Header */}
@@ -312,6 +335,11 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                                 </button>
                                 <button className={`icon-btn ${props.diffMode === 'raw' ? 'active' : ''}`} onClick={() => props.setDiffMode('raw')} title="Raw Content">
                                     <FileCode size={16} />
+                                </button>
+
+                                <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px' }}></div>
+                                <button className={`icon-btn ${props.config?.viewOptions?.wordWrap ? 'active' : ''}`} onClick={() => toggleViewOption('wordWrap')} title="Toggle Word Wrap">
+                                    <WrapText size={16} />
                                 </button>
                             </div>
                         </div>

@@ -52,16 +52,20 @@ export const useTreeNavigation = (
         const list: FileNode[] = [];
         const filters = config.folderFilters || { same: true, modified: true, added: true, removed: true };
 
-        const traverse = (n: FileNode) => {
+        const traverse = (n: FileNode, depth: number) => {
             if (!isNodeVisible(n, filters)) return;
             if (searchQuery && !matchesSearch(n, searchQuery)) return;
 
-            list.push(n);
+            // Clone node to add depth without mutating original data
+            // (Or just mutate if we own the data? Better to shallow clone for React)
+            const nodeWithDepth = { ...n, depth };
+
+            list.push(nodeWithDepth);
             if (n.type === 'directory' && expandedPaths.has(n.path) && n.children) {
-                n.children.forEach(traverse);
+                n.children.forEach(child => traverse(child, depth + 1));
             }
         };
-        traverse(root);
+        traverse(root, 0);
         return list;
     }, [root, config, searchQuery, expandedPaths]);
 

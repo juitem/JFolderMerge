@@ -415,23 +415,21 @@ h3 {
     cursor: pointer;
 }
 
-.tree-row .merge-btn {
-    width: 50px;
-    /* 2x wider for Tree View */
-    background: rgba(59, 130, 246, 0.2);
-    /* More visible */
-    border-color: rgba(59, 130, 246, 0.4);
+.tree-node .merge-btn {
+    /* width override removed to use base class width (78px) */
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.2);
     color: var(--text-primary);
     font-weight: bold;
 }
 
-.tree-row .merge-btn:hover {
+.tree-node .merge-btn:hover {
     background: var(--accent-color);
     border-color: var(--accent-color);
     color: white;
 }
 
-.tree-row .delete-btn {
+.tree-node .delete-btn {
     width: 32px;
     background: rgba(251, 113, 133, 0.1);
     /* danger-soft tint */
@@ -468,7 +466,7 @@ h3 {
     color: white;
 }
 
-.tree-row .delete-btn:hover {
+.tree-node .delete-btn:hover {
     background: var(--danger-vibrant);
     border-color: var(--danger-vibrant);
     color: white;
@@ -479,11 +477,11 @@ h3 {
 /* --- Visual Hover Feedback (Action Previews) --- */
 
 /* 1. Deletion Preview: When hovering Trash icon */
-.tree-row:has(.delete-btn:hover) {
+.tree-node:has(.delete-btn:hover) {
     background: rgba(244, 63, 94, 0.12) !important;
 }
 
-.tree-row:has(.delete-btn:hover) .item-name {
+.tree-node:has(.delete-btn:hover) .item-name {
     text-decoration: line-through;
     opacity: 0.45;
     color: var(--danger-soft);
@@ -491,17 +489,17 @@ h3 {
 }
 
 /* 2. Merge Preview (To Left): When hovering Accept icon */
-.tree-row:has(.merge-btn.to-left:hover) {
+.tree-node:has(.merge-btn.to-left:hover) {
     background: rgba(16, 185, 129, 0.12) !important;
 }
 
 /* 3. Merge Preview (To Right): When hovering Revert icon */
-.tree-row:has(.merge-btn.to-right:hover) {
+.tree-node:has(.merge-btn.to-right:hover) {
     background: rgba(236, 72, 153, 0.12) !important;
 }
 
 /* Optional: Subtle glow to the name when merging */
-.tree-row:has(.merge-btn:hover) .item-name {
+.tree-node:has(.merge-btn:hover) .item-name {
     text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
 }
 
@@ -968,14 +966,13 @@ h3 {
 }
 
 .merge-btn {
-    width: 16px;
-    /* Drastically reduced width */
-    height: 22px;
-    /* Slightly taller than width for slim look */
+    width: 40px;
+    /* Reduced by ~50% from 78px per user request */
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 3px;
+    border-radius: 4px;
     /* Sharper corners */
     border: 1px solid var(--border-color);
     color: var(--text-secondary);

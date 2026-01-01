@@ -3,13 +3,14 @@
   "defaultRightPath": "/Users/juitem/Docker/ContainerFolder/FolderComp/",
   "viewOptions": {
     "darkMode": false,
-    "folderViewMode": "unified",
+    "folderViewMode": "flat",
     "showLineNumbers": true,
-    "diffMode": "combined",
+    "diffMode": "agent",
     "leftPanelWidth_split": 50,
     "leftPanelWidth_unified": 30,
-    "leftPanelWidth_flat": 25,
-    "confirmMerge": false
+    "leftPanelWidth_flat": 30,
+    "confirmMerge": false,
+    "wordWrap": true
   },
   "savedExcludes": {
     "folders": ".git, .tmp, __pycache__, .vscode, .idea, .venv, venv, ROOTFS, jfoldermerge-vscode, node_modules, dist",

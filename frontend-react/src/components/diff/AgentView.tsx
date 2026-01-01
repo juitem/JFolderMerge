@@ -27,6 +27,7 @@ interface AgentViewProps {
     onMerge?: (lines: string[], targetSide: 'left' | 'right', anchorLine: number, type: 'insert' | 'delete' | 'replace', deleteCount?: number) => void;
     onNextFile?: () => void;
     onPrevFile?: () => void;
+    wrap?: boolean;
 }
 
 export interface AgentViewHandle {
@@ -416,7 +417,10 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
                     <div className="agent-gutter noselect">{line.type === 'removed' ? '' : line.rightLine || ''}</div>
                 </>
             )}
-            <div className="agent-content" style={{ paddingLeft: '60px' }}>{line.content}</div>
+            <div className="agent-content" style={{
+                paddingLeft: '60px',
+                whiteSpace: props.wrap ? 'pre-wrap' : 'pre'
+            }}>{line.content}</div>
         </div>
     );
 
@@ -427,7 +431,7 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
     return (
         <div className="agent-view-container custom-scroll" ref={containerRef}
             style={{
-                padding: '10px',
+                padding: '0', // Removed global padding to flush header
                 outline: 'none',
                 border: '2px solid transparent',
                 position: 'relative',
@@ -443,11 +447,12 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
             onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
         >
             <div className="agent-control-bar" style={{
-                display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px',
+                display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px',
                 background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)',
-                position: 'sticky', top: 0, zIndex: 20, marginBottom: '0'
+                position: 'sticky', top: 0, zIndex: 20, marginBottom: '0',
+                opacity: 1
             }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginRight: 'auto' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginRight: 'auto' }}>
                     Agent Controls
                 </span>
 
@@ -507,7 +512,7 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
                     </div>
                 </div>
             ) : (
-                <div className="agent-diff-table" style={{ flex: 1 }}>
+                <div className="agent-diff-table" style={{ flex: 1, padding: '0 10px 10px 10px' }}>
                     {parsedItems.map((item, idx) => {
                         if ('lines' in item) {
                             const block = item as DiffBlock;

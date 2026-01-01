@@ -8,6 +8,7 @@ export const CommandId = {
     NAV_NEXT_CHANGE: 'nav.nextChange',
     NAV_PREV_CHANGE: 'nav.prevChange',
     NAV_FOCUS_TREE: 'nav.focusTree',
+    NAV_FOCUS_EDITOR: 'nav.focusEditor',
 
     // File Actions
     FILE_MERGE_TO_RIGHT: 'file.mergeToRight',

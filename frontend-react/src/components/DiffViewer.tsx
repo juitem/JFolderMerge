@@ -357,7 +357,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         filters={config.diffFilters}
                         onMerge={handleLineMerge}
                         showLineNumbers={!!config.viewOptions?.showLineNumbers}
-                        wrap={!!config.viewOptions?.diffViewWrap}
+                        wrap={!!config.viewOptions?.wordWrap}
                     />
                 )}
                 {mode === 'raw' && rawContent && (
@@ -375,6 +375,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                                 onMerge={handleAgentMerge}
                                 onNextFile={onNextFile}
                                 onPrevFile={onPrevFile}
+                                wrap={!!config.viewOptions?.wordWrap}
                             />
                         </div>
                         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -384,7 +385,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                                 filters={config.diffFilters}
                                 onMerge={handleLineMerge}
                                 showLineNumbers={!!config.viewOptions?.showLineNumbers}
-                                wrap={!!config.viewOptions?.diffViewWrap}
+                                wrap={!!config.viewOptions?.wordWrap}
                             />
                         </div>
                     </div>
@@ -399,6 +400,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         onMerge={handleAgentMerge}
                         onNextFile={onNextFile}
                         onPrevFile={onPrevFile}
+                        wrap={!!config.viewOptions?.wordWrap}
                     />
                 )}
 
