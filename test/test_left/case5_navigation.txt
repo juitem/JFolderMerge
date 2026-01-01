@@ -1,6 +1,0 @@
-1. Common Start
-2. [Left Only: Section A]
-3. Common Middle 1
-4. Common Middle 2
-5. [Left Only: Section B]
-6. Common End
