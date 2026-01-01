@@ -90,6 +90,30 @@ export const useAppLogic = () => {
         }
     }, [config?.viewOptions?.folderViewMode]);
 
+    // Sync selectedNode with latest treeData (after reloads)
+    useEffect(() => {
+        if (!treeData || !selectedNode) return;
+
+        // Recursively find the node with the same path in the new tree
+        const findNodeByPath = (node: FileNode, path: string): FileNode | null => {
+            if (node.path === path) return node;
+            if (node.children) {
+                for (const child of node.children) {
+                    const found = findNodeByPath(child, path);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+
+        const updatedNode = findNodeByPath(treeData, selectedNode.path);
+        if (updatedNode && updatedNode !== selectedNode) {
+            // Check if status actually changed or object reference is just different
+            // Actually, we want the new object because it contains the fresh status from the backend.
+            setSelectedNode(updatedNode);
+        }
+    }, [treeData]);
+
     // -- Handlers --
 
     const showAlert = (title: string, message: string) => {
@@ -132,9 +156,42 @@ export const useAppLogic = () => {
     const handleResetSettings = async () => {
         if (!confirm("Are you sure you want to reset all settings to default?")) return;
         try {
+            // Load default ignore contents
+            let defaultFolders = "";
+            let defaultFiles = "";
+
+            if (config) {
+                const folderPath = `${config.ignoreFoldersPath || 'settings/ignore_folders'}/${config.defaultIgnoreFolderFile || 'default'}`;
+                const filePath = `${config.ignoreFilesPath || 'settings/ignore_files'}/${config.defaultIgnoreFileFile || 'default'}`;
+
+                try {
+                    const folderData = await api.fetchFileContent(folderPath);
+                    if (folderData?.content) {
+                        defaultFolders = folderData.content.split(/\r?\n/)
+                            .map((l: string) => l.trim())
+                            .filter((l: string) => l && !l.startsWith('#'))
+                            .join(', ');
+                    }
+                } catch (e) {
+                    console.warn("Failed to load default ignore folders", e);
+                }
+
+                try {
+                    const fileData = await api.fetchFileContent(filePath);
+                    if (fileData?.content) {
+                        defaultFiles = fileData.content.split(/\r?\n/)
+                            .map((l: string) => l.trim())
+                            .filter((l: string) => l && !l.startsWith('#'))
+                            .join(', ');
+                    }
+                } catch (e) {
+                    console.warn("Failed to load default ignore files", e);
+                }
+            }
+
             // Reset local state
-            setExcludeFolders("");
-            setExcludeFiles("");
+            setExcludeFolders(defaultFolders);
+            setExcludeFiles(defaultFiles);
             setLeftPanelWidth(50);
             setDiffMode('side-by-side');
 
@@ -142,7 +199,7 @@ export const useAppLogic = () => {
             const defaultConfig = {
                 left: config?.left || "",
                 right: config?.right || "",
-                savedExcludes: { folders: "", files: "" },
+                savedExcludes: { folders: defaultFolders, files: defaultFiles },
                 viewOptions: {
                     darkMode: true,
                     folderViewMode: 'split',
@@ -156,7 +213,7 @@ export const useAppLogic = () => {
 
             await api.saveConfig(defaultConfig);
             // Optionally reload? useConfig hook should update automatically.
-            showAlert("Settings Reset", "All settings have been reset to default.");
+            showAlert("Settings Reset", "All settings have been reset to default (including default ignore lists).");
         } catch (e: any) {
             showAlert("Reset Failed", "Failed to reset settings: " + e.message);
         }
@@ -354,10 +411,27 @@ export const useAppLogic = () => {
     const handleAdjustWidth = (delta: number) => {
         setLeftPanelWidth(prev => {
             const next = prev + delta;
-            // Clamp between 10% and 50%
-            return Math.max(10, Math.min(50, next));
+            const clamped = Math.max(10, Math.min(50, next));
+
+            // Persist to config
+            if (config) {
+                const mode = (config.viewOptions?.folderViewMode as string) || 'split';
+                const key = `leftPanelWidth_${mode}`;
+                const newConfig = {
+                    ...config,
+                    viewOptions: {
+                        ...(config.viewOptions || {}),
+                        [key]: clamped
+                    }
+                };
+                saveConfig(newConfig).catch(e => console.error("Failed to auto-save width:", e));
+            }
+
+            return clamped;
         });
     };
+
+    const [isLocked, setIsLocked] = useState(false);
 
     // Return everything needed by UI
     return {
@@ -373,6 +447,7 @@ export const useAppLogic = () => {
         excludeFiles, setExcludeFiles,
         selectedNode, setSelectedNode,
         isExpanded, setIsExpanded,
+        isLocked, setIsLocked,
         diffMode, setDiffMode,
         aboutOpen, setAboutOpen,
         leftPanelWidth,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Folder, FileText, Play, BookOpen, ListTree, AlignJustify, PanelRight, ChevronLeft, ChevronRight, ShieldCheck, ShieldAlert, Maximize, Minimize } from 'lucide-react';
+import { Folder, FileText, Play, BookOpen, ListTree, AlignJustify, PanelRight, ChevronLeft, ChevronRight, ShieldCheck, ShieldAlert, Maximize, Minimize, Lock, LockOpen } from 'lucide-react';
 import { useConfig } from '../contexts/ConfigContext';
 import type { DiffMode } from '../types';
 
@@ -10,17 +10,20 @@ interface FilterToolbarProps {
     setDiffMode: (mode: DiffMode) => void;
     onToggleFileView?: () => void;
     onAdjustWidth?: (delta: number) => void;
+    isLocked?: boolean;
+    setIsLocked?: (b: boolean) => void;
 }
 
 export function FilterToolbar({
     onCompare, loading,
     // diffMode, setDiffMode
     onToggleFileView,
-    onAdjustWidth
+    onAdjustWidth,
+    isLocked,
+    setIsLocked
 }: FilterToolbarProps) {
     const { config, toggleFilter, toggleDiffFilter, setViewOption } = useConfig();
     const folderViewMode = config?.viewOptions?.folderViewMode || 'split';
-
 
     const [isFullScreen, setIsFullScreen] = React.useState(!!document.fullscreenElement);
 
@@ -61,13 +64,35 @@ export function FilterToolbar({
                     <AlignJustify size={16} style={{ transform: 'rotate(90deg)' }} />
                 </button>
                 <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
-                <button className="icon-btn" onClick={onToggleFileView} title="Toggle File View">
+                <button
+                    className={`icon-btn ${isLocked ? 'active' : ''}`}
+                    onClick={() => setIsLocked?.(!isLocked)}
+                    title={isLocked ? "Unlock View State" : "Lock View State (Fix Folders Closed/Open)"}
+                >
+                    {isLocked ? <Lock size={18} /> : <LockOpen size={18} />}
+                </button>
+                <button
+                    className="icon-btn"
+                    onClick={isLocked ? undefined : onToggleFileView}
+                    title="Toggle File View"
+                    style={{ opacity: isLocked ? 0.4 : 1, pointerEvents: isLocked ? 'none' : 'auto' }}
+                >
                     <PanelRight size={16} />
                 </button>
-                <button className="icon-btn" onClick={() => onAdjustWidth?.(5)} title="Shrink File View (Widen Tree)">
+                <button
+                    className="icon-btn"
+                    onClick={isLocked ? undefined : (() => onAdjustWidth?.(5))}
+                    title="Shrink File View (Widen Tree)"
+                    style={{ opacity: isLocked ? 0.4 : 1, pointerEvents: isLocked ? 'none' : 'auto' }}
+                >
                     <ChevronRight size={16} />
                 </button>
-                <button className="icon-btn" onClick={() => onAdjustWidth?.(-5)} title="Expand File View (Shrink Tree)">
+                <button
+                    className="icon-btn"
+                    onClick={isLocked ? undefined : (() => onAdjustWidth?.(-5))}
+                    title="Expand File View (Shrink Tree)"
+                    style={{ opacity: isLocked ? 0.4 : 1, pointerEvents: isLocked ? 'none' : 'auto' }}
+                >
                     <ChevronLeft size={16} />
                 </button>
             </div>

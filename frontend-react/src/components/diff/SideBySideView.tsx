@@ -63,38 +63,59 @@ export const SideBySideView: React.FC<{
 
     return (
         <div className="split-diff-container custom-scroll" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'auto', minHeight: 0 }}>
-            {rows.map((_, i) => {
-                const l = leftRows[i] || { type: 'empty' };
-                const r = rightRows[i] || { type: 'empty' };
-
-                const isVisible = (rowNode: any) => {
-                    if (rowNode.type === 'empty') return false;
-                    const t = rowNode.type === 'modified' ? 'modified' :
-                        rowNode.type === 'added' ? 'added' :
-                            rowNode.type === 'removed' ? 'removed' : 'same';
-                    return filters?.[t] !== false;
-                };
-
-                const lVis = isVisible(l);
-                const rVis = isVisible(r);
-
-                if (!lVis && !rVis) return null;
-
-                const lBlock = leftBlocks[i];
-                const rBlock = rightBlocks[i];
-
-                return (
-                    <div key={i} className="diff-row-wrapper" style={{ display: 'flex', minHeight: '16px', height: 'auto', flexShrink: 0 }}>
-                        <div className="diff-col left" style={{ flex: '1 1 50%', width: '50%', maxWidth: '50%' }}>
-                            <DiffRow row={l} side="left" otherRow={r} filters={filters} onMerge={onMerge} index={i} forceRender={true} showLineNumber={showLineNumbers} block={lBlock} otherBlock={rBlock} wrap={wrap} />
-                        </div>
-                        <div className="diff-col right" style={{ flex: '1 1 50%', width: '50%', maxWidth: '50%' }}>
-                            <DiffRow row={r} side="right" otherRow={l} filters={filters} onMerge={onMerge} index={i} forceRender={true} showLineNumber={showLineNumbers} block={rBlock} otherBlock={lBlock} wrap={wrap} />
-                        </div>
+            {rows.length === 0 ? (
+                <div style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '40px',
+                    color: 'var(--text-secondary)',
+                    backgroundColor: 'var(--panel-bg)',
+                    borderRadius: 'var(--radius-lg)',
+                    margin: '20px',
+                    border: '1px solid var(--border-color)'
+                }}>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.9 }}>
+                        <span>✓</span>
+                        <span>File Synchronized</span>
                     </div>
-                );
-            })}
-            {len === 0 && <div className="empty-diff-message" style={{ padding: 20, color: '#888' }}>No visible changes</div>}
+                    <div style={{ marginTop: '8px', opacity: 0.7, fontSize: '0.9rem' }}>No differences remain in this file.</div>
+                </div>
+            ) : (
+                rows.map((_, i) => {
+                    const l = leftRows[i] || { type: 'empty' };
+                    const r = rightRows[i] || { type: 'empty' };
+
+                    const isVisible = (rowNode: any) => {
+                        if (rowNode.type === 'empty') return false;
+                        const t = rowNode.type === 'modified' ? 'modified' :
+                            rowNode.type === 'added' ? 'added' :
+                                rowNode.type === 'removed' ? 'removed' : 'same';
+                        return filters?.[t] !== false;
+                    };
+
+                    const lVis = isVisible(l);
+                    const rVis = isVisible(r);
+
+                    if (!lVis && !rVis) return null;
+
+                    const lBlock = leftBlocks[i];
+                    const rBlock = rightBlocks[i];
+
+                    return (
+                        <div key={i} className="diff-row-wrapper" style={{ display: 'flex', minHeight: '16px', height: 'auto', flexShrink: 0 }}>
+                            <div className="diff-col left" style={{ flex: '1 1 50%', width: '50%', maxWidth: '50%' }}>
+                                <DiffRow row={l} side="left" otherRow={r} filters={filters} onMerge={onMerge} index={i} forceRender={true} showLineNumber={showLineNumbers} block={lBlock} otherBlock={rBlock} wrap={wrap} />
+                            </div>
+                            <div className="diff-col right" style={{ flex: '1 1 50%', width: '50%', maxWidth: '50%' }}>
+                                <DiffRow row={r} side="right" otherRow={l} filters={filters} onMerge={onMerge} index={i} forceRender={true} showLineNumber={showLineNumbers} block={rBlock} otherBlock={lBlock} wrap={wrap} />
+                            </div>
+                        </div>
+                    );
+                })
+            )}
         </div>
     );
 };

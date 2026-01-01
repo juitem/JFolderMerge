@@ -10,7 +10,6 @@ export function useFolderCompare() {
     const compare = async (leftPath: string, rightPath: string, excludeFilesStr: string, excludeFoldersStr: string) => {
         setLoading(true);
         setError(null);
-        setTreeData(null);
         try {
             // Parse Excludes
             const exFiles = excludeFilesStr.split(',').map(s => s.trim()).filter(Boolean);

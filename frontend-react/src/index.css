@@ -7,10 +7,10 @@
     --accent-color: #3b82f6;
     --accent-hover: #2563eb;
     --success: #10b981;
-    --danger: #ef4444;
-    --danger-soft: #fb7185;
-    --danger-vibrant: #f43f5e;
-    --warning: #f59e0b;
+    --danger: #cc2d2d;
+    --danger-soft: #e53e3e;
+    --danger-vibrant: #dc2626;
+    --warning: #d97706;
     --font-family: 'Inter', system-ui, -apple-system, sans-serif;
 
     /* Premium Semantics */
@@ -385,12 +385,17 @@ h3 {
 }
 
 .item-status {
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 99px;
-    text-transform: uppercase;
-    /* margin-left: 8px; Removed, using flex gap */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 900;
+    flex-shrink: 0;
+    margin-left: 6px;
+    line-height: 1;
 }
 
 /* ... existing status color classes ... */
@@ -581,18 +586,19 @@ h3 {
 }
 
 .item-status.added {
-    background: var(--diff-added-bg);
-    color: var(--success);
+    background: var(--success);
+    color: #fff;
 }
 
 .item-status.removed {
-    background: var(--diff-removed-bg);
-    color: var(--danger);
+    background: var(--danger);
+    color: #fff;
 }
 
 .item-status.modified {
-    background: var(--diff-modified-bg);
-    color: var(--warning);
+    background: var(--warning);
+    color: #1a1a2e;
+    /* Darker text for orange contrast */
 }
 
 
@@ -1291,13 +1297,35 @@ h3 {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     background: #fb923c;
     color: #fff;
     border-radius: 50%;
     flex-shrink: 0;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    position: relative;
+}
+
+.file-level-f {
+    position: absolute;
+    top: -5px;
+    right: -4px;
+    font-size: 9px;
+    font-weight: 900;
+    background: #fb923c;
+    /* Same orange */
+    color: #fff;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid #1a1a2e;
+    /* Match theme background or contrasting border */
+    line-height: 1;
+    z-index: 10;
 }
 
 .agent-apply-text {

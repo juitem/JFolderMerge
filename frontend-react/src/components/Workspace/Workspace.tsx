@@ -31,6 +31,8 @@ interface WorkspaceProps {
     setDiffMode: (mode: DiffMode) => void;
     isExpanded: boolean;
     setIsExpanded: (b: boolean) => void;
+    isLocked?: boolean;
+    setIsLocked?: (b: boolean) => void;
     leftPanelWidth?: number; // percentage (10-50)
     onStatsUpdate?: (added: number, removed: number, groups: number) => void;
 }
@@ -44,9 +46,11 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
     const widthPercent = props.leftPanelWidth || 25;
 
     // Layout Logic
-    // If no file is open, the Tree should take full width (unless explicit expand logic says otherwise, but "expand file view" makes no sense if no file).
-    // Actually, if no file is open, right side is empty.
-    const effectiveLeftWidth = isFileOpen ? (props.isExpanded ? 0 : widthPercent) : 100;
+    // If no file is open, the Tree should normally take full width.
+    // However, if locked, we respect the expansion state even if no file is open (shows empty diff area if locked to diff).
+    const effectiveLeftWidth = props.isLocked
+        ? (props.isExpanded ? 0 : 100)
+        : (isFileOpen ? (props.isExpanded ? 0 : widthPercent) : 100);
 
     let leftStyle: React.CSSProperties = {
         overflow: 'hidden',
@@ -154,7 +158,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                                     />
                                     <button
                                         onClick={() => props.onBrowse?.('import-exclude-folders')}
-                                        style={{ position: 'absolute', right: '2px', background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', display: 'flex' }}
+                                        style={{ position: 'absolute', right: '2px', background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', display: 'flex' }}
                                         title="Import Ignore Folders List"
                                     >
                                         <FolderX size={15} />
@@ -163,7 +167,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                             ) : (
                                 <button
                                     onClick={() => props.onBrowse?.('import-exclude-folders')}
-                                    style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer', display: 'flex', padding: 2 }}
+                                    style={{ background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', display: 'flex', padding: 2 }}
                                     title={`Import Ignore Folders List (Current: ${props.excludeFolders || 'None'})`}
                                 >
                                     <FolderX size={16} />
@@ -183,7 +187,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                                     />
                                     <button
                                         onClick={() => props.onBrowse?.('import-exclude-files')}
-                                        style={{ position: 'absolute', right: '2px', background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', display: 'flex' }}
+                                        style={{ position: 'absolute', right: '2px', background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', display: 'flex' }}
                                         title="Import Ignore Files List"
                                     >
                                         <FileX size={15} />
@@ -192,7 +196,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                             ) : (
                                 <button
                                     onClick={() => props.onBrowse?.('import-exclude-files')}
-                                    style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer', display: 'flex', padding: 2 }}
+                                    style={{ background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', display: 'flex', padding: 2 }}
                                     title={`Import Ignore Files List (Current: ${props.excludeFiles || 'None'})`}
                                 >
                                     <FileX size={16} />
@@ -215,22 +219,30 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                     {/* File-level Merge Buttons (Revert/Accept) */}
                     {activeNode && (
                         <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
-                            <div
-                                className="agent-apply-icon-box"
-                                style={{ width: 16, height: 16, cursor: 'pointer', color: 'white' }}
+                            <button
+                                className="agent-apply-btn"
+                                style={{ height: '22px', border: 'none' }}
                                 title={`Revert ${activeNode.name} (Overwrite Agent with User version)`}
                                 onClick={() => props.onMerge(activeNode, 'left-to-right')}
                             >
-                                <ArrowRight size={12} strokeWidth={3} />
-                            </div>
-                            <div
-                                className="agent-apply-icon-box"
-                                style={{ width: 16, height: 16, cursor: 'pointer', color: 'white' }}
+                                <div className="agent-apply-icon-box" style={{ position: 'relative' }}>
+                                    <ArrowRight size={11} strokeWidth={3} />
+                                    <span className="file-level-f">F</span>
+                                </div>
+                                {!isUnified && !isFlat && <span className="agent-apply-text">Merge</span>}
+                            </button>
+                            <button
+                                className="agent-apply-btn"
+                                style={{ height: '22px', border: 'none' }}
                                 title={`Accept ${activeNode.name} (Merge Agent changes to User file)`}
                                 onClick={() => props.onMerge(activeNode, 'right-to-left')}
                             >
-                                <ArrowLeft size={12} strokeWidth={3} />
-                            </div>
+                                <div className="agent-apply-icon-box" style={{ position: 'relative' }}>
+                                    <ArrowLeft size={11} strokeWidth={3} />
+                                    <span className="file-level-f">F</span>
+                                </div>
+                                {!isUnified && !isFlat && <span className="agent-apply-text">Merge</span>}
+                            </button>
                         </div>
                     )}
 
@@ -249,7 +261,15 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                         root={props.treeData}
                         selectedNode={props.selectedNode}
                         config={props.config}
-                        onSelect={props.onSelectNode}
+                        onSelect={(node) => {
+                            if (props.selectedNode?.path === node.path) {
+                                // Re-selection: Force a refresh
+                                props.onReload?.();
+                                // Also tell DiffViewer to refresh if it has a ref (we'd need to add one or just rely on state changes)
+                                // Actually, onReload triggers compare() which updates treeData, which triggers DiffViewer's internal refresh.
+                            }
+                            props.onSelectNode(node);
+                        }}
                         onMerge={props.onMerge}
                         onDelete={props.onDelete}
                         searchQuery={props.searchQuery}
@@ -260,8 +280,8 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
             </div>
 
             {/* Right Panel: Diff */}
-            <div className={`right-panel custom-scroll ${props.selectedNode ? 'open' : ''}`} style={{ ...rightStyle, position: 'relative' }}>
-                {props.selectedNode && props.config ? (
+            <div className={`right-panel custom-scroll ${(props.selectedNode && !props.isLocked) ? 'open' : ''}`} style={{ ...rightStyle, position: 'relative' }}>
+                {props.selectedNode && !props.isLocked && props.config ? (
                     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                         <div className="diff-header-bar">
                             <div className="window-controls" style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>

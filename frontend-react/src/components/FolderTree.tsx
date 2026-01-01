@@ -590,7 +590,9 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, side, expandedPaths, focusedP
                 </span>
 
                 {node.status !== 'same' && (
-                    <span className={`item-status ${node.status}`}>{node.status}</span>
+                    <span className={`item-status ${node.status}`} title={node.status}>
+                        {node.status === 'added' ? 'A' : node.status === 'removed' ? 'R' : 'M'}
+                    </span>
                 )}
 
                 <div className="merge-actions">

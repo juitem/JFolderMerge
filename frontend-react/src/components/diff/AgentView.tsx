@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { api } from '../../api';
-import { ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Trash2, CheckCircle } from 'lucide-react';
 import { useKeyLogger } from '../../hooks/useKeyLogger';
 
 interface DiffLine {
@@ -43,11 +43,13 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
 
     const containerRef = React.useRef<HTMLDivElement>(null);
 
+    // Only reset state when the file actually changes.
+    // If just the diff updates (after a merge), we want to preserve the active block index.
     useEffect(() => {
         setExpandedContent({});
         setLoadingGaps({});
         setActiveBlockIndex(null);
-    }, [diff, fullRightPath]);
+    }, [fullRightPath]);
 
     const parsedItems = useMemo(() => {
         if (!diff) return [];
@@ -154,19 +156,66 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
         }
     }, [showSame, parsedItems, fullRightPath]);
 
+    // Adjust activeBlockIndex when parsedItems changes (e.g. after a merge)
     useEffect(() => {
-        if (parsedItems.length > 0) {
-            if (activeBlockIndex === null) {
-                const firstBlockIdx = parsedItems.findIndex(item => 'lines' in item);
-                if (firstBlockIdx !== -1) {
-                    setActiveBlockIndex(firstBlockIdx);
+        if (parsedItems.length === 0) {
+            setActiveBlockIndex(null);
+            return;
+        }
+
+        // 1. If nothing is selected, find the first available block
+        if (activeBlockIndex === null) {
+            const firstBlockIdx = parsedItems.findIndex(item => 'lines' in item);
+            if (firstBlockIdx !== -1) {
+                setActiveBlockIndex(firstBlockIdx);
+                setTimeout(() => {
+                    const el = containerRef.current?.querySelector(`[data-block-index='${firstBlockIdx}']`);
+                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+            }
+        } else {
+            // 2. If already selected, check if it's still a block (it might have become "same" after merge)
+            // Ensure index is within bounds before checking
+            const safeIdx = Math.min(activeBlockIndex, parsedItems.length - 1);
+            const currentItem = parsedItems[safeIdx];
+
+            if (!currentItem || !('lines' in currentItem)) {
+                // The current index is no longer a block. 
+                // Find the NEAREST block (preferring forward, then backward).
+                let foundIdx = -1;
+                // Look forward
+                for (let i = safeIdx; i < parsedItems.length; i++) {
+                    const item = parsedItems[i];
+                    if (item && 'lines' in item) { foundIdx = i; break; }
+                }
+                // If not found forward, look backward
+                if (foundIdx === -1) {
+                    for (let i = Math.min(safeIdx - 1, parsedItems.length - 1); i >= 0; i--) {
+                        const item = parsedItems[i];
+                        if (item && 'lines' in item) { foundIdx = i; break; }
+                    }
+                }
+
+                if (foundIdx !== -1) {
+                    setActiveBlockIndex(foundIdx);
                     setTimeout(() => {
-                        const el = containerRef.current?.querySelector(`[data-block-index='${firstBlockIdx}']`);
+                        const el = containerRef.current?.querySelector(`[data-block-index='${foundIdx}']`);
                         el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 100);
+                        containerRef.current?.focus();
+                    }, 0);
+                } else {
+                    // No blocks found anywhere
+                    setActiveBlockIndex(null);
                 }
             }
         }
+
+        // 3. Robust Focus Maintenance:
+        setTimeout(() => {
+            if (document.activeElement === document.body || document.activeElement === null) {
+                containerRef.current?.focus();
+            }
+        }, 100);
     }, [parsedItems]);
 
     const handleExpand = async (start: number, end: number) => {
@@ -367,110 +416,146 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
 
     if (!diff) return <div className="p-4 text-gray-500">No Diff Data</div>;
 
+    const hasBlocks = parsedItems.some(item => 'lines' in item);
+
     return (
         <div className="agent-view-container custom-scroll" ref={containerRef}
-            style={{ padding: '10px', outline: 'none', border: '2px solid transparent', position: 'relative' }}
+            style={{
+                padding: '10px',
+                outline: 'none',
+                border: '2px solid transparent',
+                position: 'relative',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 0
+            }}
             tabIndex={0}
             onKeyDown={handleKeyDown}
             onClick={(e) => e.currentTarget.focus()}
-            onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)'}
+            onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent-color)'}
             onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
         >
-            <div className="agent-diff-table">
-                {parsedItems.map((item, idx) => {
-                    if ('lines' in item) {
-                        const block = item as DiffBlock;
-                        const blockClass = block.type === 'block-removed' ? 'group-removed' : 'group-added';
-                        const isActive = activeBlockIndex === idx;
+            {!hasBlocks ? (
+                <div style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: 'var(--panel-bg)',
+                    borderRadius: 'var(--radius-lg)',
+                    margin: '10px',
+                    border: '1px solid var(--border-color)',
+                    boxShadow: 'inset 0 2px 20px rgba(0,0,0,0.2)'
+                }}>
+                    <div className="text-center p-8">
+                        <CheckCircle size={64} style={{ color: 'var(--success)', margin: '0 auto 20px auto', opacity: 0.8 }} />
+                        <h3 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>All changes merged!</h3>
+                        <p style={{ color: 'var(--text-secondary)', marginTop: '12px', fontSize: '1.1rem' }}>This file is now synchronized.</p>
+                        <div style={{ marginTop: '24px', padding: '8px 16px', backgroundColor: 'var(--hover-bg)', borderRadius: 'var(--radius-md)', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                            Press <kbd style={{ background: '#333', padding: '2px 6px', borderRadius: '4px', color: '#eee' }}>Esc</kbd> to return to folder tree
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="agent-diff-table" style={{ flex: 1 }}>
+                    {parsedItems.map((item, idx) => {
+                        if ('lines' in item) {
+                            const block = item as DiffBlock;
+                            const blockClass = block.type === 'block-removed' ? 'group-removed' : 'group-added';
+                            const isActive = activeBlockIndex === idx;
 
-                        return (
-                            <div key={idx} data-block-index={idx}
-                                className={`diff-block-group ${blockClass} ${isActive ? 'active' : ''}`}
-                                style={{ position: 'relative', cursor: 'pointer' }}
-                                onClick={(e) => { e.stopPropagation(); setActiveBlockIndex(idx); containerRef.current?.focus(); }}
-                            >
-                                {block.lines.map((l, i) => renderLine(l, i))}
-                                <div className="merge-action-overlay" style={{
-                                    position: 'absolute', zIndex: 10, opacity: 0.6, transition: 'opacity 0.2s',
-                                    top: '0px', left: '0px', right: '0px', height: '100%', pointerEvents: 'none'
-                                }}
-                                    onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                                    onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
+                            return (
+                                <div key={idx} data-block-index={idx}
+                                    className={`diff-block-group ${blockClass} ${isActive ? 'active' : ''}`}
+                                    style={{ position: 'relative', cursor: 'pointer' }}
+                                    onClick={(e) => { e.stopPropagation(); setActiveBlockIndex(idx); containerRef.current?.focus(); }}
                                 >
-                                    {onMerge && (
-                                        <>
-                                            <div style={{ position: 'absolute', top: 0, left: showLineNumbers ? '52px' : '5px', pointerEvents: 'auto' }}>
-                                                {block.type === 'block-removed' ? (
-                                                    <button className="icon-btn xs agent-merge-btn" title="Copy to Right (Restore)"
-                                                        style={{ background: 'rgba(50,0,0,0.8)', color: '#ec4899', border: '1px solid #ec4899', borderRadius: '0', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                        onClick={(e) => { e.stopPropagation(); const anchor = block.lines[0].rightLine || 0; onMerge(block.lines.map(l => l.content), 'right', anchor, 'insert'); }}
-                                                    >
-                                                        <ArrowRight size={12} />
-                                                    </button>
-                                                ) : (
-                                                    <button className="icon-btn xs agent-merge-btn" title="Delete from Right (Revert)"
-                                                        style={{ background: 'rgba(50,0,0,0.8)', color: '#ec4899', border: '1px solid #ec4899', borderRadius: '0', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                        onClick={(e) => { e.stopPropagation(); onMerge(block.lines.map(l => l.content), 'right', block.lines[0].rightLine || 0, 'delete'); }}
-                                                    >
-                                                        <Trash2 size={12} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div style={{ position: 'absolute', top: 0, left: showLineNumbers ? '106px' : '30px', pointerEvents: 'auto' }}>
-                                                {block.type === 'block-removed' ? (
-                                                    <button className="icon-btn xs agent-merge-btn" title="Delete from Left (Accept Removal)"
-                                                        style={{ background: 'rgba(50,0,0,0.8)', color: '#4ade80', border: '1px solid #4ade80', borderRadius: '0', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                        onClick={(e) => { e.stopPropagation(); onMerge(block.lines.map(l => l.content), 'left', block.lines[0].leftLine || 0, 'delete'); }}
-                                                    >
-                                                        <Trash2 size={12} />
-                                                    </button>
-                                                ) : (
-                                                    <button className="icon-btn xs agent-merge-btn" title="Merge to Left"
-                                                        style={{ background: 'rgba(0,50,0,0.8)', color: '#4ade80', border: '1px solid #4ade80', borderRadius: '0', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            const content = block.lines.map(l => l.content);
-                                                            const anchor = block.lines[0].leftLine || 0;
-                                                            let deleteCount = 0;
-                                                            if (idx > 0) {
-                                                                const prev = parsedItems[idx - 1];
-                                                                if ('lines' in prev && (prev as DiffBlock).type === 'block-removed') deleteCount = (prev as DiffBlock).lines.length;
-                                                            }
-                                                            deleteCount > 0 ? onMerge(content, 'left', anchor, 'replace', deleteCount) : onMerge(content, 'left', anchor, 'insert');
-                                                        }}
-                                                    >
-                                                        <ArrowLeft size={12} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </>
-                                    )}
+                                    {block.lines.map((l, i) => renderLine(l, i))}
+                                    <div className="merge-action-overlay" style={{
+                                        position: 'absolute', zIndex: 10, opacity: 0.6, transition: 'opacity 0.2s',
+                                        top: '0px', left: '0px', right: '0px', height: '100%', pointerEvents: 'none'
+                                    }}
+                                        onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                                        onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
+                                    >
+                                        {onMerge && (
+                                            <>
+                                                <div style={{ position: 'absolute', top: 0, left: showLineNumbers ? '52px' : '5px', pointerEvents: 'auto' }}>
+                                                    {block.type === 'block-removed' ? (
+                                                        <button className="icon-btn xs agent-merge-btn" title="Copy to Right (Restore)"
+                                                            style={{ background: 'rgba(50,0,0,0.8)', color: '#ec4899', border: '1px solid #ec4899', borderRadius: '0', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                            onClick={(e) => { e.stopPropagation(); const anchor = block.lines[0].rightLine || 0; onMerge(block.lines.map(l => l.content), 'right', anchor, 'insert'); }}
+                                                        >
+                                                            <ArrowRight size={12} />
+                                                        </button>
+                                                    ) : (
+                                                        <button className="icon-btn xs agent-merge-btn" title="Delete from Right (Revert)"
+                                                            style={{ background: 'rgba(50,0,0,0.8)', color: '#ec4899', border: '1px solid #ec4899', borderRadius: '0', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                            onClick={(e) => { e.stopPropagation(); onMerge(block.lines.map(l => l.content), 'right', block.lines[0].rightLine || 0, 'delete'); }}
+                                                        >
+                                                            <Trash2 size={12} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div style={{ position: 'absolute', top: 0, left: showLineNumbers ? '106px' : '30px', pointerEvents: 'auto' }}>
+                                                    {block.type === 'block-removed' ? (
+                                                        <button className="icon-btn xs agent-merge-btn" title="Delete from Left (Accept Removal)"
+                                                            style={{ background: 'rgba(50,0,0,0.8)', color: '#4ade80', border: '1px solid #4ade80', borderRadius: '0', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                            onClick={(e) => { e.stopPropagation(); onMerge(block.lines.map(l => l.content), 'left', block.lines[0].leftLine || 0, 'delete'); }}
+                                                        >
+                                                            <Trash2 size={12} />
+                                                        </button>
+                                                    ) : (
+                                                        <button className="icon-btn xs agent-merge-btn" title="Merge to Left"
+                                                            style={{ background: 'rgba(0,50,0,0.8)', color: '#4ade80', border: '1px solid #4ade80', borderRadius: '0', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const content = block.lines.map(l => l.content);
+                                                                const anchor = block.lines[0].leftLine || 0;
+                                                                let deleteCount = 0;
+                                                                if (idx > 0) {
+                                                                    const prev = parsedItems[idx - 1];
+                                                                    if ('lines' in prev && (prev as DiffBlock).type === 'block-removed') deleteCount = (prev as DiffBlock).lines.length;
+                                                                }
+                                                                deleteCount > 0 ? onMerge(content, 'left', anchor, 'replace', deleteCount) : onMerge(content, 'left', anchor, 'insert');
+                                                            }}
+                                                        >
+                                                            <ArrowLeft size={12} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    }
-                    const line = item as DiffLine;
-                    if (line.type === 'gap') {
-                        const key = `${line.gapStart}-${line.gapEnd}`;
-                        const expandedLines = expandedContent[key];
-                        if (expandedLines || showSame) {
-                            if (!expandedLines) return <div key={idx} className="agent-diff-row gap"><div className="agent-gap-bar">Loading Context...</div></div>;
-                            return expandedLines.map((content, i) => (
-                                <div key={`${key}-${i}`} className="agent-diff-row same expanded">
-                                    {showLineNumbers && (<><div className="agent-gutter noselect"></div><div className="agent-gutter noselect">{(line.gapStart || 0) + i}</div></>)}
-                                    <div className="agent-content">{content}</div>
-                                </div>
-                            ));
+                            );
                         }
-                        return (
-                            <div key={idx} className="agent-diff-row gap" onClick={() => line.gapStart && line.gapEnd && handleExpand(line.gapStart, line.gapEnd)}>
-                                <div className="agent-gap-bar">{loadingGaps[key] ? 'Loading...' : `↕ ${line.content}`}</div>
-                            </div>
-                        );
-                    }
-                    return renderLine(line, idx);
-                })}
-            </div>
+                        const line = item as DiffLine;
+                        if (line.type === 'gap') {
+                            const key = `${line.gapStart}-${line.gapEnd}`;
+                            const expandedLines = expandedContent[key];
+                            if (expandedLines || showSame) {
+                                if (!expandedLines) return <div key={idx} className="agent-diff-row gap"><div className="agent-gap-bar">Loading Context...</div></div>;
+                                return expandedLines.map((content, i) => (
+                                    <div key={`${key}-${i}`} className="agent-diff-row same expanded">
+                                        {showLineNumbers && (<><div className="agent-gutter noselect"></div><div className="agent-gutter noselect">{(line.gapStart || 0) + i}</div></>)}
+                                        <div className="agent-content">{content}</div>
+                                    </div>
+                                ));
+                            }
+                            return (
+                                <div key={idx} className="agent-diff-row gap"
+                                    onClick={() => line.gapStart && line.gapEnd && handleExpand(line.gapStart, line.gapEnd)}>
+                                    <div className="agent-gap-bar">{loadingGaps[key] ? 'Loading...' : `↕ ${line.content}`}</div>
+                                </div>
+                            );
+                        }
+                        return renderLine(line, idx);
+                    })}
+                </div>
+            )}
         </div>
     );
 });

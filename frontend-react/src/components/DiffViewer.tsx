@@ -82,8 +82,8 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
     const fetchDiff = async () => {
         setLoading(true);
         setError("");
-        setDiffData(null);
-        setRawContent(null);
+        // DO NOT setDiffData(null) or setRawContent(null) here. 
+        // This ensures the component stays mounted during refresh, preserving its state (like cursor position).
 
         try {
             const fullLeft = leftPathBase + '/' + relPath;
@@ -121,7 +121,15 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
         }
     };
 
+    const lastPathRef = useRef("");
+
     useEffect(() => {
+        const fullPath = relPath;
+        if (fullPath !== lastPathRef.current) {
+            setDiffData(null);
+            setRawContent(null);
+            lastPathRef.current = fullPath;
+        }
         fetchDiff();
     }, [relPath, mode, leftPathBase, rightPathBase]);
 
@@ -310,16 +318,26 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
         }
     };
 
-    if (loading) return <div className="loading-diff">Loading Diff...</div>;
+    const hasData = (mode === 'raw' && !!rawContent) || (mode !== 'raw' && !!diffData);
+
+    if (loading && !hasData) return <div className="loading-diff">Loading Diff...</div>;
     // Error can be shown, but sometimes we want to show partial content.
     if (error) return <div className="error-diff">Error: {error}</div>;
 
     // In raw mode, we check rawContent. In other modes, diffData.
-    if (mode === 'raw' && !rawContent) return <div className="empty-diff">Select a file to compare</div>;
-    if (mode !== 'raw' && !diffData) return <div className="empty-diff">Select a file to compare</div>;
+    if (!hasData) return <div className="empty-diff">Select a file to compare</div>;
 
     return (
-        <div className="diff-component">
+        <div className="diff-component" style={{ position: 'relative' }}>
+            {loading && hasData && (
+                <div style={{
+                    position: 'absolute', top: 0, right: 0, padding: '4px 8px',
+                    background: 'rgba(59, 130, 246, 0.8)', color: 'white',
+                    fontSize: '10px', zIndex: 100, borderRadius: '0 0 0 4px'
+                }}>
+                    Refreshing...
+                </div>
+            )}
             <div className={`diff-content ${mode}`}>
                 {mode === 'unified' && diffData && <UnifiedView diff={diffData.diff} filters={config.diffFilters} />}
                 {mode === 'side-by-side' && diffData && (

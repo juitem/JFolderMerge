@@ -42,6 +42,8 @@ function App() {
         // File
         selectedFilePath={logic.selectedNode?.path}
         onToggleFileView={() => logic.setIsExpanded(!logic.isExpanded)}
+        isLocked={logic.isLocked}
+        setIsLocked={logic.setIsLocked}
         onAdjustWidth={logic.handleAdjustWidth}
 
         // Stats
@@ -64,6 +66,8 @@ function App() {
           setDiffMode={logic.setDiffMode}
           isExpanded={logic.isExpanded}
           setIsExpanded={logic.setIsExpanded}
+          isLocked={logic.isLocked}
+          setIsLocked={logic.setIsLocked}
           leftPanelWidth={logic.leftPanelWidth}
 
           excludeFolders={logic.excludeFolders}

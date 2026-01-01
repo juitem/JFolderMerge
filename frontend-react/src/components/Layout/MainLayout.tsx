@@ -39,6 +39,8 @@ interface MainLayoutProps {
     // Layout Actions
     onToggleFileView?: () => void;
     onAdjustWidth?: (delta: number) => void;
+    isLocked?: boolean;
+    setIsLocked?: (b: boolean) => void;
 
     // Stats
     globalStats?: { added: number, removed: number, modified: number };
@@ -158,6 +160,8 @@ export const MainLayout: React.FC<MainLayoutProps> = (props) => {
                 setDiffMode={props.setDiffMode}
                 onToggleFileView={props.onToggleFileView}
                 onAdjustWidth={props.onAdjustWidth}
+                isLocked={props.isLocked}
+                setIsLocked={props.setIsLocked}
             />
 
             {/* Path Controls */}

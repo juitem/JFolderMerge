@@ -2,17 +2,18 @@
   "defaultLeftPath": "/Users/juitem/Docker/ContainerFolder/JF",
   "defaultRightPath": "/Users/juitem/Docker/ContainerFolder/FolderComp",
   "viewOptions": {
-    "darkMode": true,
-    "folderViewMode": "flat",
+    "darkMode": false,
+    "folderViewMode": "split",
     "showLineNumbers": true,
-    "diffMode": "side-by-side",
+    "diffMode": "combined",
     "leftPanelWidth_split": 50,
-    "leftPanelWidth_unified": 20,
-    "leftPanelWidth_flat": 30
+    "leftPanelWidth_unified": 30,
+    "leftPanelWidth_flat": 25,
+    "confirmMerge": false
   },
   "savedExcludes": {
-    "folders": "",
-    "files": ""
+    "folders": ".git, .tmp, __pycache__, .vscode, .idea, .venv, venv, ROOTFS, jfoldermerge-vscode, node_modules, dist",
+    "files": ".tmp, *.pyc, .DS_Store"
   },
   "folderFilters": {
     "same": false,
