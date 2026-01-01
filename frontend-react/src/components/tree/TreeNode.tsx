@@ -98,7 +98,14 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
             {/* Name */}
             <span className="node-name" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {node.name}
+                {depth === 0 ? (
+                    side === 'left' ? (node.left_name || node.name) :
+                        side === 'right' ? (node.right_name || node.name) :
+                            // Unified
+                            (node.left_name && node.right_name && node.left_name !== node.right_name)
+                                ? `${node.left_name} / ${node.right_name}`
+                                : node.name
+                ) : node.name}
             </span>
 
             {/* Status Icon */}
