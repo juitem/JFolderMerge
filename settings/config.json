@@ -1,9 +1,9 @@
 {
   "defaultLeftPath": "/Users/juitem/Docker/ContainerFolder/JF",
-  "defaultRightPath": "/Users/juitem/Docker/ContainerFolder/FolderComp",
+  "defaultRightPath": "/Users/juitem/Docker/ContainerFolder/FolderComp/",
   "viewOptions": {
     "darkMode": false,
-    "folderViewMode": "split",
+    "folderViewMode": "unified",
     "showLineNumbers": true,
     "diffMode": "combined",
     "leftPanelWidth_split": 50,

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { api } from '../api';
 import type { FileNode, DiffMode } from '../types';
 import { useConfig } from '../contexts/ConfigContext';
-import { useFolderCompare } from './useFolderCompare';
+import { useTreeData } from './logic/useTreeData';
 import { useFileSystem } from './useFileSystem';
 
 export const useAppLogic = () => {
@@ -38,8 +38,8 @@ export const useAppLogic = () => {
 
     const [historyState, setHistoryState] = useState<{ isOpen: boolean, side: 'left' | 'right' | null }>({ isOpen: false, side: null });
 
-    // Compare Hook
-    const { treeData, loading: compareLoading, error: compareError, compare } = useFolderCompare();
+    // Compare Hook (Refactored to useTreeData for patching)
+    const { treeData, loading: compareLoading, error: compareError, compare, patchNode, removeNode } = useTreeData();
 
     // Reload Action
     const handleReload = () => {
@@ -476,6 +476,8 @@ export const useAppLogic = () => {
         globalStats,
         currentFolderStats,
         fileLineStats,
-        updateFileLineStats
+        updateFileLineStats,
+        patchNode,
+        removeNode
     };
 };

@@ -17,6 +17,15 @@ export function useFolderCompare() {
 
             await api.addToHistory(leftPath, rightPath);
             const data = await api.compareFolders(leftPath, rightPath, exFiles, exFolders);
+
+            // Structural Fix: Force root names to match requested paths
+            // This prevents the "Right Root" from inheriting the "Left Name" if backend returns ambiguous data.
+            if (data) {
+                const getBasename = (p: string) => p.replace(/\/$/, '').split(/[/\\]/).pop() || p;
+                data.left_name = getBasename(leftPath);
+                data.right_name = getBasename(rightPath);
+            }
+
             setTreeData(data);
         } catch (e: any) {
             setError(e.message);

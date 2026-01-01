@@ -1,9 +1,10 @@
 import React from 'react';
-import { X, Hash, FileDiff, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Columns, Rows, Layout, FileCode, WrapText, Bot, FolderX, FileX, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FolderX, FileX, FileDiff, Bot, Layout, Columns, Rows, FileCode } from 'lucide-react';
 import { FolderTree, type FolderTreeHandle } from '../FolderTree';
-import { DiffViewer, type DiffViewerHandle } from '../DiffViewer';
+
 import { useConfig } from '../../contexts/ConfigContext';
 import type { FileNode, Config, DiffMode } from '../../types';
+import { viewerRegistry } from '../../viewers/ViewerRegistry';
 
 interface WorkspaceProps {
     // Tree Props
@@ -46,8 +47,6 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
     const widthPercent = props.leftPanelWidth || 25;
 
     // Layout Logic
-    // If no file is open, the Tree should normally take full width.
-    // However, if locked, we respect the expansion state even if no file is open (shows empty diff area if locked to diff).
     const effectiveLeftWidth = props.isLocked
         ? (props.isExpanded ? 0 : 100)
         : (isFileOpen ? (props.isExpanded ? 0 : widthPercent) : 100);
@@ -67,21 +66,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
         transition: 'all 0.3s ease'
     };
 
-    const isNarrow = (isUnified || isFlat) && isFileOpen && !props.isExpanded;
 
-    if (isNarrow) {
-        // Shrink tree for unified view (it needs less space)
-        // Use default narrow width if not explicitly adjusting, maybe?
-        // Let's respect the user setting even in narrow mode if possible, 
-        // OR just stick to the calculation above which already does it.
-        // Actually, previous logic hardcoded 25%. We now use `widthPercent`.
-        // So we can remove this block if we trust `widthPercent` is correct.
-        // But unified might default to smaller.
-        // Let's just use the `leftPanelWidth` logic universally for consistency.
-        // If user wants it smaller, they click the button.
-    }
-
-    const diffViewerRef = React.useRef<DiffViewerHandle>(null);
     const folderTreeRef = React.useRef<FolderTreeHandle>(null);
 
     // Track currently focused node in tree (even if not selected/open)
@@ -89,21 +74,42 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
 
     // Filter Logic: Hide text inputs when file is open to save space
     const showFilterInputs = !isFileOpen;
-
-    // Effective node for merge actions (Selected or Focused)
     const activeNode = props.selectedNode || focusedNode;
+
+    // --- Viewer Adapter Logic ---
+    const currentAdapter = React.useMemo(() => {
+        if (!props.selectedNode) return null;
+        return viewerRegistry.findAdapter(props.selectedNode);
+    }, [props.selectedNode]);
+
+    // Save Command (Ctrl/Cmd + S)
+    React.useEffect(() => {
+        const handleKeyDown = async (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                console.log("Triggering Save via Shortcut");
+                if (currentAdapter?.save) {
+                    await currentAdapter.save();
+                } else {
+                    // Fallback or Global Save?
+                    // Maybe trigger a "Save All" if no adapter? 
+                    // For now, only viewer save.
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [currentAdapter]);
+
 
     return (
         <div className="main-content split-view">
             {/* Left Panel: Tree */}
             <div className="left-panel custom-scroll" style={leftStyle} onClick={(e) => {
-                // Return focus to tree if clicking empty area
                 if (e.target === e.currentTarget) {
                     folderTreeRef.current?.focus();
                 }
             }}>
-
-
                 {/* Search Input & Filters */}
                 <div style={{
                     padding: '4px 8px',
@@ -142,7 +148,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                         }}
                     />
 
-                    {/* Exclude Filters - Moved here between Search and Prev Change */}
+                    {/* Exclude Filters */}
                     {props.excludeFolders !== undefined && (
                         <div style={{ display: 'flex', gap: '4px', flexShrink: 0, alignItems: 'center' }}>
                             {/* Exclude Folders */}
@@ -216,7 +222,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
 
                     <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
 
-                    {/* File-level Merge Buttons (Revert/Accept) */}
+                    {/* File-level Merge Buttons */}
                     {activeNode && (
                         <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
                             <button
@@ -263,10 +269,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                         config={props.config}
                         onSelect={(node) => {
                             if (props.selectedNode?.path === node.path) {
-                                // Re-selection: Force a refresh
                                 props.onReload?.();
-                                // Also tell DiffViewer to refresh if it has a ref (we'd need to add one or just rely on state changes)
-                                // Actually, onReload triggers compare() which updates treeData, which triggers DiffViewer's internal refresh.
                             }
                             props.onSelectNode(node);
                         }}
@@ -279,134 +282,59 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                 )}
             </div>
 
-            {/* Right Panel: Diff */}
+            {/* Right Panel: Adapter View */}
             <div className={`right-panel custom-scroll ${(props.selectedNode && !props.isLocked) ? 'open' : ''}`} style={{ ...rightStyle, position: 'relative' }}>
-                {props.selectedNode && !props.isLocked && props.config ? (
+                {currentAdapter && props.selectedNode ? (
                     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        {/* Generic Adapter Header */}
                         <div className="diff-header-bar">
                             <div className="window-controls" style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                                <button className="icon-btn" onClick={() => { props.onSelectNode(null); props.setIsExpanded(false); }} title="Close Diff View">
+                                <button className="icon-btn" onClick={() => { props.onSelectNode(null); props.setIsExpanded(false); }} title="Close View">
                                     <X size={16} />
                                 </button>
                                 <button className="icon-btn" onClick={() => props.setIsExpanded(!props.isExpanded)} title={props.isExpanded ? "Restore View" : "Toggle Full Screen"}>
                                     {props.isExpanded ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
                                 </button>
 
-                                <button className="icon-btn" onClick={() => diffViewerRef.current?.reload().catch(console.error)} title="Refresh Diff">
-                                    <RefreshCw size={16} />
-                                </button>
-
-                                <div style={{ width: '1px', height: '20px', background: '#444', margin: '0 4px' }}></div>
-
-                                <button className={`icon-btn ${props.config?.viewOptions?.showLineNumbers ? 'active' : ''}`}
-                                    onClick={() => toggleViewOption('showLineNumbers')}
-                                    title="Toggle Line Numbers">
-                                    <Hash size={16} />
-                                </button>
-                                <button className={`icon-btn ${props.config?.viewOptions?.diffViewWrap ? 'active' : ''}`}
-                                    onClick={() => toggleViewOption('diffViewWrap')}
-                                    title="Toggle Word Wrap">
-                                    <WrapText size={16} />
-                                </button>
-
-                                <div style={{ width: '1px', height: '20px', background: '#444', margin: '0 4px' }}></div>
-
-                                <button className={`icon-btn ${props.diffMode === 'agent' ? 'active' : ''}`}
-                                    onClick={() => props.setDiffMode('agent')}
-                                    title="Agent View">
+                                {/* File View Modes (Restored) */}
+                                <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px' }}></div>
+                                <button className={`icon-btn ${props.diffMode === 'agent' ? 'active' : ''}`} onClick={() => props.setDiffMode('agent')} title="Agent View">
                                     <Bot size={16} />
                                 </button>
-                                <button className={`icon-btn ${props.diffMode === 'combined' ? 'active' : ''}`}
-                                    onClick={() => props.setDiffMode('combined')}
-                                    title="Combined View">
+                                <button className={`icon-btn ${props.diffMode === 'combined' ? 'active' : ''}`} onClick={() => props.setDiffMode('combined')} title="Combined View">
                                     <Layout size={16} />
                                 </button>
-                                <button className={`icon-btn ${props.diffMode === 'side-by-side' ? 'active' : ''}`}
-                                    onClick={() => props.setDiffMode('side-by-side')}
-                                    title="Side by Side View">
+                                <button className={`icon-btn ${props.diffMode === 'side-by-side' ? 'active' : ''}`} onClick={() => props.setDiffMode('side-by-side')} title="Side by Side View">
                                     <Columns size={16} />
                                 </button>
-                                <button className={`icon-btn ${props.diffMode === 'unified' ? 'active' : ''}`}
-                                    onClick={() => props.setDiffMode('unified')}
-                                    title="Unified View">
+                                <button className={`icon-btn ${props.diffMode === 'unified' ? 'active' : ''}`} onClick={() => props.setDiffMode('unified')} title="Unified View">
                                     <Rows size={16} />
                                 </button>
-                                <button className={`icon-btn ${props.diffMode === 'raw' ? 'active' : ''}`}
-                                    onClick={() => props.setDiffMode('raw')}
-                                    title="Raw Content View">
+                                <button className={`icon-btn ${props.diffMode === 'raw' ? 'active' : ''}`} onClick={() => props.setDiffMode('raw')} title="Raw Content">
                                     <FileCode size={16} />
                                 </button>
                             </div>
                         </div>
 
-
-
-                        {/* Agent View Specific Toolbar */}
-                        {(props.diffMode === 'agent' || props.diffMode === 'combined') && (
-                            <div className="agent-toolbar" style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                padding: '4px 16px',
-                                borderBottom: '1px solid var(--border-color)',
-                                background: 'rgba(0,0,0,0.2)', // Slightly different bg to distinguish
-                                gap: '16px'
-                            }}>
-                                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-color)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Agent Controls</span>
-                                <div style={{ width: '1px', height: '16px', background: '#444' }}></div>
-
-                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }} title="Jump to Change (Any)">
-                                    <button className="icon-btn" style={{ padding: 3, color: '#60a5fa' }} onClick={() => diffViewerRef.current?.scrollToChange('any', 'first')} title="First Change">
-                                        <ChevronsUp size={16} />
-                                    </button>
-                                    <button className="icon-btn" style={{ padding: 3, color: '#60a5fa' }} onClick={() => diffViewerRef.current?.scrollToChange('any', 'prev')} title="Prev Change">
-                                        <ChevronUp size={16} />
-                                    </button>
-                                    <button className="icon-btn" style={{ padding: 3, color: '#60a5fa' }} onClick={() => diffViewerRef.current?.scrollToChange('any', 'next')} title="Next Change">
-                                        <ChevronDown size={16} />
-                                    </button>
-                                    <button className="icon-btn" style={{ padding: 3, color: '#60a5fa' }} onClick={() => diffViewerRef.current?.scrollToChange('any', 'last')} title="Last Change">
-                                        <ChevronsDown size={16} />
-                                    </button>
-                                </div>
-
-                                <div style={{ width: '1px', height: '16px', background: '#444' }}></div>
-                                <div
-                                    className="agent-apply-btn"
-                                    title="Merge Left Change to Right (Revert)"
-                                    onClick={() => diffViewerRef.current?.deleteActiveBlock()}
-                                >
-                                    <div className="agent-apply-icon-box">
-                                        <ArrowRight size={12} strokeWidth={3} />
-                                    </div>
-                                    <span className="agent-apply-text" style={{ fontSize: '13px' }}>Merge</span>
-                                </div>
-
-                                <div style={{ width: '1px', height: '16px', background: '#444' }}></div>
-                                <div
-                                    className="agent-apply-btn"
-                                    title="Merge Right Change to Left (Accept)"
-                                    onClick={() => diffViewerRef.current?.mergeActiveBlock()}
-                                >
-                                    <div className="agent-apply-icon-box" style={{ order: 2 }}>
-                                        <ArrowLeft size={12} strokeWidth={3} />
-                                    </div>
-                                    <span className="agent-apply-text" style={{ fontSize: '13px' }}>Merge</span>
-                                </div>
-                            </div>
-                        )}
+                        {/* Render specific Adapter Content */}
                         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                            <DiffViewer
-                                ref={diffViewerRef}
-                                leftPathBase={props.leftPath}
-                                rightPathBase={props.rightPath}
-                                relPath={props.selectedNode.path}
-                                config={props.config}
-                                initialMode={props.diffMode}
-                                onModeChange={props.setDiffMode}
-                                onNextFile={() => folderTreeRef.current?.selectNextNode()}
-                                onPrevFile={() => folderTreeRef.current?.selectPrevNode()}
-                                onStatsUpdate={props.onStatsUpdate}
-                            />
+                            {currentAdapter.render({
+                                fileNode: props.selectedNode,
+                                isActive: true,
+                                content: {
+                                    // Pass all legacy props
+                                    leftPathBase: props.leftPath,
+                                    rightPathBase: props.rightPath,
+                                    relPath: props.selectedNode.path,
+                                    config: props.config,
+                                    initialMode: props.diffMode,
+                                    onModeChange: props.setDiffMode,
+                                    onNextFile: () => folderTreeRef.current?.selectNextNode(),
+                                    onPrevFile: () => folderTreeRef.current?.selectPrevNode(),
+                                    onStatsUpdate: props.onStatsUpdate,
+                                    toggleViewOption: toggleViewOption
+                                }
+                            })}
                         </div>
                     </div>
                 ) : (

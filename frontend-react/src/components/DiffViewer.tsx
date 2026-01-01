@@ -17,6 +17,9 @@ interface DiffViewerProps {
     onPrevFile?: () => void;
     onReload?: () => void;
     onStatsUpdate?: (added: number, removed: number, groups: number) => void;
+    // Dependency Injection for architecture refactoring
+    onSaveFile?: (path: string, content: string) => Promise<void>;
+    onFetchContent?: (path: string) => Promise<{ content: string }>;
 }
 
 export interface DiffViewerHandle {
@@ -27,7 +30,7 @@ export interface DiffViewerHandle {
 }
 
 export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
-    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate
+    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent
 }, ref) => {
     const [mode, setMode] = useState<DiffMode>(initialMode);
 
@@ -235,14 +238,16 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
             const targetPathBase = targetSide === 'left' ? leftPathBase : rightPathBase;
             const fullTargetPath = targetPathBase + '/' + relPath;
 
-            // 1. Fetch current target content
-            const fileData = await api.fetchFileContent(fullTargetPath);
+            // 1. Fetch current target content (Use injected handler or API)
+            const fileData = onFetchContent
+                ? await onFetchContent(fullTargetPath)
+                : await api.fetchFileContent(fullTargetPath);
+
             let lines = fileData && fileData.content ? fileData.content.split(/\r?\n/) : [];
 
             // 2. Modify Lines
             if (type === 'delete') {
                 if (targetLineIndex !== null) {
-                    // Line numbers are 1-based, array is 0-based
                     lines.splice(targetLineIndex - 1, 1);
                 }
             } else if (type === 'replace') {
@@ -255,7 +260,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                 if (rows) {
                     for (let i = viewIndex - 1; i >= 0; i--) {
                         if (rows[i].line) {
-                            insertAt = rows[i].line; // Insert AFTER this line
+                            insertAt = rows[i].line;
                             break;
                         }
                     }
@@ -263,12 +268,17 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                 lines.splice(insertAt, 0, sourceText);
             }
 
-            // 3. Save
-            await api.saveFile(fullTargetPath, lines.join('\n'));
+            // 3. Save (Use injected handler or API)
+            const newContent = lines.join('\n');
+            if (onSaveFile) {
+                await onSaveFile(fullTargetPath, newContent);
+            } else {
+                await api.saveFile(fullTargetPath, newContent);
+            }
 
             // 4. Refresh
             await fetchDiff();
-            onReload?.(); // Refresh global tree
+            onReload?.();
         } catch (e: any) {
             setError("Merge failed: " + e.message);
             setLoading(false);
@@ -282,24 +292,19 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
             const fullTargetPath = targetPathBase + '/' + relPath;
 
             // 1. Fetch
-            const fileData = await api.fetchFileContent(fullTargetPath);
+            const fileData = onFetchContent
+                ? await onFetchContent(fullTargetPath)
+                : await api.fetchFileContent(fullTargetPath);
             let lines = fileData && fileData.content ? fileData.content.split(/\r?\n/) : [];
 
             // 2. Modify
             if (type === 'delete') {
-                // anchorLine is 1-based, starting line to delete
-                // linesToMerge length is how many lines to delete
                 if (anchorLine > 0 && anchorLine <= lines.length) {
                     lines.splice(anchorLine - 1, linesToMerge.length);
                 }
             } else if (type === 'insert') {
-                // Insert lines AFTER anchorLine (1-based)
-                // If anchorLine is 0, insert at beginning.
                 lines.splice(anchorLine, 0, ...linesToMerge);
             } else if (type === 'replace') {
-                // Replace logic: Delete X lines ending at anchorLine, then Insert.
-                // anchorLine is 1-based end of the block to be replaced (from parsing state).
-                // deleteCount is number of lines to remove.
                 const startIndex = anchorLine - deleteCount;
                 if (startIndex >= 0 && startIndex < lines.length) {
                     lines.splice(startIndex, deleteCount, ...linesToMerge);
@@ -307,7 +312,12 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
             }
 
             // 3. Save
-            await api.saveFile(fullTargetPath, lines.join('\n'));
+            const newContent = lines.join('\n');
+            if (onSaveFile) {
+                await onSaveFile(fullTargetPath, newContent);
+            } else {
+                await api.saveFile(fullTargetPath, newContent);
+            }
 
             // 4. Refresh
             await fetchDiff();

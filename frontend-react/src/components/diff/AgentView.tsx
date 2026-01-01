@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { api } from '../../api';
-import { ArrowLeft, ArrowRight, Trash2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Trash2, CheckCircle, ChevronsUp, ChevronsDown, ChevronUp, ChevronDown } from 'lucide-react';
 import { useKeyLogger } from '../../hooks/useKeyLogger';
 
 interface DiffLine {
@@ -270,63 +270,67 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
         }
     };
 
-    React.useImperativeHandle(ref, () => ({
-        scrollToChange: (type, direction) => scrollToChangeInternal(type, direction),
-        mergeActiveBlock: () => {
-            if (activeBlockIndex === null) return;
-            const item = parsedItems[activeBlockIndex];
-            if (!item || !('lines' in item)) return;
-            const block = item as DiffBlock;
-            if (onMerge) {
-                const content = block.lines.map(l => l.content);
-                const anchor = block.lines[0].leftLine || 0;
-                if (block.type === 'block-removed') {
-                    onMerge(content, 'left', anchor, 'delete');
-                } else {
-                    let deleteCount = 0;
-                    if (activeBlockIndex > 0) {
-                        const prev = parsedItems[activeBlockIndex - 1];
-                        if ('lines' in prev && (prev as DiffBlock).type === 'block-removed') deleteCount = (prev as DiffBlock).lines.length;
-                    }
-                    deleteCount > 0 ? onMerge(content, 'left', anchor, 'replace', deleteCount) : onMerge(content, 'left', anchor, 'insert');
+    const handleMergeBlock = () => {
+        if (activeBlockIndex === null) return;
+        const item = parsedItems[activeBlockIndex];
+        if (!item || !('lines' in item)) return;
+        const block = item as DiffBlock;
+        if (onMerge) {
+            const content = block.lines.map(l => l.content);
+            const anchor = block.lines[0].leftLine || 0;
+            if (block.type === 'block-removed') {
+                onMerge(content, 'left', anchor, 'delete');
+            } else {
+                let deleteCount = 0;
+                if (activeBlockIndex > 0) {
+                    const prev = parsedItems[activeBlockIndex - 1];
+                    if ('lines' in prev && (prev as DiffBlock).type === 'block-removed') deleteCount = (prev as DiffBlock).lines.length;
                 }
+                deleteCount > 0 ? onMerge(content, 'left', anchor, 'replace', deleteCount) : onMerge(content, 'left', anchor, 'insert');
             }
-        },
-        deleteActiveBlock: () => {
-            if (activeBlockIndex === null) return;
-            const item = parsedItems[activeBlockIndex];
-            if (!item || !('lines' in item)) return;
-            const block = item as DiffBlock;
-            if (onMerge) {
-                const content = block.lines.map(l => l.content);
-                const startLine = block.lines[0].rightLine || 0;
-                if (block.type === 'block-removed') {
-                    let nextIsAdded = false;
-                    if (activeBlockIndex + 1 < parsedItems.length) {
-                        const next = parsedItems[activeBlockIndex + 1];
-                        if ('lines' in next && (next as DiffBlock).type === 'block-added') nextIsAdded = true;
-                    }
-                    if (nextIsAdded) {
-                        const nextItem = parsedItems[activeBlockIndex + 1] as DiffBlock;
-                        onMerge(content, 'right', nextItem.lines[0].rightLine || 0, 'replace', nextItem.lines.length);
-                    } else {
-                        onMerge(content, 'right', startLine, 'insert');
-                    }
+        }
+    };
+
+    const handleDeleteBlock = () => {
+        if (activeBlockIndex === null) return;
+        const item = parsedItems[activeBlockIndex];
+        if (!item || !('lines' in item)) return;
+        const block = item as DiffBlock;
+        if (onMerge) {
+            const content = block.lines.map(l => l.content);
+            const startLine = block.lines[0].rightLine || 0;
+            if (block.type === 'block-removed') {
+                let nextIsAdded = false;
+                if (activeBlockIndex + 1 < parsedItems.length) {
+                    const next = parsedItems[activeBlockIndex + 1];
+                    if ('lines' in next && (next as DiffBlock).type === 'block-added') nextIsAdded = true;
+                }
+                if (nextIsAdded) {
+                    const nextItem = parsedItems[activeBlockIndex + 1] as DiffBlock;
+                    onMerge(content, 'right', nextItem.lines[0].rightLine || 0, 'replace', nextItem.lines.length);
                 } else {
-                    let prevIsRemoved = false;
-                    if (activeBlockIndex > 0) {
-                        const prev = parsedItems[activeBlockIndex - 1];
-                        if ('lines' in prev && (prev as DiffBlock).type === 'block-removed') prevIsRemoved = true;
-                    }
-                    if (prevIsRemoved) {
-                        const prevItem = parsedItems[activeBlockIndex - 1] as DiffBlock;
-                        onMerge(prevItem.lines.map(l => l.content), 'right', startLine, 'replace', block.lines.length);
-                    } else {
-                        onMerge(content, 'right', startLine, 'delete');
-                    }
+                    onMerge(content, 'right', startLine, 'insert');
+                }
+            } else {
+                let prevIsRemoved = false;
+                if (activeBlockIndex > 0) {
+                    const prev = parsedItems[activeBlockIndex - 1];
+                    if ('lines' in prev && (prev as DiffBlock).type === 'block-removed') prevIsRemoved = true;
+                }
+                if (prevIsRemoved) {
+                    const prevItem = parsedItems[activeBlockIndex - 1] as DiffBlock;
+                    onMerge(prevItem.lines.map(l => l.content), 'right', startLine, 'replace', block.lines.length);
+                } else {
+                    onMerge(content, 'right', startLine, 'delete');
                 }
             }
         }
+    };
+
+    React.useImperativeHandle(ref, () => ({
+        scrollToChange: (type, direction) => scrollToChangeInternal(type, direction),
+        mergeActiveBlock: handleMergeBlock,
+        deleteActiveBlock: handleDeleteBlock
     }));
 
     const { logKey } = useKeyLogger('AgentView');
@@ -343,6 +347,8 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
         if (e.key === 'ArrowDown') { e.preventDefault(); navigateBlock('next'); }
         else if (e.key === 'ArrowUp') { e.preventDefault(); navigateBlock('prev'); }
         else if (activeBlockIndex !== null && onMerge && e.shiftKey) {
+            // ... (keep existing arrow key merge logic or reuse functions if exact match)
+            // For now, keeping original logic for ArrowRight/Left as it was slightly specific with keys
             const item = parsedItems[activeBlockIndex];
             if (item && 'lines' in item) {
                 const block = item as DiffBlock;
@@ -436,6 +442,48 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>((prop
             onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent-color)'}
             onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
         >
+            <div className="agent-control-bar" style={{
+                display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px',
+                background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)',
+                position: 'sticky', top: 0, zIndex: 20, marginBottom: '0'
+            }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginRight: 'auto' }}>
+                    Agent Controls
+                </span>
+
+                {/* Navigation Group */}
+                <div style={{ display: 'flex', gap: '2px', marginRight: '8px' }}>
+                    <button className="icon-btn small" onClick={() => scrollToChangeInternal('any', 'first')} title="First Change">
+                        <ChevronsUp size={14} />
+                    </button>
+                    <button className="icon-btn small" onClick={() => scrollToChangeInternal('any', 'prev')} title="Previous Change">
+                        <ChevronUp size={14} />
+                    </button>
+                    <button className="icon-btn small" onClick={() => scrollToChangeInternal('any', 'next')} title="Next Change">
+                        <ChevronDown size={14} />
+                    </button>
+                    <button className="icon-btn small" onClick={() => scrollToChangeInternal('any', 'last')} title="Last Change">
+                        <ChevronsDown size={14} />
+                    </button>
+                </div>
+
+                <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }}></div>
+
+                {/* Merge Group */}
+                <div style={{ display: 'flex', gap: '4px' }}>
+                    <button className="icon-btn small" onClick={() => {
+                        if (activeBlockIndex !== null) handleDeleteBlock();
+                    }} title="Merge Left to Right (Overwrite Right)">
+                        <ArrowRight size={14} />
+                    </button>
+                    <button className="icon-btn small" onClick={() => {
+                        if (activeBlockIndex !== null) handleMergeBlock();
+                    }} title="Merge Right to Left (Overwrite Left)">
+                        <ArrowLeft size={14} />
+                    </button>
+                </div>
+            </div>
+
             {!hasBlocks ? (
                 <div style={{
                     flex: 1,
