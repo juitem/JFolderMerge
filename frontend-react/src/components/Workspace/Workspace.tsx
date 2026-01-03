@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FolderX, FileX, FileDiff, Bot, Layout, Columns, Rows, FileCode, WrapText, ChevronsUp, ChevronsDown, Eye, EyeOff, Zap, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FolderX, FileX, FileDiff, Bot, Layout, Columns, Rows, FileCode, FileText, WrapText, ChevronsUp, ChevronsDown, Eye, EyeOff, ArrowUpToLine, ArrowDownToLine, Hash } from 'lucide-react';
 import { FolderTree, type FolderTreeHandle } from '../FolderTree';
 
 import { useConfig } from '../../contexts/ConfigContext';
@@ -61,7 +61,7 @@ interface WorkspaceProps {
 }
 
 export const Workspace: React.FC<WorkspaceProps> = (props) => {
-    const { toggleViewOption } = useConfig();
+    const { toggleViewOption, setViewOption } = useConfig();
     const isUnified = props.config?.viewOptions?.folderViewMode === 'unified';
     const isFlat = props.config?.viewOptions?.folderViewMode === 'flat';
     const isFileOpen = !!props.selectedNode;
@@ -431,14 +431,20 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                                 <button className={`icon-btn ${props.diffMode === 'unified' ? 'active' : ''}`} onClick={() => props.setDiffMode('unified')} title="Unified View">
                                     <Rows size={16} />
                                 </button>
-                                <button className={`icon-btn ${props.diffMode === 'raw' ? 'active' : ''}`} onClick={() => props.setDiffMode('raw')} title="Raw Content">
+                                <button className={`icon-btn ${props.diffMode === 'raw' ? 'active' : ''}`} onClick={() => props.setDiffMode('raw')} title="Raw Content (Dual)">
                                     <FileCode size={16} />
+                                </button>
+                                <button className={`icon-btn ${props.diffMode === 'single' ? 'active' : ''}`} onClick={() => props.setDiffMode('single')} title="Single Raw View">
+                                    <FileText size={16} />
                                 </button>
 
                                 <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px' }}></div>
 
                                 <button className={`icon-btn ${props.config?.viewOptions?.wordWrap ? 'active' : ''}`} onClick={() => toggleViewOption('wordWrap')} title="Toggle Word Wrap">
                                     <WrapText size={16} />
+                                </button>
+                                <button className={`icon-btn ${props.config?.viewOptions?.showLineNumbers ? 'active' : ''}`} onClick={() => toggleViewOption('showLineNumbers')} title="Toggle Line Numbers">
+                                    <Hash size={16} />
                                 </button>
                             </div>
                         </div>
@@ -459,7 +465,9 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                                     onNextFile: () => folderTreeRef.current?.selectNextNode(),
                                     onPrevFile: () => folderTreeRef.current?.selectPrevNode(),
                                     onStatsUpdate: props.onStatsUpdate,
+                                    onReload: props.onReload,
                                     toggleViewOption: toggleViewOption,
+                                    setViewOption: setViewOption,
                                     smoothScroll: props.config?.viewOptions?.smoothScrollFile !== false,
                                     onShowConfirm: props.onShowConfirm
                                 }

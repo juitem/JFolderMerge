@@ -1,5 +1,5 @@
 import React from 'react';
-import { Folder, FileText, Play, BookOpen, ListTree, AlignJustify, PanelRight, PanelLeft, Columns, ChevronLeft, ChevronRight, Lock, LockOpen, Maximize, Minimize, ShieldCheck, ShieldAlert, Focus, Tag, LayoutList, ArrowLeftRight, Trash2, Settings2, EyeOff, Zap, MousePointer2, BoxSelect } from 'lucide-react';
+import { Folder, FileText, Play, BookOpen, ListTree, AlignJustify, PanelRight, PanelLeft, Columns, ChevronLeft, ChevronRight, Lock, LockOpen, Maximize, Minimize, ShieldCheck, ShieldAlert, Focus, Tag, LayoutList, ArrowLeftRight, Trash2, Settings2, Eye, EyeOff, Zap, Hash, WrapText, Layers, Box } from 'lucide-react';
 import { useConfig } from '../contexts/ConfigContext';
 import type { DiffMode } from '../types';
 
@@ -106,24 +106,15 @@ export function FilterToolbar({
 
                 <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
 
-                {/* Agent Merge Mode Toggle */}
+                {/* Unified Merge Mode Toggle */}
                 <button
-                    className={`icon-btn ${config?.viewOptions?.agentMergeMode === 'replace' ? 'active' : ''}`}
-                    onClick={() => setViewOption('agentMergeMode', config?.viewOptions?.agentMergeMode === 'replace' ? 'unit' : 'replace')}
-                    title={config?.viewOptions?.agentMergeMode === 'replace' ? 'Agent: Smart Replace (Double Action)' : 'Agent: Unit Merge (Single Action)'}
+                    className={`icon-btn ${config?.viewOptions?.mergeMode === 'unit' ? '' : 'active'}`}
+                    onClick={() => setViewOption('mergeMode', config?.viewOptions?.mergeMode === 'unit' ? 'group' : 'unit')}
+                    title={`Global Merge Mode: ${config?.viewOptions?.mergeMode === 'unit' ? 'Unit (Line-by-Line)' : 'Group (Smart Blocks)'}. Press 'U' to toggle.`}
+                    style={{ color: config?.viewOptions?.mergeMode === 'unit' ? 'var(--text-secondary)' : '#60a5fa' }}
                 >
-                    {config?.viewOptions?.agentMergeMode === 'replace' ? <BoxSelect size={16} /> : <MousePointer2 size={16} />}
-                    <span style={{ fontSize: '9px', marginLeft: '1px', fontWeight: 900, opacity: 0.7 }}>A</span>
-                </button>
-
-                {/* SBS Nav Mode Toggle */}
-                <button
-                    className={`icon-btn ${config?.viewOptions?.sbsNavMode === 'block' ? 'active' : ''}`}
-                    onClick={() => setViewOption('sbsNavMode', config?.viewOptions?.sbsNavMode === 'block' ? 'line' : 'block')}
-                    title={config?.viewOptions?.sbsNavMode === 'block' ? 'SBS Navigation: Block-to-Block' : 'SBS Navigation: Line-by-Line'}
-                >
-                    {config?.viewOptions?.sbsNavMode === 'block' ? <LayoutList size={16} /> : <AlignJustify size={16} />}
-                    <span style={{ fontSize: '9px', marginLeft: '1px', fontWeight: 900, opacity: 0.7 }}>S</span>
+                    {config?.viewOptions?.mergeMode === 'unit' ? <Layers size={16} /> : <Box size={16} />}
+                    <span style={{ fontSize: '9px', marginLeft: '1px', fontWeight: 900, opacity: 0.7 }}>M</span>
                 </button>
 
                 <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
@@ -310,7 +301,7 @@ export function FilterToolbar({
                                             minWidth: '32px'
                                         }}
                                         onClick={() => setViewOption('showDeleteIcons', false)}
-                                        title="Hide Delete Buttons"
+                                        title="Hide Delete Icons"
                                     >
                                         <EyeOff size={15} />
                                     </button>
@@ -330,9 +321,103 @@ export function FilterToolbar({
                                             minWidth: '32px'
                                         }}
                                         onClick={() => setViewOption('showDeleteIcons', true)}
-                                        title="Show Delete Buttons"
+                                        title="Show Delete Icons"
                                     >
                                         <Trash2 size={15} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Hide Actions Visibility Control */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Hide Icons</span>
+                                <div style={{ display: 'flex', background: 'var(--hover-bg)', borderRadius: '6px', padding: '3px', gap: '2px' }}>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.showHideIcons === false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.showHideIcons === false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.showHideIcons === false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('showHideIcons', false)}
+                                        title="Hide individual 'Hide' Icons"
+                                    >
+                                        <EyeOff size={15} />
+                                    </button>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.showHideIcons !== false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.showHideIcons !== false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.showHideIcons !== false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('showHideIcons', true)}
+                                        title="Show individual 'Hide' Icons"
+                                    >
+                                        <EyeOff size={15} style={{ opacity: 0.8 }} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Hidden Files Control */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Show Hidden</span>
+                                <div style={{ display: 'flex', background: 'var(--hover-bg)', borderRadius: '6px', padding: '3px', gap: '2px' }}>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.showHidden === false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.showHidden === false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.showHidden === false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('showHidden', false)}
+                                        title="Hide Hidden Files"
+                                    >
+                                        <EyeOff size={15} />
+                                    </button>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.showHidden !== false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.showHidden !== false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.showHidden !== false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('showHidden', true)}
+                                        title="Show Hidden Files"
+                                    >
+                                        <Eye size={15} />
                                     </button>
                                 </div>
                             </div>
@@ -431,6 +516,104 @@ export function FilterToolbar({
                                         title="Enable Confirmation"
                                     >
                                         <span style={{ fontSize: '11px', fontWeight: 600 }}>ON</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }}></div>
+
+                            <div className="text-muted" style={{ fontSize: '11px', fontWeight: 600, paddingLeft: '2px', color: '#64748b' }}>FILE VIEW</div>
+
+                            {/* Line Numbers Toggle */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Line Numbers</span>
+                                <div style={{ display: 'flex', background: 'var(--hover-bg)', borderRadius: '6px', padding: '3px', gap: '2px' }}>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.showLineNumbers === false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.showLineNumbers === false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.showLineNumbers === false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('showLineNumbers', false)}
+                                        title="Hide Line Numbers"
+                                    >
+                                        <EyeOff size={15} />
+                                    </button>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.showLineNumbers !== false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.showLineNumbers !== false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.showLineNumbers !== false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('showLineNumbers', true)}
+                                        title="Show Line Numbers"
+                                    >
+                                        <Hash size={15} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Word Wrap Toggle */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Word Wrap</span>
+                                <div style={{ display: 'flex', background: 'var(--hover-bg)', borderRadius: '6px', padding: '3px', gap: '2px' }}>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.wordWrap === false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.wordWrap === false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.wordWrap === false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('wordWrap', false)}
+                                        title="Disable Word Wrap"
+                                    >
+                                        <EyeOff size={15} />
+                                    </button>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.wordWrap !== false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.wordWrap !== false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.wordWrap !== false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('wordWrap', true)}
+                                        title="Enable Word Wrap"
+                                    >
+                                        <WrapText size={15} />
                                     </button>
                                 </div>
                             </div>

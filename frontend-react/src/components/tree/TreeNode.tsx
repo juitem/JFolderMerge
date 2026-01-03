@@ -16,6 +16,7 @@ export interface TreeNodeProps {
         onMerge: (node: FileNode, direction: 'left-to-right' | 'right-to-left') => void;
         onDelete: (node: FileNode, side: 'left' | 'right') => void;
         onFocus?: (node: FileNode) => void;
+        onHide?: (node: FileNode) => void;
     };
     // stats removed from props or ignored if unused
     stats?: { added: number, removed: number, modified: number };
@@ -209,6 +210,7 @@ const TreeNodeComponent: React.FC<TreeNodeProps> = ({
                     actions={actions}
                     showMerge={config.viewOptions?.showMergeIcons !== false}
                     showDelete={config.viewOptions?.showDeleteIcons !== false}
+                    showHide={config.viewOptions?.showHideIcons !== false}
                 />
             </div>
         </div>

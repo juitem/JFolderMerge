@@ -1244,14 +1244,16 @@ h3 {
 
 /* Ensure removed blocks keep their red tinge but get highlighted */
 .diff-block-group.group-removed.active {
-    background-color: rgba(239, 68, 68, 0.1);
-    box-shadow: inset 2px 0 0 0 var(--danger);
+    background-color: rgba(239, 68, 68, 0.25);
+    box-shadow: inset 3px 0 0 0 var(--danger);
+    outline: 1px solid rgba(239, 68, 68, 0.4);
 }
 
 /* Ensure added blocks keep their green tinge but get highlighted */
 .diff-block-group.group-added.active {
-    background-color: rgba(16, 185, 129, 0.1);
-    box-shadow: inset 2px 0 0 0 var(--success);
+    background-color: rgba(16, 185, 129, 0.25);
+    box-shadow: inset 3px 0 0 0 var(--success);
+    outline: 1px solid rgba(16, 185, 129, 0.4);
 }
 
 /* Chevron Icons for Tree */
@@ -1313,18 +1315,16 @@ h3 {
     background: transparent;
 }
 
-/* Active State - Removed (Left / Trashable) -> Read Background */
+/* Active State - Removed (Left / Trashable) -> Read Background / Already defined above, but ensuring consistency */
 .diff-block-group.group-removed.active {
     outline-color: #f87171 !important;
-    background-color: rgba(239, 68, 68, 0.15);
-    /* Red tint */
+    background-color: rgba(239, 68, 68, 0.3) !important;
 }
 
-/* Active State - Added (Right / Keepable) -> Green Background */
+/* Active State - Added (Right / Keepable) -> Green Background / Already defined above, but ensuring consistency */
 .diff-block-group.group-added.active {
     outline-color: #4ade80 !important;
-    background-color: rgba(74, 222, 128, 0.15);
-    /* Green tint */
+    background-color: rgba(74, 222, 128, 0.3) !important;
 }
 
 /* Agent View Merge Buttons - Compact & Elegant Styling */

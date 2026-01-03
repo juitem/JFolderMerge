@@ -24,13 +24,28 @@ const DiffViewerWrapper = forwardRef<any, ViewerProps & { adapter: DiffViewerAda
     const [dirtyState, setDirtyState] = useState<{ [path: string]: string }>({});
 
     const handleSaveFile = async (path: string, content: string) => {
-        console.log("[DiffAdapter] Intercepted Save (Dirty):", path);
-        setDirtyState(prev => ({ ...prev, [path]: content }));
-        if (props.onDirtyChange) props.onDirtyChange(true);
+        console.log("[DiffAdapter] Immediate Save (Bypassing Dirty State for Merge):", path);
+        try {
+            await api.saveFile(path, content);
+            // We no longer need to track this in dirtyState if we save immediately.
+            // But if we want to support "Undo" or "Revert all", we might still want to track it.
+            // For now, immediate persistence is preferred for merge flow.
+            if (dirtyState[path] !== undefined) {
+                setDirtyState(prev => {
+                    const next = { ...prev };
+                    delete next[path];
+                    return next;
+                });
+            }
+            if (props.onDirtyChange) props.onDirtyChange(Object.keys(dirtyState).length > 0);
+        } catch (e: any) {
+            console.error("[DiffAdapter] Save failed:", e);
+            throw e; // Let the caller (DiffViewer) handle the error UI
+        }
     };
 
     const handleFetchContent = async (path: string) => {
-        // Return dirty content if exists
+        // Return dirty content if exists (for manual edits if we add them later)
         if (dirtyState[path] !== undefined) {
             console.log("[DiffAdapter] Serving Dirty Content:", path);
             return { content: dirtyState[path] };
@@ -41,14 +56,16 @@ const DiffViewerWrapper = forwardRef<any, ViewerProps & { adapter: DiffViewerAda
     // Expose methods for Adapter
     useImperativeHandle(ref, () => ({
         save: async () => {
-            console.log("[DiffAdapter] Persisting Changes...");
-            const promises = Object.entries(dirtyState).map(([path, content]) =>
+            console.log("[DiffAdapter] Persisting Manual Changes...");
+            const entries = Object.entries(dirtyState);
+            if (entries.length === 0) return;
+
+            const promises = entries.map(([path, content]) =>
                 api.saveFile(path, content)
             );
             await Promise.all(promises);
             setDirtyState({}); // Clear dirty
             if (props.onDirtyChange) props.onDirtyChange(false);
-            // Verify/Reload?
         },
         hasChanges: () => Object.keys(dirtyState).length > 0
     }));

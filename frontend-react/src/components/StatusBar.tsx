@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, ArrowLeft, ArrowRight, ShieldAlert, ShieldCheck, X, FolderOpen, FileText } from 'lucide-react';
+import { Globe, ShieldAlert, ShieldCheck, FolderOpen, FileText } from 'lucide-react';
 
 interface StatusBarProps {
     globalStats?: { added: number, removed: number, modified: number };

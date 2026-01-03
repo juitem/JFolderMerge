@@ -9,7 +9,8 @@ export const SideBySideView: React.FC<{
     showLineNumbers?: boolean;
     wrap?: boolean;
     scrollerRef?: (el: HTMLElement | Window | null) => void;
-    mergeMode?: 'group' | 'line';
+    mergeMode?: 'group' | 'unit';
+    onMergeModeChange?: () => void;
     onShowConfirm?: (title: string, message: string, action: () => void) => void;
 }> = ({
     leftRows = [],
@@ -19,7 +20,8 @@ export const SideBySideView: React.FC<{
     showLineNumbers,
     wrap,
     scrollerRef,
-    mergeMode = 'line',
+    mergeMode = 'unit',
+    onMergeModeChange,
     onShowConfirm
 }) => {
         if (!leftRows || !rightRows) return <div>No Split Data</div>;
@@ -200,6 +202,9 @@ export const SideBySideView: React.FC<{
                         else if (focusZone === 'line') setFocusZone('block');
                     }
                 }
+            } else if (e.key === 'u' || e.key === 'U') {
+                e.preventDefault();
+                onMergeModeChange?.();
             } else if (e.key === 'Enter') {
                 e.preventDefault();
                 if (focusZone === 'line' || focusZone === 'block') {

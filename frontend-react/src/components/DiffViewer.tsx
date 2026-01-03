@@ -5,6 +5,7 @@ import { UnifiedView } from './diff/UnifiedView';
 import { SideBySideView } from './diff/SideBySideView';
 import { RawView } from './diff/RawView';
 import { AgentView, type AgentViewHandle } from './diff/AgentView';
+import { Layers, Box } from 'lucide-react';
 
 interface DiffViewerProps {
     leftPathBase: string;
@@ -22,6 +23,7 @@ interface DiffViewerProps {
     onFetchContent?: (path: string) => Promise<{ content: string }>;
     smoothScroll?: boolean;
     onShowConfirm?: (title: string, message: string, action: () => void) => void;
+    setViewOption?: (key: string, value: any) => void;
 }
 
 export interface DiffViewerHandle {
@@ -32,16 +34,23 @@ export interface DiffViewerHandle {
 }
 
 export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
-    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent, smoothScroll, onShowConfirm
+    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent, smoothScroll, onShowConfirm, setViewOption
 }, ref) => {
     const [mode, setMode] = useState<DiffMode>(initialMode);
+    const mergeMode = (config.viewOptions?.mergeMode as 'group' | 'unit') || 'group';
+
+    const toggleMergeMode = () => {
+        if (setViewOption) {
+            setViewOption('mergeMode', mergeMode === 'group' ? 'unit' : 'group');
+        }
+    };
 
     // ... (lines 33-40 skipped in diff, but I must match context if I replace start)
     // Actually, I can just replace the definition line.
 
 
 
-    // Sync if initialMode changes (though usually App passes persisted state)
+    // Sync if initialMode changes
     useEffect(() => {
         if (initialMode && initialMode !== mode) {
             setMode(initialMode);
@@ -94,7 +103,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
             const fullLeft = leftPathBase + '/' + relPath;
             const fullRight = rightPathBase + '/' + relPath;
 
-            if (mode === 'raw') {
+            if (mode === 'raw' || mode === 'single') {
                 // Fetch raw content for both files
                 // We use Promise.allSettled to allow one side to be missing (e.g. added/removed file)
                 const [leftRes, rightRes] = await Promise.allSettled([
@@ -309,7 +318,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
             } else if (type === 'insert') {
                 lines.splice(anchorLine, 0, ...linesToMerge);
             } else if (type === 'replace') {
-                const startIndex = anchorLine - deleteCount;
+                const startIndex = anchorLine - 1;
                 if (startIndex >= 0 && startIndex < lines.length) {
                     lines.splice(startIndex, deleteCount, ...linesToMerge);
                 }
@@ -331,7 +340,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
             setLoading(false);
         }
     };
-    const hasData = (mode === 'raw' && !!rawContent) || (mode !== 'raw' && !!diffData);
+    const hasData = ((mode === 'raw' || mode === 'single') && !!rawContent) || (mode !== 'raw' && mode !== 'single' && !!diffData);
 
     const agentScrollerRef = useRef<HTMLElement | Window | null>(null);
     const sideBySideScrollerRef = useRef<HTMLElement | Window | null>(null);
@@ -377,13 +386,32 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
 
     return (
         <div className="diff-component" style={{ position: 'relative' }}>
-            {loading && hasData && (
+            {hasData && (
                 <div style={{
                     position: 'absolute', top: 0, right: 0, padding: '4px 8px',
-                    background: 'rgba(59, 130, 246, 0.8)', color: 'white',
-                    fontSize: '10px', zIndex: 100, borderRadius: '0 0 0 4px'
+                    display: 'flex', gap: '8px', alignItems: 'center', zIndex: 100
                 }}>
-                    Refreshing...
+                    <button
+                        onClick={toggleMergeMode}
+                        title={`Merge Mode: ${mergeMode === 'group' ? 'Group (Smart)' : 'Unit (Block)'}. Press 'U' to toggle.`}
+                        style={{
+                            padding: '3px 8px', fontSize: '10px', background: 'var(--accent-primary, #3b82f6)', color: 'white',
+                            border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.3)', textTransform: 'uppercase',
+                            display: 'flex', alignItems: 'center', gap: '4px'
+                        }}
+                    >
+                        {mergeMode === 'group' ? <Box size={10} /> : <Layers size={10} />}
+                        <span>{mergeMode}</span>
+                    </button>
+                    {loading && (
+                        <div style={{
+                            padding: '2px 6px', background: 'rgba(59, 130, 246, 0.8)', color: 'white',
+                            fontSize: '10px', borderRadius: '4px'
+                        }}>
+                            Refreshing...
+                        </div>
+                    )}
                 </div>
             )}
             <div className={`diff-content ${mode}`}>
@@ -396,12 +424,13 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         onMerge={handleLineMerge}
                         showLineNumbers={!!config.viewOptions?.showLineNumbers}
                         wrap={!!config.viewOptions?.wordWrap}
-                        mergeMode={config.viewOptions?.mergeMode as 'group' | 'line'}
+                        mergeMode={mergeMode}
+                        onMergeModeChange={toggleMergeMode}
                         onShowConfirm={onShowConfirm}
                     />
                 )}
-                {mode === 'raw' && rawContent && (
-                    <RawView left={rawContent.left} right={rawContent.right} />
+                {(mode === 'raw' || mode === 'single') && rawContent && (
+                    <RawView left={rawContent.left} right={rawContent.right} mode={mode === 'single' ? 'single' : 'raw'} />
                 )}
                 {mode === 'combined' && diffData && (
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
@@ -418,7 +447,8 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                                 wrap={!!config.viewOptions?.wordWrap}
                                 scrollerRef={(el) => (agentScrollerRef.current = el)}
                                 smoothScroll={smoothScroll}
-                                mergeMode={config.viewOptions?.mergeMode as 'group' | 'line'}
+                                mergeMode={mergeMode}
+                                onMergeModeChange={toggleMergeMode}
                                 onShowConfirm={onShowConfirm}
                             />
                         </div>
@@ -431,7 +461,8 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                                 showLineNumbers={!!config.viewOptions?.showLineNumbers}
                                 wrap={!!config.viewOptions?.wordWrap}
                                 scrollerRef={(el) => (sideBySideScrollerRef.current = el)}
-                                mergeMode={config.viewOptions?.mergeMode as 'group' | 'line'}
+                                mergeMode={mergeMode}
+                                onMergeModeChange={toggleMergeMode}
                                 onShowConfirm={onShowConfirm}
                             />
                         </div>
@@ -449,7 +480,8 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         onPrevFile={onPrevFile}
                         wrap={!!config.viewOptions?.wordWrap}
                         smoothScroll={smoothScroll}
-                        mergeMode={config.viewOptions?.mergeMode as 'group' | 'line'}
+                        mergeMode={mergeMode}
+                        onMergeModeChange={toggleMergeMode}
                         onShowConfirm={onShowConfirm}
                     />
                 )}

@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import React from 'react';
 import type { DiffMode } from '../../types';
 import { useConfig } from '../../contexts/ConfigContext';
 
@@ -39,7 +38,6 @@ export const useViewState = () => {
     const toggleShowHidden = () => setShowHidden(prev => !prev);
 
     // Sync from Config (Once)
-    const initialized = useState(false); // Using state to force re-render if needed, or Ref?
     // Actually Ref is better for suppressing effects without re-render.
     // But we are inside a hook.
 

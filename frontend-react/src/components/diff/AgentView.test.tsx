@@ -1,6 +1,5 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
 import { AgentView } from './AgentView';
 
 // Mock Lucide Icons
@@ -59,7 +58,7 @@ describe('AgentView Navigation & Focus Logic', () => {
         expect(blocks[1].className).toContain('active');
     });
 
-    it('Block Jump (Shift Down): Highlight ONLY the selected block', async () => {
+    it('Strict Smart Mode: Shift + Down does NOT override smart behavior', async () => {
         const { container } = render(<AgentView diff={mockDiffLong} mergeMode="group" fullRightPath="file.txt" />);
         await flushPromises();
         const av = container.querySelector('.agent-view-container') as HTMLElement;
@@ -67,21 +66,48 @@ describe('AgentView Navigation & Focus Logic', () => {
 
         const blocks = container.querySelectorAll('.diff-block-group');
 
-        // Shift + Down -> Jump logically to index 1 (add1)
+        // Shift + Down -> In Smart mode, this should behave like normal Down 
+        // (Jumping PAST index 1 if 0 is head of a pair)
+        // Wait, mockDiffLong: 0 is remove, 1 is add -> PAIR.
+        // So ArrowDown (with or without shift) should jump to the NEXT pair/block After index 1.
+        // There is no next block in mockDiffLong after index 3 (lines 37-38).
+
+        // Let's re-verify mockDiffLong: 
+        // 0: -remove1 (head)
+        // 1: +add1 (tail)
+        // 2: unchanged (text)
+        // 3: -remove2 (head)
+        // 4: +add2 (tail)
+
+        // ArrowDown from 0/1 should land on 3/4 (parsedItems) which are blocks[2] and blocks[3]
         await act(async () => {
             fireEvent.keyDown(av, { key: 'ArrowDown', shiftKey: true });
         });
         await flushPromises();
 
-        // Logical focus is on index 1. 
-        // Since we used Shift, granularity is 'block'. 
-        // Thus, index 0 (partner) should NOT be active anymore.
-        expect(blocks[1].className).toContain('active');
-        expect(blocks[0].className).not.toContain('active');
+        expect(blocks[2].className).toContain('active');
+        expect(blocks[3].className).toContain('active');
+        expect(blocks[1].className).not.toContain('active');
     });
 
-    it('Unit mode: Highlight ONLY the selected block (No Shift needed)', async () => {
-        const { container } = render(<AgentView diff={mockDiffLong} mergeMode="line" fullRightPath="file.txt" />);
+    it('U Key Toggle: Should call onMergeModeChange', async () => {
+        const onModeChange = vi.fn();
+        const { container } = render(
+            <AgentView diff={mockDiffLong} mergeMode="group" onMergeModeChange={onModeChange} />
+        );
+        await flushPromises();
+        const av = container.querySelector('.agent-view-container') as HTMLElement;
+        av.focus();
+
+        await act(async () => {
+            fireEvent.keyDown(av, { key: 'u' });
+        });
+
+        expect(onModeChange).toHaveBeenCalled();
+    });
+
+    it('Unit mode: Highlight ONLY the selected block', async () => {
+        const { container } = render(<AgentView diff={mockDiffLong} mergeMode="unit" fullRightPath="file.txt" />);
         await flushPromises();
         const av = container.querySelector('.agent-view-container') as HTMLElement;
         av.focus();

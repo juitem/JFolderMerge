@@ -371,7 +371,7 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                 break;
             case 'h':
             case 'H': {
-                if (e.ctrlKey || e.metaKey) {
+                if (e.altKey || e.ctrlKey || e.metaKey) {
                     if (toggleHiddenPath && focusedPath) {
                         e.preventDefault();
                         toggleHiddenPath(focusedPath);
@@ -508,8 +508,9 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
         onSelect: handleNodeSelect,
         onMerge,
         onDelete,
-        onFocus
-    }), [onSelect, onMerge, onDelete, onFocus, handleNodeSelect]); // handleNodeSelect depends on others, so it covers it
+        onFocus,
+        onHide: toggleHiddenPath
+    }), [onSelect, onMerge, onDelete, onFocus, handleNodeSelect, toggleHiddenPath]); // handleNodeSelect depends on others, so it covers it
 
     return (
         <div

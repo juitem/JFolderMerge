@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Trash2, EyeOff } from 'lucide-react';
 import type { FileNode } from '../../types';
 
 interface TreeRowActionsProps {
@@ -8,12 +8,14 @@ interface TreeRowActionsProps {
     actions: {
         onMerge: (node: FileNode, dir: 'left-to-right' | 'right-to-left') => void;
         onDelete: (node: FileNode, side: 'left' | 'right') => void;
+        onHide?: (node: FileNode) => void;
     };
     showMerge?: boolean;
     showDelete?: boolean;
+    showHide?: boolean;
 }
 
-export const TreeRowActions: React.FC<TreeRowActionsProps> = ({ node, side, actions, showMerge = true, showDelete = true }) => {
+export const TreeRowActions: React.FC<TreeRowActionsProps> = ({ node, side, actions, showMerge = true, showDelete = true, showHide = true }) => {
     // Logic: Always render 4 buttons for alignment, hide irrelevant ones
     const isLeftVisible = (side === 'left' || side === 'unified') && (node.status === 'modified' || node.status === 'removed');
     const isRightVisible = (side === 'right' || side === 'unified') && (node.status === 'modified' || node.status === 'added');
@@ -92,6 +94,22 @@ export const TreeRowActions: React.FC<TreeRowActionsProps> = ({ node, side, acti
                         </button>
                     )}
                 </>
+            )}
+
+            {/* Global Actions (Hide) */}
+            {actions.onHide && showHide && (
+                <button
+                    className="merge-btn hide-btn"
+                    tabIndex={-1}
+                    style={{ width: '24px', opacity: 0.6 }}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        actions.onHide!(node);
+                    }}
+                    title="Hide File (Ctrl/Alt+H)"
+                >
+                    <EyeOff size={14} strokeWidth={2.5} />
+                </button>
             )}
         </div>
     );
