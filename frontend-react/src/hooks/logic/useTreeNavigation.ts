@@ -27,7 +27,9 @@ export const useTreeNavigation = (
     root: FileNode | null,
     config: Config | null,
     searchQuery: string = "",
-    onSelect?: (node: FileNode) => void
+    onSelect?: (node: FileNode) => void,
+    hiddenPaths?: Set<string>,
+    showHidden?: boolean
 ) => {
     const [focusedPath, setFocusedPath] = useState<string | null>(null);
     const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
@@ -56,7 +58,10 @@ export const useTreeNavigation = (
             if (!isNodeVisible(n, filters)) return;
             if (searchQuery && !matchesSearch(n, searchQuery)) return;
 
-            const nodeWithDepth = { ...n, depth };
+            const isHidden = !!hiddenPaths?.has(n.path);
+            if (isHidden && !showHidden) return; // Skip if hidden and not showing hidden
+
+            const nodeWithDepth = { ...n, depth, isHidden };
 
             list.push(nodeWithDepth);
             if (n.type === 'directory' && expandedPaths.has(n.path) && n.children) {
@@ -65,7 +70,7 @@ export const useTreeNavigation = (
         };
         traverse(root, 0);
         return list;
-    }, [root, config, searchQuery, expandedPaths]);
+    }, [root, config, searchQuery, expandedPaths, hiddenPaths, showHidden]);
 
     // [AUTO-EXPAND] Compute ALL potential searchable nodes (Ignoring collapse state)
     const allNodes = useMemo(() => {
@@ -78,6 +83,9 @@ export const useTreeNavigation = (
             if (!isNodeVisible(n, filters)) return;
             if (searchQuery && !matchesSearch(n, searchQuery)) return;
 
+            const isHidden = !!hiddenPaths?.has(n.path);
+            if (isHidden && !showHidden) return; // Skip if hidden and not showing hidden
+
             list.push(n);
             if (n.type === 'directory' && n.children) {
                 n.children.forEach(traverse);
@@ -85,7 +93,7 @@ export const useTreeNavigation = (
         };
         traverse(root);
         return list;
-    }, [root, config, searchQuery]);
+    }, [root, config, searchQuery, hiddenPaths, showHidden]);
 
     // [STABILITY] Derived Focus State (Synchronous)
     // Instead of waiting for useEffect to repair, we calculate the "Effective" focus during render.
@@ -172,86 +180,131 @@ export const useTreeNavigation = (
         });
     }, [root]);
 
+    const expandParents = useCallback((path: string) => {
+        const parts = path.split('/');
+        const parentsToExpand = new Set<string>();
+        let currentPath = "";
+        for (let j = 0; j < parts.length - 1; j++) {
+            const part = parts[j];
+            if (part === "") continue;
+            currentPath += (currentPath ? "/" : "") + part;
+            if (currentPath) parentsToExpand.add(currentPath);
+        }
+
+        if (parentsToExpand.size > 0) {
+            setExpandedPaths(prev => {
+                const next = new Set(prev);
+                parentsToExpand.forEach(p => next.add(p));
+                return next;
+            });
+        }
+    }, []);
+
     const selectNextChange = useCallback(() => {
-        // [AUTO-EXPAND] Use allNodes (ignoring collapse state) to find hidden changes
         if (!allNodes || allNodes.length === 0) return;
 
+        // Find any changed file (not same) - Filter first to quick check
+        const hasChanges = allNodes.some(n => (n.status !== 'same' && n.status !== undefined) && n.type !== 'directory');
+        if (!hasChanges) return;
+
+        let startIndex = -1;
+        if (effectivePath) {
+            startIndex = allNodes.findIndex(n => n.path === effectivePath);
+        }
+
+        // Search forwards from startIndex + 1
+        for (let i = 1; i < allNodes.length; i++) {
+            const idx = (startIndex + i) % allNodes.length;
+            const node = allNodes[idx];
+
+            // Skip directories and valid status check
+            if (node.type !== 'directory' && node.status && node.status !== 'same') {
+                expandParents(node.path);
+                setFocusedPath(node.path);
+                if (onSelect) onSelect(node);
+                return;
+            }
+        }
+    }, [allNodes, effectivePath, onSelect, expandParents]);
+
+    const selectPrevChange = useCallback(() => {
+        if (!allNodes || allNodes.length === 0) return;
         let currentIndex = -1;
         if (effectivePath) currentIndex = allNodes.findIndex(n => n.path === effectivePath);
 
-        // Scan forward in ALL nodes
+        for (let i = 1; i <= allNodes.length; i++) {
+            const idx = (currentIndex - i + allNodes.length) % allNodes.length;
+            const node = allNodes[idx];
+            if (node.status !== 'same' && node.type !== 'directory') {
+                expandParents(node.path);
+                setFocusedPath(node.path);
+                if (onSelect) onSelect(node);
+                return;
+            }
+        }
+    }, [allNodes, effectivePath, onSelect, expandParents]);
+
+    const selectFirstChange = useCallback(() => {
+        if (!allNodes || allNodes.length === 0) return;
+        for (let i = 0; i < allNodes.length; i++) {
+            const node = allNodes[i];
+            if (node.status !== 'same' && node.type !== 'directory') {
+                expandParents(node.path);
+                setFocusedPath(node.path);
+                if (onSelect) onSelect(node);
+                return;
+            }
+        }
+    }, [allNodes, onSelect, expandParents]);
+
+    const selectLastChange = useCallback(() => {
+        if (!allNodes || allNodes.length === 0) return;
+        for (let i = allNodes.length - 1; i >= 0; i--) {
+            const node = allNodes[i];
+            if (node.status !== 'same' && node.type !== 'directory') {
+                expandParents(node.path);
+                setFocusedPath(node.path);
+                if (onSelect) onSelect(node);
+                return;
+            }
+        }
+    }, [allNodes, onSelect, expandParents]);
+
+    const selectNextStatus = useCallback((status: 'added' | 'removed' | 'modified') => {
+        if (!allNodes || allNodes.length === 0) return;
+        let currentIndex = -1;
+        if (effectivePath) currentIndex = allNodes.findIndex(n => n.path === effectivePath);
+
         for (let i = 1; i <= allNodes.length; i++) {
             const idx = (currentIndex + i) % allNodes.length;
             const node = allNodes[idx];
 
-            // Skip directories for "Next Change" (usually want files), or allow? 
-            // Usually we want *files* with changes.
-            if (node.status !== 'same' && node.type !== 'directory') {
-                // FOUND!
-                // 1. Expand Parents
-                const parts = node.path.split('/');
-                const parentsToExpand = new Set<string>();
-                let currentPath = "";
-                // Reconstruct paths: /root, /root/A, ...
-                // Assuming path starts with /
-                for (let j = 1; j < parts.length - 1; j++) {
-                    currentPath += "/" + parts[j];
-                    parentsToExpand.add(currentPath);
-                }
-
-                if (parentsToExpand.size > 0) {
-                    setExpandedPaths(prev => {
-                        const next = new Set(prev);
-                        parentsToExpand.forEach(p => next.add(p));
-                        return next;
-                    });
-                }
-
-                // 2. Focus
+            if (node.status === status && node.type !== 'directory') {
+                expandParents(node.path);
                 setFocusedPath(node.path);
                 if (onSelect) onSelect(node);
                 return;
             }
         }
-    }, [allNodes, effectivePath, onSelect]);
+    }, [allNodes, effectivePath, onSelect, expandParents]);
 
-    const selectPrevChange = useCallback(() => {
+    const selectPrevStatus = useCallback((status: 'added' | 'removed' | 'modified') => {
         if (!allNodes || allNodes.length === 0) return;
-
         let currentIndex = -1;
         if (effectivePath) currentIndex = allNodes.findIndex(n => n.path === effectivePath);
 
-        // Scan backward
         for (let i = 1; i <= allNodes.length; i++) {
             const idx = (currentIndex - i + allNodes.length) % allNodes.length;
             const node = allNodes[idx];
 
-            if (node.status !== 'same' && node.type !== 'directory') {
-                // FOUND!
-                // 1. Expand Parents
-                const parts = node.path.split('/');
-                const parentsToExpand = new Set<string>();
-                let currentPath = "";
-                for (let j = 1; j < parts.length - 1; j++) {
-                    currentPath += "/" + parts[j];
-                    parentsToExpand.add(currentPath);
-                }
-
-                if (parentsToExpand.size > 0) {
-                    setExpandedPaths(prev => {
-                        const next = new Set(prev);
-                        parentsToExpand.forEach(p => next.add(p));
-                        return next;
-                    });
-                }
-
-                // 2. Focus
+            if (node.status === status && node.type !== 'directory') {
+                expandParents(node.path);
                 setFocusedPath(node.path);
                 if (onSelect) onSelect(node);
                 return;
             }
         }
-    }, [allNodes, effectivePath, onSelect]);
+    }, [allNodes, effectivePath, onSelect, expandParents]);
 
     return {
         focusedPath: effectivePath, // Return Derived Focus
@@ -262,6 +315,10 @@ export const useTreeNavigation = (
         moveFocus,
         selectNextChange,
         selectPrevChange,
+        selectFirstChange,
+        selectLastChange,
+        selectNextStatus,
+        selectPrevStatus,
         focusNode
     };
 };

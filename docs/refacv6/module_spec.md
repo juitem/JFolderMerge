@@ -4,62 +4,65 @@
 
 ## 1. Folder View Module (Tree)
 
-| Category | Item Name | Description |
-| :--- | :--- | :--- |
-| **State** | `treeData` | 정적 트리 구조 (FileNode). |
-| | `visibleNodes` | 필터 및 확장 상태가 적용된 평탄화(Flat)된 리스트. |
-| | `expandedPaths` | 현재 펼쳐져 있는 폴더 경로들의 Set. |
-| | `focusedPath` | 키보드 커서 위치 (Primary Focus, `Derived State`로 -1 방지). |
-| | `selectedPaths` | 다중 선택된 경로들의 Set (Batch 작업용). |
-| | `folderStats` | 각 폴더 노드별 하위 Added/Removed/Modified 요약 (Memoized). |
-| **Functions** | `moveFocus(delta)` | 위/아래 방향 이동 (Wrap-around 지원). |
-| | `toggleExpand(path)`| 폴더 열기/닫기 (스페이스/화살표). |
-| | `navToParent()` | 현재 노드의 부모로 점프 (좌측 화살표). |
-| | `quickMerge(dir)` | `Ctrl + Arrow`를 이용한 즉시 머지/삭제 요청. |
-| | `selectNextStatus()` | 특정 상태(A/M/R) 노드를 찾아 자동 확장 및 이동. |
-| | `scrollToPath()` | Virtuoso imperative scroll로 특정 노드 노출. |
+| Category | Item Name | Description | Test Status |
+| :--- | :--- | :--- | :--- |
+| **State** | `treeData` | 정적 트리 구조 (FileNode). | Unit Tested |
+| | `visibleNodes` | 필터 및 확장 상태가 적용된 평탄화(Flat)된 리스트. | Unit Tested |
+| | `expandedPaths` | 현재 펼쳐져 있는 폴더 경로들의 Set. | Unit Tested |
+| | `focusedPath` | 키보드 커서 위치 (Primary Focus, `Derived State`로 -1 방지). | Unit Tested |
+| | `selectedPaths` | 다중 선택된 경로들의 Set (Batch 작업용). | Unit Tested |
+| | `folderStats` | 각 폴더 노드별 하위 Added/Removed/Modified 요약 (Memoized). | Unit Tested |
+| **Functions** | `moveFocus(delta)` | 위/아래 방향 이동 (Wrap-around 지원). | Unit Tested |
+| | `toggleExpand(path)` | 폴더 열기/닫기 (스페이스/화살표). | Unit Tested |
+| | `navToParent()` | 현재 노드의 부모로 점프 (좌측 화살표). | Unit Tested |
+| | `selectNextStatus(status)` | 특정 상태(A/M/R) 노드를 찾아 자동 확장 및 이동. (단축키: `a`, `r`, `c`) | Unit Tested |
+| | `selectPrevStatus(status)` | 이전 상태(A/M/R) 노드를 찾아 자동 확장 및 이동. (단축키: `Shift + a, r, c`) | Unit Tested |
+| | `quickMerge(path)` | 포커스된 노드에 대해 즉시 머지 실행 (해당하는 경우). | Planned |
+| | `scrollToPath()` | Virtuoso imperative scroll로 특정 노드 노출. | Component Test |
 
 ## 2. File View Module (Viewer)
 
-| Category | Item Name | Description |
-| :--- | :--- | :--- |
-| **State** | `selectedFile` | 현재 열려 있는 원본 파일 정보. |
-| | `diffBlocks` | 계산된 차이점 블록 리스트 및 각각의 머지 상태. |
-| | `activeIndex` | 현재 에디터 내에서 포커스된 차이점 블록의 인덱스. |
-| | `isDirty` | 저장되지 않은 머지 변경사항이 있는지 여부. |
-| **Functions** | `loadDiff(node)` | 트리에서 선택된 노드에 대해 Diff 데이터 로드 및 렌더링. |
-| | `applyMerge(dir)` | 현재 포커스된 블록에 대해 머지 실행 (L->R, R->L). |
-| | `scrollIntoBlock(i)` | 특정 차이점 블록으로 수직 스크롤 이동. |
-| | `saveChanges()` | 변경 사항을 서버에 기록하고 트리 상태 업데이트 트리거. |
+| Category | Item Name | Description | Test Status |
+| :--- | :--- | :--- | :--- |
+| **State** | `selectedFile` | 현재 열려 있는 원본 파일 정보. | Unit Tested |
+| | `diffBlocks` | 계산된 차이점 블록 리스트 및 각각의 머지 상태. | Unit Tested |
+| | `activeIndex` | 현재 에디터 내에서 포커스된 차이점 블록의 인덱스. | Unit Tested |
+| | `isDirty` | 저장되지 않은 머지 변경사항이 있는지 여부. | Component Test |
+| **Functions** | `loadDiff(node)` | 트리에서 선택된 노드에 대해 Diff 데이터 로드 및 렌더링. | Component Test |
+| | `applyMerge(dir)` | 현재 포커스된 블록에 대해 머지 실행 (L->R, R->L). | Unit Tested |
+| | `scrollIntoBlock(i)` | 특정 차이점 블록으로 수직 스크롤 이동. | Visual Verified |
+| | `saveChanges()` | 변경 사항을 서버에 기록하고 트리 상태 업데이트 트리거. | E2E Tested |
 
 ## 3. Input & Command Module
 
-| Category | Item Name | Description |
-| :--- | :--- | :--- |
-| **State** | `commandMap` | 커맨드 ID와 실제 구현 함수 간의 매핑 테이블. |
-| | `keybindings` | 키 조합(예: `Enter`)과 커맨드 ID 매핑. |
-| | `activeContext` | 현재 활성화된 입력 범위 (예: `tree`, `viewer`, `modal`). |
-| **Functions** | `registerCommand(id, fn)` | 모듈이 자신의 기능을 시스템에 주입(Injection). |
-| | `handleKeyDown(e)` | 이벤트를 가로채서 **Command ID**로 변환. (Interaction Policy 참조) |
-| | `setContext(name)` | 포커스 이동 시 유효한 단축키 범위를 전환. |
+| Category | Item Name | Description | Test Status |
+| :--- | :--- | :--- | :--- |
+| **State** | `commandMap` | 커맨드 ID와 실제 구현 함수 간의 매핑 테이블. | Unit Tested |
+| | `keybindings` | 키 조합(예: `Enter`)과 커맨드 ID 매핑. | Unit Tested |
+| | `activeContext` | 현재 활성화된 입력 범위 (예: `tree`, `viewer`, `modal`). | Unit Tested |
+| **Functions** | `registerCommand(id, fn)` | 모듈이 자신의 기능을 시스템에 주입(Injection). | Unit Tested |
+| | `handleKeyDown(e)` | 이벤트를 가로채서 **Command ID**로 변환. (Interaction Policy 참조) | Unit Tested |
+| | `setContext(name)` | 포커스 이동 시 유효한 단축키 범위를 전환. | Unit Tested |
 
 ### Interaction Policy (Mapping)
 *   **Triggers**: `Enter`, `Double Click` -> `cmd.open`
 *   **Triggers**: `Space` -> `cmd.toggle` (Folder) 또는 `cmd.preview` (File)
 *   **Triggers**: `Arrow Keys` -> `cmd.nav`
+*   **Triggers**: `a`, `r`, `c` -> `cmd.nav.nextStatus` (added, removed, modified)
+*   **Triggers**: `Shift + a`, `r`, `c` -> `cmd.nav.prevStatus`
 
 ## 4. App Service (Orchestrator)
 
-| Category | Item Name | Description |
-| :--- | :--- | :--- |
-| **State** | `projectConfig` | 필터, 제외 파일/폴더 목록, 레이아웃 모드. |
-| | `globalStats` | 프로젝트 전체의 A/M/R 합계. |
-| | `historyItems` | 최근 비교한 경로 쌍 리스트. |
-| **Services** | `FileMutationService`| 파일 읽기/수정/저장 로직 통합 관리 (DRY 원칙). |
-| | `StatsService` | 트리 데이터를 기반으로 통계를 실시간 자동 계산. |
-| **Functions** | `runCompare()` | 좌/우 경로에 대해 전체 재검사 및 트리 구성. |
-| | `openBrowse(target)`| 폴더 브라우저 모달 열기 (Left/Right/Excludes). |
-| | `updateNodeStatus()`| 뷰어의 변경을 트리 노드와 부모 통계에 즉각 반영. |
+| Category | Item Name | Description | Test Status |
+| :--- | :--- | :--- | :--- |
+| **State** | `projectConfig` | 필터, 제외 파일/폴더 목록, 레이아웃 모드. | Context Test |
+| | `globalStats` | 프로젝트 전체의 A/M/R 합계. | Unit Tested |
+| | `historyItems` | 최근 비교한 경로 쌍 리스트. | Service Test |
+| **Services** | `FileMutationService`| 파일 읽기/수정/저장 로직 통합 관리 (DRY 원칙). | Unit Tested |
+| | `StatsService` | 트리 데이터를 기반으로 통계를 실시간 자동 계산. | Unit Tested |
+| **Functions** | `runCompare()` | 좌/우 경로에 대해 전체 재검사 및 트리 구성. | Integration Test |
+| | `openBrowse(target)` | 폴더 브라우저 모달 열기 (Left/Right/Excludes). | Manual Verified |
+| | `updateNodeStatus()` | 뷰어의 변경을 트리 노드와 부모 통계에 즉각 반영. | Unit Tested |
 
 ## 5. Layout Module (Resizer)
 
@@ -69,6 +72,7 @@
 | | `isResizing` | 사용자가 경계선을 드래그 중인지 여부. |
 | | `layoutMode` | 전체 레이아웃 형태 (Sidebar View, Full Screen 등). |
 | **Functions** | `updateWidth(newWidth)`| 드래그 또는 액션에 의해 트리 너비 변경 및 유지. |
+| | `switchLayout(mode)` | **'v'** 키를 통한 Folder/Split/File 레이아웃 순환 전환. | Unit Tested |
 | | `resetLayout()` | 레이아웃 설정을 기본값으로 복구. |
 | | `persistLayout()` | 변경된 너비를 로컬 스토리지 등에 저장하여 재접속 시 유지. |
 

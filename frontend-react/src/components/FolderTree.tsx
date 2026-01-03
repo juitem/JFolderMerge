@@ -6,6 +6,53 @@ import { VirtualTreeList } from './tree/VirtualTreeList';
 import { treeService } from '../services/tree/TreeService';
 import { layoutService } from '../services/layout/LayoutService';
 import { contextService, ContextKeys } from '../services/context/ContextService';
+import { StatusBar } from './StatusBar';
+import { SelectionPopup } from './tree/SelectionPopup';
+
+// Helper component to sync scroll between two trees
+const TreeScrollerSync: React.FC<{
+    children: (refs: { left: React.RefObject<HTMLElement | Window | null>, right: React.RefObject<HTMLElement | Window | null> }) => React.ReactNode,
+    visibleNodes: any[]
+}> = ({ children, visibleNodes }) => {
+    const leftRef = useRef<HTMLElement | Window | null>(null);
+    const rightRef = useRef<HTMLElement | Window | null>(null);
+    const isScrolling = useRef<string | null>(null);
+
+    useEffect(() => {
+        const left = leftRef.current;
+        const right = rightRef.current;
+        if (!left || !right) return;
+
+        // Sync logic only works if both are HTMLElements for now
+        if (!(left instanceof HTMLElement) || !(right instanceof HTMLElement)) return;
+
+        const onScrollLeft = () => {
+            if (isScrolling.current && isScrolling.current !== 'left') return;
+            isScrolling.current = 'left';
+            right.scrollTop = left.scrollTop;
+            right.scrollLeft = left.scrollLeft;
+            setTimeout(() => { if (isScrolling.current === 'left') isScrolling.current = null; }, 50);
+        };
+
+        const onScrollRight = () => {
+            if (isScrolling.current && isScrolling.current !== 'right') return;
+            isScrolling.current = 'right';
+            left.scrollTop = right.scrollTop;
+            left.scrollLeft = right.scrollLeft;
+            setTimeout(() => { if (isScrolling.current === 'right') isScrolling.current = null; }, 50);
+        };
+
+        left.addEventListener('scroll', onScrollLeft);
+        right.addEventListener('scroll', onScrollRight);
+
+        return () => {
+            left.removeEventListener('scroll', onScrollLeft);
+            right.removeEventListener('scroll', onScrollRight);
+        };
+    }, [visibleNodes]); // Re-bind if node count changes as containers might reset
+
+    return <>{children({ left: leftRef, right: rightRef })}</>;
+};
 
 // Interfaces match previous definition to prevent breakage
 export interface FolderTreeProps {
@@ -18,6 +65,25 @@ export interface FolderTreeProps {
     setSearchQuery?: (q: string) => void;
     selectedNode?: FileNode | null;
     onFocus?: (node: FileNode) => void;
+    selectionSet?: Set<string>;
+    onToggleSelection?: (path: string) => void;
+    onToggleBatchSelection?: (paths: string[]) => void;
+    hiddenPaths?: Set<string>;
+    toggleHiddenPath?: (path: string) => void;
+    showHidden?: boolean;
+    toggleShowHidden?: () => void;
+    onClearSelection?: () => void;
+    isExplicitSelectionMode?: boolean;
+    onToggleExplicitSelectionMode?: () => void;
+
+    // Props for StatusBar
+    globalStats?: { added: number, removed: number, modified: number };
+    currentFolderStats?: { added: number, removed: number, modified: number } | null;
+    fileLineStats?: { added: number, removed: number, groups: number } | null;
+    selectionCount?: number;
+    onSelectByStatus?: (status: 'added' | 'removed' | 'modified') => void;
+    onExecuteBatchMerge?: (dir: 'left-to-right' | 'right-to-left') => void;
+    onExecuteBatchDelete?: (side: 'left' | 'right') => void;
 }
 
 export interface FolderTreeHandle {
@@ -27,20 +93,45 @@ export interface FolderTreeHandle {
     selectLast: () => void;
     selectNextChangedNode: () => void;
     selectPrevChangedNode: () => void;
+    selectFirstChangedNode: () => void;
+    selectLastChangedNode: () => void;
+    selectNextStatus: (status: 'added' | 'removed' | 'modified') => void;
+    selectPrevStatus: (status: 'added' | 'removed' | 'modified') => void;
     focus: () => void;
+    toggleExpand: (path: string) => void;
+    selectCurrent: () => void;
+    expandPath: (path: string) => void;
+    collapsePath: (path: string) => void;
+    refresh: () => void;
 }
 
 // Re-implemented FolderTree using Headless Hook
 const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(({
-    root, config, onSelect, onMerge, onDelete, searchQuery = "", selectedNode, onFocus
+    root, config, onSelect, onMerge, onDelete, searchQuery = "", selectedNode, onFocus,
+    selectionSet, onToggleSelection, onToggleBatchSelection, hiddenPaths, toggleHiddenPath, showHidden, toggleShowHidden, onClearSelection,
+    isExplicitSelectionMode, onToggleExplicitSelectionMode,
+    globalStats, currentFolderStats, fileLineStats, selectionCount = 0, onSelectByStatus, onExecuteBatchMerge, onExecuteBatchDelete
 }, ref) => {
+
+    // Internal Ref for Container
+    const containerRef = React.useRef<HTMLDivElement>(null);
+    const virtuosoRef = React.useRef<any>(null);
+
+    // Optimistic Selection State (for instant UI feedback)
+    const [optimisticSelectedPath, setOptimisticSelectedPath] = React.useState<string | null>(null);
+
+    // Sync Optimistic State with Prop
+    React.useEffect(() => {
+        setOptimisticSelectedPath(null);
+    }, [selectedNode]);
 
     // 0. Wrapper for Navigation Selection
     const onNavigationSelect = React.useCallback((node: FileNode) => {
-        if (selectedNode) {
-            onSelect(node);
-        }
-    }, [selectedNode, onSelect]);
+        // Always select when jump-shortcuts are used. 
+        // For simple arrow nav, we might want to be more conservative, 
+        // but currently we'll favor correctness of navigation.
+        onSelect(node);
+    }, [onSelect]);
 
     // 1. Use Headless Navigation Hook
     const {
@@ -51,8 +142,12 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
         visibleNodes,
         moveFocus,
         selectNextChange,
-        selectPrevChange
-    } = useTreeNavigation(root, config, searchQuery, onNavigationSelect);
+        selectPrevChange,
+        selectFirstChange,
+        selectLastChange,
+        selectNextStatus,
+        selectPrevStatus
+    } = useTreeNavigation(root, config, searchQuery, onNavigationSelect, hiddenPaths, showHidden);
 
     // 2. Sync External Selection to Internal Focus
     useEffect(() => {
@@ -64,31 +159,64 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
     // 3. Expose Methods via Ref
     const treeId = React.useRef(`tree-${Math.random().toString(36).substr(2, 9)}`).current;
 
-
-
     // Internal handle implementation
     const handle = React.useMemo(() => ({
         moveFocus: (dir: number) => moveFocus(dir), // Exposed for TreeService
         selectNextNode: () => moveFocus(1),
         selectPrevNode: () => moveFocus(-1),
         selectFirst: () => {
+            console.log('[FolderTree] selectFirst called', { visibleCount: visibleNodes.length });
             if (visibleNodes.length > 0) {
-                const first = visibleNodes[0];
-                setFocusedPath(first.path);
+                // Design Philosophy: Root is container-only. Select first actual content item.
+                let targetIndex = 0;
+                const rootPath = root?.path || "";
+                const firstNode = visibleNodes[0];
+
+                console.log('[FolderTree] selectFirst Check:', {
+                    rootPath,
+                    firstNodePath: firstNode.path,
+                    isRoot: firstNode.path === rootPath || firstNode.path === ""
+                });
+
+                // If first item is Root, strict check to select next item
+                if (firstNode.path === rootPath || firstNode.path === "") {
+                    if (visibleNodes.length > 1) {
+                        console.log('[FolderTree] Skipping Root (Index 0), targeting Index 1');
+                        targetIndex = 1;
+                    } else {
+                        console.log('[FolderTree] Only Root visible. Cannot skip.');
+                    }
+                }
+
+                const target = visibleNodes[targetIndex];
+                console.log('[FolderTree] Target First (Adjusted):', target.path);
+                setFocusedPath(target.path);
+
+                // Force Scroll to Top (0) to show context, even if selecting index 1
+                virtuosoRef.current?.scrollToIndex({ index: 0, align: 'start' });
+
                 containerRef.current?.focus();
-                if (first.type === 'file') onSelect(first);
+                setOptimisticSelectedPath(target.path);
+                onSelect(target);
             }
         },
         selectLast: () => {
+            console.log('[FolderTree] selectLast called', { visibleCount: visibleNodes.length });
             if (visibleNodes.length > 0) {
                 const last = visibleNodes[visibleNodes.length - 1];
+                console.log('[FolderTree] Target Last:', last.path);
                 setFocusedPath(last.path);
                 containerRef.current?.focus();
-                if (last.type === 'file') onSelect(last);
+                setOptimisticSelectedPath(last.path);
+                onSelect(last);
             }
         },
         selectNextChangedNode: selectNextChange,
         selectPrevChangedNode: selectPrevChange,
+        selectFirstChangedNode: selectFirstChange,
+        selectLastChangedNode: selectLastChange,
+        selectNextStatus,
+        selectPrevStatus,
         focus: () => {
             if (containerRef.current) containerRef.current.focus();
         },
@@ -97,7 +225,10 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
             const node = visibleNodes.find(n => n.path === focusedPath);
             if (node) {
                 if (node.type === 'directory') toggleExpand(node.path);
-                else onSelect(node);
+                else {
+                    setOptimisticSelectedPath(node.path);
+                    onSelect(node);
+                }
             }
         },
         // Helpers for commands
@@ -108,7 +239,7 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
             if (expandedPaths.has(path)) toggleExpand(path);
         },
         refresh: () => { } // distinct from reload?
-    }), [moveFocus, selectNextChange, selectPrevChange, toggleExpand, visibleNodes, focusedPath, onSelect, expandedPaths]);
+    }), [moveFocus, selectNextChange, selectPrevChange, toggleExpand, visibleNodes, focusedPath, onSelect, expandedPaths, containerRef]);
 
     // Expose to Parent
     React.useImperativeHandle(ref, () => handle);
@@ -161,7 +292,6 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
     };
 
     // 4. Keyboard Handling (Local)
-    const containerRef = useRef<HTMLDivElement>(null);
     const { logKey } = useKeyLogger('FolderTree');
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -172,6 +302,12 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
         }
 
         switch (e.key) {
+            case 'Escape':
+                if (onClearSelection && selectionSet && selectionSet.size > 0) {
+                    e.stopPropagation();
+                    onClearSelection();
+                }
+                break;
             case 'ArrowDown':
                 moveFocus(1);
                 break;
@@ -218,6 +354,36 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                 }
                 break;
             }
+            case 'a':
+            case 'A':
+                if (e.shiftKey) selectPrevStatus('added');
+                else selectNextStatus('added');
+                break;
+            case 'r':
+            case 'R':
+                if (e.shiftKey) selectPrevStatus('removed');
+                else selectNextStatus('removed');
+                break;
+            case 'c':
+            case 'C':
+                if (e.shiftKey) selectPrevStatus('modified');
+                else selectNextStatus('modified');
+                break;
+            case 'h':
+            case 'H': {
+                if (e.ctrlKey || e.metaKey) {
+                    if (toggleHiddenPath && focusedPath) {
+                        e.preventDefault();
+                        toggleHiddenPath(focusedPath);
+                    }
+                } else {
+                    if (toggleShowHidden) {
+                        e.preventDefault();
+                        toggleShowHidden();
+                    }
+                }
+                break;
+            }
             case ' ': {
                 const node = visibleNodes.find(n => n.path === focusedPath);
                 if (node) {
@@ -226,6 +392,7 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                         if (selectedNode?.path === node.path) {
                             onSelect(null);
                         } else {
+                            setOptimisticSelectedPath(node.path);
                             onSelect(node);
                         }
                     }
@@ -237,6 +404,7 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                 if (node) {
                     if (node.type === 'directory') toggleExpand(node.path);
                     else {
+                        setOptimisticSelectedPath(node.path);
                         onSelect(node);
                         layoutService.focusContent();
                     }
@@ -246,13 +414,7 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
         }
     };
 
-    // 5. Scroll Into View
-    useEffect(() => {
-        if (focusedPath) {
-            const el = document.querySelector(`[data-node-path="${CSS.escape(focusedPath)}"]`);
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-    }, [focusedPath]);
+
 
     // 6. Memoized Stats
     const folderStats = React.useMemo(() => {
@@ -279,15 +441,67 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
     }, [root]);
 
     // Shared Click Handler
-    const handleNodeSelect = React.useCallback((n: FileNode) => {
-        if (n.type === 'directory') {
+    const handleNodeSelect = React.useCallback((n: FileNode, event?: React.MouseEvent) => {
+        containerRef.current?.focus();
+
+        // 1. Handle Directory Expansion (Single Click behavior preservation)
+        if (n.type === 'directory' && !event?.ctrlKey && !event?.metaKey && !event?.shiftKey) {
             toggleExpand(n.path);
-            containerRef.current?.focus();
-        } else {
-            onSelect(n);
-            containerRef.current?.focus();
+            return;
         }
-    }, [toggleExpand, onSelect]);
+
+        // 2. Multi-Selection Logic
+        if (event?.ctrlKey || event?.metaKey) {
+            // Toggle Selection
+            if (onToggleSelection) {
+                onToggleSelection(n.path);
+            }
+            onSelect(n);
+            // Note: Optimistic update might interfere with multi-select if we aren't careful,
+            // but here we are primarily focusing on the MAIN selection (for file view).
+            // Let's set optimistic too.
+            if (n.type === 'file') setOptimisticSelectedPath(n.path);
+
+        } else if (event?.shiftKey && onToggleSelection) {
+            // Range Selection
+            if (focusedPath && visibleNodes.length > 0) {
+                const startIdx = visibleNodes.findIndex(node => node.path === focusedPath);
+                const endIdx = visibleNodes.findIndex(node => node.path === n.path);
+
+                if (startIdx !== -1 && endIdx !== -1) {
+                    const low = Math.min(startIdx, endIdx);
+                    const high = Math.max(startIdx, endIdx);
+                    const range = visibleNodes.slice(low, high + 1);
+
+                    if (onToggleBatchSelection) {
+                        const pathsToToggle = range
+                            .filter(node => node.type === 'file' && (!selectionSet || !selectionSet.has(node.path)))
+                            .map(node => node.path);
+                        if (pathsToToggle.length > 0) onToggleBatchSelection(pathsToToggle);
+                    } else {
+                        range.forEach(node => {
+                            if (node.type === 'file' && (!selectionSet || !selectionSet.has(node.path))) {
+                                onToggleSelection(node.path);
+                            }
+                        });
+                    }
+                }
+            }
+            onSelect(n);
+            if (n.type === 'file') setOptimisticSelectedPath(n.path);
+
+        } else {
+            // Single Selection
+            if (n.type === 'file') {
+                setOptimisticSelectedPath(n.path);
+                onSelect(n);
+            }
+
+            if (n.type === 'file') {
+                // duplicate removed
+            }
+        }
+    }, [toggleExpand, onSelect, focusedPath, visibleNodes, onToggleSelection, onToggleBatchSelection, onClearSelection, selectionSet]);
 
     // Memoize Actions Object to prevent child re-renders
     const actions = React.useMemo(() => ({
@@ -295,68 +509,128 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
         onMerge,
         onDelete,
         onFocus
-    }), [onSelect, onMerge, onDelete, onFocus, toggleExpand]); // toggleExpand is stable from hook but good to include
+    }), [onSelect, onMerge, onDelete, onFocus, handleNodeSelect]); // handleNodeSelect depends on others, so it covers it
 
     return (
         <div
-            className="tree-container custom-scroll"
-            ref={containerRef}
-            tabIndex={0}
-            onKeyDown={handleKeyDown}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
+            className="tree-container-wrapper"
+            style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                minHeight: 0, // Ensure flex shrinking works
+                overflow: 'hidden',
+                flex: 1,
+                position: 'relative' // Anchor for absolute children (SelectionPopup)
+            }}
         >
-            {visibleNodes.length === 0 ? (
-                <div style={{ padding: '20px', textAlign: 'center', opacity: 0.5, fontSize: '0.9rem' }}>
-                    No files to display.
-                </div>
-            ) : config.viewOptions?.folderViewMode === 'unified' || config.viewOptions?.folderViewMode === 'flat' ? (
-                <div className="tree-column unified" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                    <VirtualTreeList
-                        visibleNodes={visibleNodes}
-                        side="unified"
-                        expandedPaths={expandedPaths}
-                        focusedPath={focusedPath}
-                        selectedPath={selectedNode?.path} // Pass Selection
-                        onToggle={toggleExpand}
-                        config={config}
-                        searchQuery={searchQuery}
-                        actions={actions}
-                        folderStats={folderStats}
-                    />
-                </div>
-            ) : (
-                <div className="split-tree-view" style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
-                    <div id="tree-left" className="tree-column" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div
+                className="tree-container custom-scroll"
+                ref={containerRef}
+                tabIndex={0}
+                onKeyDown={handleKeyDown}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                style={{ flex: 1, overflow: 'auto', outline: 'none', minHeight: 0 }}
+            >
+                {visibleNodes.length === 0 ? (
+                    <div style={{ padding: '20px', textAlign: 'center', opacity: 0.5, fontSize: '0.9rem' }}>
+                        No files to display.
+                    </div>
+                ) : config.viewOptions?.folderViewMode === 'unified' || config.viewOptions?.folderViewMode === 'flat' ? (
+                    <div className="tree-column unified" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                         <VirtualTreeList
                             visibleNodes={visibleNodes}
-                            side="left"
+                            virtuosoRef={virtuosoRef}
+                            side="unified"
                             expandedPaths={expandedPaths}
                             focusedPath={focusedPath}
-                            selectedPath={selectedNode?.path} // Pass Selection
+                            selectedPath={optimisticSelectedPath ?? selectedNode?.path}
                             onToggle={toggleExpand}
                             config={config}
                             searchQuery={searchQuery}
                             actions={actions}
                             folderStats={folderStats}
+                            selectionSet={selectionSet}
+                            // @ts-ignore
+                            isSelectionMode={selectionSet && selectionSet.size > 0}
+                            onToggleSelection={onToggleSelection}
                         />
                     </div>
-                    <div id="tree-right" className="tree-column" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                        <VirtualTreeList
-                            visibleNodes={visibleNodes}
-                            side="right"
-                            expandedPaths={expandedPaths}
-                            focusedPath={focusedPath}
-                            selectedPath={selectedNode?.path} // Pass Selection
-                            onToggle={toggleExpand}
-                            config={config}
-                            searchQuery={searchQuery}
-                            actions={actions}
-                            folderStats={folderStats}
-                        />
+                ) : (
+                    <div className="split-tree-view" style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+                        <TreeScrollerSync visibleNodes={visibleNodes}>
+                            {(scrollerRefs) => (
+                                <>
+                                    <div id="tree-left" className="tree-column" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                                        <VirtualTreeList
+                                            visibleNodes={visibleNodes}
+                                            virtuosoRef={virtuosoRef}
+                                            side="left"
+                                            expandedPaths={expandedPaths}
+                                            focusedPath={focusedPath}
+                                            selectedPath={optimisticSelectedPath ?? selectedNode?.path}
+                                            onToggle={toggleExpand}
+                                            config={config}
+                                            searchQuery={searchQuery}
+                                            actions={actions}
+                                            folderStats={folderStats}
+                                            selectionSet={selectionSet}
+                                            // @ts-ignore
+                                            isSelectionMode={selectionSet && selectionSet.size > 0}
+                                            onToggleSelection={onToggleSelection}
+                                            scrollerRef={(el) => (scrollerRefs.left.current = el)}
+                                        />
+                                    </div>
+                                    <div id="tree-right" className="tree-column" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                                        <VirtualTreeList
+                                            visibleNodes={visibleNodes}
+                                            side="right"
+                                            expandedPaths={expandedPaths}
+                                            focusedPath={focusedPath}
+                                            selectedPath={optimisticSelectedPath ?? selectedNode?.path}
+                                            onToggle={toggleExpand}
+                                            config={config}
+                                            searchQuery={searchQuery}
+                                            actions={actions}
+                                            folderStats={folderStats}
+                                            selectionSet={selectionSet}
+                                            // @ts-ignore
+                                            isSelectionMode={selectionSet && selectionSet.size > 0}
+                                            onToggleSelection={onToggleSelection}
+                                            scrollerRef={(el) => (scrollerRefs.right.current = el)}
+                                        />
+                                    </div>
+                                </>
+                            )}
+                        </TreeScrollerSync>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
+
+            {/* Floating Selection Popup */}
+            <SelectionPopup
+                selectionCount={selectionCount}
+                onExecuteBatchMerge={onExecuteBatchMerge!}
+                onExecuteBatchDelete={onExecuteBatchDelete!}
+                onClearSelection={onClearSelection!}
+            />
+
+            {/* Status Bar */}
+            <div style={{ position: 'relative', zIndex: 5, flexShrink: 0 }}>
+                <StatusBar
+                    globalStats={globalStats}
+                    currentFolderStats={currentFolderStats}
+                    fileLineStats={fileLineStats}
+                    selectionCount={selectionCount}
+                    isExplicitSelectionMode={isExplicitSelectionMode}
+                    onToggleExplicitSelectionMode={onToggleExplicitSelectionMode}
+                    onSelectByStatus={onSelectByStatus!}
+                    onClearSelection={onClearSelection!}
+                    onExecuteBatchMerge={onExecuteBatchMerge!}
+                    onExecuteBatchDelete={onExecuteBatchDelete!}
+                />
+            </div>
         </div>
     );
 });

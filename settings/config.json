@@ -1,21 +1,6 @@
 {
   "defaultLeftPath": "/Users/juitem/Docker/ContainerFolder/JF",
-  "defaultRightPath": "/Users/juitem/Docker/ContainerFolder/FolderComp/",
-  "viewOptions": {
-    "darkMode": false,
-    "folderViewMode": "flat",
-    "showLineNumbers": true,
-    "diffMode": "agent",
-    "leftPanelWidth_split": 50,
-    "leftPanelWidth_unified": 40,
-    "leftPanelWidth_flat": 30,
-    "confirmMerge": false,
-    "wordWrap": true
-  },
-  "savedExcludes": {
-    "folders": ".git, .tmp, __pycache__, .vscode, .idea, .venv, venv, ROOTFS, jfoldermerge-vscode, node_modules, dist",
-    "files": ".tmp, *.pyc, .DS_Store"
-  },
+  "defaultRightPath": "/Users/juitem/Docker/ContainerFolder/FolderComp",
   "folderFilters": {
     "same": false,
     "removed": true,
@@ -23,9 +8,33 @@
     "added": true
   },
   "diffFilters": {
-    "same": false,
+    "same": true,
     "modified": true,
     "added": true,
     "removed": true
+  },
+  "viewOptions": {
+    "darkMode": false,
+    "folderViewMode": "flat",
+    "showLineNumbers": true,
+    "diffMode": "agent",
+    "leftPanelWidth_split": 50,
+    "leftPanelWidth_unified": 35,
+    "leftPanelWidth_flat": 35,
+    "confirmMerge": false,
+    "wordWrap": true,
+    "layoutMode": "split",
+    "autoScroll": false,
+    "showStatusIcons": true,
+    "statusDisplayMode": 1,
+    "showDeleteIcons": false,
+    "showMergeIcons": true,
+    "smoothScrollFolder": true,
+    "smoothScrollFile": false,
+    "sbsNavMode": "line"
+  },
+  "savedExcludes": {
+    "folders": ".git, .tmp, __pycache__, .vscode, .idea, .venv, venv, ROOTFS, jfoldermerge-vscode, node_modules, dist",
+    "files": ".tmp, *.pyc, .DS_Store"
   }
 }

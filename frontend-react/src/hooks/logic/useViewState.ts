@@ -1,17 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import type { DiffMode } from '../../types';
 import { useConfig } from '../../contexts/ConfigContext';
 
 export const useViewState = () => {
     const { config, saveConfig } = useConfig();
 
+    // View Modes
+    const [diffMode, setDiffMode] = useState<DiffMode>('side-by-side');
+    const [layoutMode, setLayoutMode] = useState<'folder' | 'split' | 'file'>('split');
+
     // UI flags
-    const [isExpanded, setIsExpanded] = useState(false);
     const [isLocked, setIsLocked] = useState(false);
     const [aboutOpen, setAboutOpen] = useState(false);
 
-    // View Modes
-    const [diffMode, setDiffMode] = useState<DiffMode>('side-by-side');
+
 
     // Panel Width
     const [leftPanelWidth, setLeftPanelWidth] = useState(50);
@@ -20,15 +23,52 @@ export const useViewState = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [excludeFolders, setExcludeFolders] = useState("");
     const [excludeFiles, setExcludeFiles] = useState("");
+    const [hiddenPaths, setHiddenPaths] = useState<Set<string>>(new Set());
+    const [showHidden, setShowHidden] = useState(false);
 
-    // Sync from Config
+    const toggleHiddenPath = (path: string | null) => {
+        if (!path) return;
+        setHiddenPaths(prev => {
+            const next = new Set(prev);
+            if (next.has(path)) next.delete(path);
+            else next.add(path);
+            return next;
+        });
+    };
+
+    const toggleShowHidden = () => setShowHidden(prev => !prev);
+
+    // Sync from Config (Once)
+    const initialized = useState(false); // Using state to force re-render if needed, or Ref?
+    // Actually Ref is better for suppressing effects without re-render.
+    // But we are inside a hook.
+
+    // Sync from Config (Once)
+    const configLoadedRef = useRef(false);
     useEffect(() => {
-        if (config) {
+        if (config && !configLoadedRef.current) {
+            configLoadedRef.current = true;
             if (config.savedExcludes?.folders) setExcludeFolders(config.savedExcludes.folders);
             if (config.savedExcludes?.files) setExcludeFiles(config.savedExcludes.files);
             if (config.viewOptions?.diffMode) setDiffMode(config.viewOptions.diffMode as DiffMode);
+            if (config.viewOptions?.layoutMode) setLayoutMode(config.viewOptions.layoutMode as any);
         }
     }, [config]);
+
+    // Persist Layout Mode changes
+    const changeLayoutMode = (mode: 'folder' | 'split' | 'file') => {
+        setLayoutMode(mode);
+        if (config) {
+            saveConfig({
+                ...config,
+                viewOptions: { ...config.viewOptions, layoutMode: mode }
+            }).catch(e => console.error("Failed to save layout mode", e));
+        }
+    };
+
+    // Derived flags for backward compatibility or ease of use
+    const isExpanded = layoutMode === 'file';
+    const setIsExpanded = (expand: boolean) => changeLayoutMode(expand ? 'file' : 'split');
 
     // Handle Width Persistence
     useEffect(() => {
@@ -66,12 +106,15 @@ export const useViewState = () => {
 
     return {
         isExpanded, setIsExpanded,
+        layoutMode, setLayoutMode: changeLayoutMode,
         isLocked, setIsLocked,
         aboutOpen, setAboutOpen,
         diffMode, setDiffMode,
         leftPanelWidth, handleAdjustWidth, setLeftPanelWidth,
         searchQuery, setSearchQuery,
         excludeFolders, setExcludeFolders,
-        excludeFiles, setExcludeFiles
+        excludeFiles, setExcludeFiles,
+        hiddenPaths, toggleHiddenPath,
+        showHidden, toggleShowHidden
     };
 };

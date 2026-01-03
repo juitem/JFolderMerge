@@ -1,5 +1,5 @@
 import React from 'react';
-import { Folder, FileText, Play, BookOpen, ListTree, AlignJustify, PanelRight, ChevronLeft, ChevronRight, ShieldCheck, ShieldAlert, Maximize, Minimize, Lock, LockOpen, Globe } from 'lucide-react';
+import { Folder, FileText, Play, BookOpen, ListTree, AlignJustify, PanelRight, PanelLeft, Columns, ChevronLeft, ChevronRight, Lock, LockOpen, Maximize, Minimize, ShieldCheck, ShieldAlert, Focus, Tag, LayoutList, ArrowLeftRight, Trash2, Settings2, EyeOff, Zap, MousePointer2, BoxSelect } from 'lucide-react';
 import { useConfig } from '../contexts/ConfigContext';
 import type { DiffMode } from '../types';
 
@@ -12,26 +12,41 @@ interface FilterToolbarProps {
     onAdjustWidth?: (delta: number) => void;
     isLocked?: boolean;
     setIsLocked?: (b: boolean) => void;
-    globalStats?: { added: number, removed: number, modified: number };
-    currentFolderStats?: { added: number, removed: number, modified: number } | null;
     fileLineStats?: { added: number, removed: number, groups: number } | null;
+    layoutMode?: 'folder' | 'split' | 'file';
+    setLayoutMode?: (mode: 'folder' | 'split' | 'file') => void;
 }
 
 export function FilterToolbar({
     onCompare, loading,
-    // diffMode, setDiffMode
-    onToggleFileView,
+    // onToggleFileView, // Unused
     onAdjustWidth,
     isLocked,
     setIsLocked,
-    globalStats,
-    currentFolderStats,
-    fileLineStats
+    // fileLineStats, // Unused
+    layoutMode,
+    setLayoutMode
 }: FilterToolbarProps) {
     const { config, toggleFilter, toggleDiffFilter, setViewOption } = useConfig();
     const folderViewMode = config?.viewOptions?.folderViewMode || 'split';
 
     const [isFullScreen, setIsFullScreen] = React.useState(!!document.fullscreenElement);
+    const [isViewMenuOpen, setIsViewMenuOpen] = React.useState(false);
+    const viewMenuRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (viewMenuRef.current && !viewMenuRef.current.contains(event.target as Node)) {
+                setIsViewMenuOpen(false);
+            }
+        };
+        if (isViewMenuOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isViewMenuOpen]);
 
     const toggleFullScreen = () => {
         if (!document.fullscreenElement) {
@@ -70,6 +85,359 @@ export function FilterToolbar({
                     <AlignJustify size={16} style={{ transform: 'rotate(90deg)' }} />
                 </button>
                 <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
+
+                {/* Zap Buttons */}
+                <button
+                    className={`icon-btn ${config?.viewOptions?.smoothScrollFolder === false ? 'active' : ''}`}
+                    onClick={() => setViewOption('smoothScrollFolder', config?.viewOptions?.smoothScrollFolder === false)}
+                    title={config?.viewOptions?.smoothScrollFolder === false ? "Folder View: Instant Jump Enabled" : "Folder View: Enable Instant Jump"}
+                >
+                    <Zap size={16} />
+                    <span style={{ fontSize: '10px', marginLeft: '2px', fontWeight: 700 }}>F</span>
+                </button>
+                <button
+                    className={`icon-btn ${config?.viewOptions?.smoothScrollFile === false ? 'active' : ''}`}
+                    onClick={() => setViewOption('smoothScrollFile', config?.viewOptions?.smoothScrollFile === false)}
+                    title={config?.viewOptions?.smoothScrollFile === false ? "File View: Instant Jump Enabled" : "File View: Enable Instant Jump"}
+                >
+                    <Zap size={16} />
+                    <span style={{ fontSize: '10px', marginLeft: '2px', fontWeight: 700 }}>T</span>
+                </button>
+
+                <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
+
+                {/* Agent Merge Mode Toggle */}
+                <button
+                    className={`icon-btn ${config?.viewOptions?.agentMergeMode === 'replace' ? 'active' : ''}`}
+                    onClick={() => setViewOption('agentMergeMode', config?.viewOptions?.agentMergeMode === 'replace' ? 'unit' : 'replace')}
+                    title={config?.viewOptions?.agentMergeMode === 'replace' ? 'Agent: Smart Replace (Double Action)' : 'Agent: Unit Merge (Single Action)'}
+                >
+                    {config?.viewOptions?.agentMergeMode === 'replace' ? <BoxSelect size={16} /> : <MousePointer2 size={16} />}
+                    <span style={{ fontSize: '9px', marginLeft: '1px', fontWeight: 900, opacity: 0.7 }}>A</span>
+                </button>
+
+                {/* SBS Nav Mode Toggle */}
+                <button
+                    className={`icon-btn ${config?.viewOptions?.sbsNavMode === 'block' ? 'active' : ''}`}
+                    onClick={() => setViewOption('sbsNavMode', config?.viewOptions?.sbsNavMode === 'block' ? 'line' : 'block')}
+                    title={config?.viewOptions?.sbsNavMode === 'block' ? 'SBS Navigation: Block-to-Block' : 'SBS Navigation: Line-by-Line'}
+                >
+                    {config?.viewOptions?.sbsNavMode === 'block' ? <LayoutList size={16} /> : <AlignJustify size={16} />}
+                    <span style={{ fontSize: '9px', marginLeft: '1px', fontWeight: 900, opacity: 0.7 }}>S</span>
+                </button>
+
+                <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
+
+                {/* View Options Dropdown */}
+                <div className="relative" ref={viewMenuRef} style={{ position: 'relative' }}>
+                    <button
+                        className={`icon-btn ${isViewMenuOpen ? 'active' : ''}`}
+                        onClick={() => setIsViewMenuOpen(!isViewMenuOpen)}
+                        title="View Settings (Status & Actions)"
+                    >
+                        <Settings2 size={16} />
+                    </button>
+
+                    {isViewMenuOpen && (
+                        <div className="view-menu dropdown-popup" style={{
+                            position: 'absolute',
+                            top: '100%',
+                            right: 'auto',
+                            left: '0',
+                            marginTop: '6px',
+                            background: '#0f172a', /* Solid background */
+                            border: '1px solid #334155',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                            padding: '12px',
+                            zIndex: 100,
+                            minWidth: '240px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px'
+                        }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <div className="text-muted" style={{ fontSize: '11px', fontWeight: 600, paddingLeft: '2px', color: '#64748b' }}>STATUS DISPLAY</div>
+                                <div style={{ display: 'flex', background: 'var(--hover-bg)', borderRadius: '6px', padding: '3px' }}>
+                                    {[0, 1, 2].map(mode => (
+                                        <button
+                                            key={mode}
+                                            className={`toggle-option ${((config?.viewOptions?.statusDisplayMode as number) ?? 2) === mode ? 'selected' : ''}`}
+                                            style={{
+                                                flex: 1,
+                                                border: 'none',
+                                                background: ((config?.viewOptions?.statusDisplayMode as number) ?? 2) === mode ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                                color: ((config?.viewOptions?.statusDisplayMode as number) ?? 2) === mode ? '#60a5fa' : 'var(--text-secondary)',
+                                                borderRadius: '4px',
+                                                padding: '6px',
+                                                cursor: 'pointer',
+                                                fontSize: '11px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                transition: 'all 0.2s'
+                                            }}
+                                            onClick={() => {
+                                                setViewOption('statusDisplayMode', mode);
+                                            }}
+                                            title={mode === 0 ? "Icon Only" : mode === 1 ? "Text Only" : "Both"}
+                                        >
+                                            {mode === 0 ? <Tag size={15} /> : mode === 1 ? <AlignJustify size={15} /> : <LayoutList size={15} />}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '0' }}></div>
+
+                            <div className="text-muted" style={{ fontSize: '11px', fontWeight: 600, paddingLeft: '2px', color: '#64748b' }}>BEHAVIOR</div>
+
+                            {/* Auto Scroll Selection */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Auto Scroll</span>
+                                <div style={{ display: 'flex', background: 'var(--hover-bg)', borderRadius: '6px', padding: '3px', gap: '2px' }}>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.autoScroll === false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.autoScroll === false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.autoScroll === false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('autoScroll', false)}
+                                        title="Disable Auto-Scroll"
+                                    >
+                                        <EyeOff size={15} />
+                                    </button>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.autoScroll !== false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.autoScroll !== false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.autoScroll !== false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('autoScroll', true)}
+                                        title="Enable Auto-Scroll"
+                                    >
+                                        <Focus size={15} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }}></div>
+
+                            <div className="text-muted" style={{ fontSize: '11px', fontWeight: 600, paddingLeft: '2px', color: '#64748b' }}>VISIBILITY</div>
+
+                            {/* Merge Visibility Control */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Merge Actions</span>
+                                <div style={{ display: 'flex', background: 'var(--hover-bg)', borderRadius: '6px', padding: '3px', gap: '2px' }}>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.showMergeIcons === false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.showMergeIcons === false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.showMergeIcons === false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('showMergeIcons', false)}
+                                        title="Hide Merge Buttons"
+                                    >
+                                        <EyeOff size={15} />
+                                    </button>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.showMergeIcons !== false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.showMergeIcons !== false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.showMergeIcons !== false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('showMergeIcons', true)}
+                                        title="Show Merge Buttons"
+                                    >
+                                        <ArrowLeftRight size={15} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Delete Visibility Control */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Delete Actions</span>
+                                <div style={{ display: 'flex', background: 'var(--hover-bg)', borderRadius: '6px', padding: '3px', gap: '2px' }}>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.showDeleteIcons === false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.showDeleteIcons === false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.showDeleteIcons === false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('showDeleteIcons', false)}
+                                        title="Hide Delete Buttons"
+                                    >
+                                        <EyeOff size={15} />
+                                    </button>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.showDeleteIcons !== false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.showDeleteIcons !== false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.showDeleteIcons !== false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('showDeleteIcons', true)}
+                                        title="Show Delete Buttons"
+                                    >
+                                        <Trash2 size={15} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }}></div>
+
+                            <div className="text-muted" style={{ fontSize: '11px', fontWeight: 600, paddingLeft: '2px', color: '#64748b' }}>SAFETY</div>
+
+                            {/* Confirm Merge Control */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Confirm Merge</span>
+                                <div style={{ display: 'flex', background: 'var(--hover-bg)', borderRadius: '6px', padding: '3px', gap: '2px' }}>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.confirmMerge === false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.confirmMerge === false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.confirmMerge === false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('confirmMerge', false)}
+                                        title="Disable Confirmation"
+                                    >
+                                        <span style={{ fontSize: '11px', fontWeight: 600 }}>OFF</span>
+                                    </button>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.confirmMerge !== false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.confirmMerge !== false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.confirmMerge !== false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('confirmMerge', true)}
+                                        title="Enable Confirmation"
+                                    >
+                                        <span style={{ fontSize: '11px', fontWeight: 600 }}>ON</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Confirm Delete Control */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Confirm Delete</span>
+                                <div style={{ display: 'flex', background: 'var(--hover-bg)', borderRadius: '6px', padding: '3px', gap: '2px' }}>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.confirmDelete === false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.confirmDelete === false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.confirmDelete === false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('confirmDelete', false)}
+                                        title="Disable Confirmation"
+                                    >
+                                        <span style={{ fontSize: '11px', fontWeight: 600 }}>OFF</span>
+                                    </button>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.confirmDelete !== false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.confirmDelete !== false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.confirmDelete !== false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('confirmDelete', true)}
+                                        title="Enable Confirmation"
+                                    >
+                                        <span style={{ fontSize: '11px', fontWeight: 600 }}>ON</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 <button
                     className={`icon-btn ${isLocked ? 'active' : ''}`}
                     onClick={() => setIsLocked?.(!isLocked)}
@@ -77,19 +445,40 @@ export function FilterToolbar({
                 >
                     {isLocked ? <Lock size={18} /> : <LockOpen size={18} />}
                 </button>
+
+
+
+
+                {/* Layout Mode Buttons */}
                 <button
-                    className="icon-btn"
-                    onClick={isLocked ? undefined : onToggleFileView}
-                    title="Toggle File View"
-                    style={{ opacity: isLocked ? 0.4 : 1, pointerEvents: isLocked ? 'none' : 'auto' }}
+                    className={`icon-btn ${layoutMode === 'folder' ? 'active' : ''}`}
+                    onClick={() => setLayoutMode?.('folder')}
+                    title="Folder View Only"
+                >
+                    <PanelLeft size={16} />
+                </button>
+                <button
+                    className={`icon-btn ${layoutMode === 'split' ? 'active' : ''}`}
+                    onClick={() => setLayoutMode?.('split')}
+                    title="Split View (Folder + File)"
+                >
+                    <Columns size={16} />
+                </button>
+                <button
+                    className={`icon-btn ${layoutMode === 'file' ? 'active' : ''}`}
+                    onClick={() => setLayoutMode?.('file')}
+                    title="File View Only"
                 >
                     <PanelRight size={16} />
                 </button>
+
+
+
                 <button
                     className="icon-btn"
                     onClick={isLocked ? undefined : (() => onAdjustWidth?.(5))}
                     title="Shrink File View (Widen Tree)"
-                    style={{ opacity: isLocked ? 0.4 : 1, pointerEvents: isLocked ? 'none' : 'auto' }}
+                    style={{ opacity: isLocked ? 0.4 : 1, pointerEvents: isLocked ? 'none' : 'auto', display: layoutMode === 'split' ? 'flex' : 'none' }}
                 >
                     <ChevronRight size={16} />
                 </button>
@@ -97,7 +486,7 @@ export function FilterToolbar({
                     className="icon-btn"
                     onClick={isLocked ? undefined : (() => onAdjustWidth?.(-5))}
                     title="Expand File View (Shrink Tree)"
-                    style={{ opacity: isLocked ? 0.4 : 1, pointerEvents: isLocked ? 'none' : 'auto' }}
+                    style={{ opacity: isLocked ? 0.4 : 1, pointerEvents: isLocked ? 'none' : 'auto', display: layoutMode === 'split' ? 'flex' : 'none' }}
                 >
                     <ChevronLeft size={16} />
                 </button>
@@ -145,46 +534,7 @@ export function FilterToolbar({
                 </label>
             </div>
 
-            <div className="separator"></div>
 
-            {/* Stats Group */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                {/* Global Stats */}
-                {globalStats && (
-                    <span style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, opacity: 0.9 }}>
-                        <Globe size={16} style={{ color: 'var(--text-secondary)' }} />
-                        <span style={{ color: '#f59e0b' }}>!{globalStats.modified}</span>
-                        <span style={{ color: '#10b981' }}>+{globalStats.added}</span>
-                        <span style={{ color: '#ef4444' }}>-{globalStats.removed}</span>
-                    </span>
-                )}
-
-                {/* Current Folder Stats */}
-                {currentFolderStats && (
-                    <span style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.8 }}>
-                        <Folder size={16} style={{ color: 'var(--text-secondary)' }} />
-                        <span style={{ color: '#f59e0b' }}>!{currentFolderStats.modified}</span>
-                        <span style={{ color: '#10b981' }}>+{currentFolderStats.added}</span>
-                        <span style={{ color: '#ef4444' }}>-{currentFolderStats.removed}</span>
-                    </span>
-                )}
-
-                {/* File Line Stats */}
-                {fileLineStats && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <FileText size={16} style={{ color: 'var(--text-secondary)', opacity: 0.8 }} />
-                        <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: '4px' }}>
-                            <span style={{ fontSize: '14px', fontWeight: 800, fontStyle: 'italic', color: '#f59e0b', textShadow: 'none' }}>
-                                {fileLineStats.groups}
-                            </span>
-                            <span style={{ fontSize: '11px', display: 'flex', gap: '3px', fontWeight: 600, color: 'var(--text-secondary)', opacity: 0.8 }}>
-                                <span style={{ color: '#10b981' }}>+{fileLineStats.added}</span>
-                                <span style={{ color: '#ef4444' }}>-{fileLineStats.removed}</span>
-                            </span>
-                        </div>
-                    </span>
-                )}
-            </div>
 
             <div className="separator"></div>
 
@@ -194,6 +544,8 @@ export function FilterToolbar({
 
 
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+
+
                 <div style={{ display: 'flex', gap: '4px', borderRight: '1px solid #444', paddingRight: '8px', marginRight: '4px' }}>
                     <button className={`icon-btn ${config?.viewOptions?.confirmMerge !== false ? 'active' : ''}`}
                         onClick={() => setViewOption('confirmMerge', config?.viewOptions?.confirmMerge === false)}
@@ -212,6 +564,6 @@ export function FilterToolbar({
                     {loading ? 'Running...' : 'Compare'}
                 </button>
             </div>
-        </div>
+        </div >
     );
 }

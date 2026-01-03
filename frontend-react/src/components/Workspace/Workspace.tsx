@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FolderX, FileX, FileDiff, Bot, Layout, Columns, Rows, FileCode, WrapText, ChevronsUp, ChevronsDown } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FolderX, FileX, FileDiff, Bot, Layout, Columns, Rows, FileCode, WrapText, ChevronsUp, ChevronsDown, Eye, EyeOff, Zap, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
 import { FolderTree, type FolderTreeHandle } from '../FolderTree';
 
 import { useConfig } from '../../contexts/ConfigContext';
@@ -35,8 +35,29 @@ interface WorkspaceProps {
     setIsExpanded: (b: boolean) => void;
     isLocked?: boolean;
     setIsLocked?: (b: boolean) => void;
+    layoutMode?: 'folder' | 'split' | 'file';
     leftPanelWidth?: number; // percentage (10-50)
     onStatsUpdate?: (added: number, removed: number, groups: number) => void;
+    selectionSet?: Set<string>;
+    onToggleSelection?: (path: string) => void;
+    onToggleBatchSelection?: (paths: string[]) => void;
+
+    // Hiding Props
+    hiddenPaths?: Set<string>;
+    toggleHiddenPath?: (path: string) => void;
+    showHidden?: boolean;
+    toggleShowHidden?: () => void;
+
+    // Stats & Selection (For StatusBar)
+    globalStats?: { added: number, removed: number, modified: number };
+    currentFolderStats?: { added: number, removed: number, modified: number } | null;
+    fileLineStats?: { added: number, removed: number, groups: number } | null;
+    selectionCount?: number;
+    onSelectByStatus?: (status: 'added' | 'removed' | 'modified') => void;
+    onClearSelection?: () => void;
+    onExecuteBatchMerge?: (dir: 'left-to-right' | 'right-to-left') => void;
+    onExecuteBatchDelete?: (side: 'left' | 'right') => void;
+    onShowConfirm?: (title: string, message: string, action: () => void) => void;
 }
 
 export const Workspace: React.FC<WorkspaceProps> = (props) => {
@@ -48,9 +69,17 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
     const widthPercent = props.leftPanelWidth || 25;
 
     // Layout Logic
-    const effectiveLeftWidth = props.isLocked
+
+    let effectiveLeftWidth = props.isLocked
         ? (props.isExpanded ? 0 : 100)
         : (isFileOpen ? (props.isExpanded ? 0 : widthPercent) : 100);
+
+    // Override with explicit layoutMode if present
+    if (props.layoutMode) {
+        if (props.layoutMode === 'folder') effectiveLeftWidth = 100;
+        else if (props.layoutMode === 'file') effectiveLeftWidth = 0;
+        else effectiveLeftWidth = widthPercent;
+    }
 
     let leftStyle: React.CSSProperties = {
         overflow: 'hidden',
@@ -58,13 +87,15 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
         border: props.isExpanded ? 'none' : '',
         flex: `0 0 ${effectiveLeftWidth}%`,
         transition: 'all 0.3s ease',
-        display: 'flex',
+        display: effectiveLeftWidth === 0 ? 'none' : 'flex',
         flexDirection: 'column'
     };
 
     let rightStyle: React.CSSProperties = {
         width: `${100 - effectiveLeftWidth}%`,
-        transition: 'all 0.3s ease'
+        transition: 'all 0.3s ease',
+        display: effectiveLeftWidth === 100 ? 'none' : 'flex',
+        opacity: effectiveLeftWidth === 100 ? 0 : 1
     };
 
 
@@ -125,7 +156,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
     return (
         <div className="main-content split-view">
             {/* Left Panel: Tree */}
-            <div className="left-panel custom-scroll" style={leftStyle} onClick={(e) => {
+            <div className="left-panel" style={leftStyle} onClick={(e) => {
                 if (e.target === e.currentTarget) {
                     folderTreeRef.current?.focus();
                 }
@@ -247,17 +278,46 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                     </div>
 
                     <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexShrink: 0, marginLeft: '4px' }}>
-                        <button className="icon-btn" style={{ padding: 2, color: '#aaa' }} onClick={() => {
-                            folderTreeRef.current?.selectFirst();
-                        }} title="Go to First Item">
+                        <button className="icon-btn" style={{ padding: 2, color: '#60a5fa' }} onClick={() => {
+                            folderTreeRef.current?.selectFirstChangedNode?.();
+                            folderTreeRef.current?.focus();
+                        }} title="Go to First Changed Item">
                             <ChevronsUp size={16} />
                         </button>
-                        <button className="icon-btn" style={{ padding: 2, color: '#aaa' }} onClick={() => {
-                            folderTreeRef.current?.selectLast();
-                        }} title="Go to Last Item">
+                        <button className="icon-btn" style={{ padding: 2, color: '#60a5fa' }} onClick={() => {
+                            folderTreeRef.current?.selectLastChangedNode?.();
+                            folderTreeRef.current?.focus();
+                        }} title="Go to Last Changed Item">
                             <ChevronsDown size={16} />
                         </button>
+
+                        <div style={{ width: '1px', height: '12px', background: '#ddd', margin: '0 2px' }} />
+
+                        <button className="icon-btn" style={{ padding: 2, color: '#aaa' }} onClick={() => {
+                            console.log('[Workspace] Go To Top Clicked');
+                            folderTreeRef.current?.selectFirst();
+                        }} title="Go to First Non-Root Item">
+                            <ArrowUpToLine size={16} />
+                        </button>
+                        <button className="icon-btn" style={{ padding: 2, color: '#aaa' }} onClick={() => {
+                            console.log('[Workspace] Go To End Clicked');
+                            folderTreeRef.current?.selectLast();
+                        }} title="Go to End">
+                            <ArrowDownToLine size={16} />
+                        </button>
                     </div>
+
+                    <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
+
+                    {/* Toggle Hidden Button */}
+                    <button
+                        className={`icon-btn ${props.showHidden ? 'active' : ''}`}
+                        onClick={() => props.toggleShowHidden?.()}
+                        title={props.showHidden ? "Hide Manually Hidden Items" : "Show Manually Hidden Items (H)"}
+                        style={{ color: props.showHidden ? '#60a5fa' : '#aaa', flexShrink: 0, padding: 2 }}
+                    >
+                        {props.showHidden ? <Eye size={16} /> : <EyeOff size={16} />}
+                    </button>
 
                     <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
 
@@ -315,12 +375,29 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                         searchQuery={props.searchQuery}
                         setSearchQuery={props.setSearchQuery}
                         onFocus={setFocusedNode}
+                        selectionSet={props.selectionSet}
+                        onToggleSelection={props.onToggleSelection}
+                        onToggleBatchSelection={props.onToggleBatchSelection}
+                        hiddenPaths={props.hiddenPaths}
+                        toggleHiddenPath={props.toggleHiddenPath}
+                        showHidden={props.showHidden}
+                        toggleShowHidden={props.toggleShowHidden}
+
+                        // StatusBar Props
+                        globalStats={props.globalStats}
+                        currentFolderStats={props.currentFolderStats}
+                        fileLineStats={props.fileLineStats}
+                        selectionCount={props.selectionCount}
+                        onSelectByStatus={props.onSelectByStatus}
+                        onClearSelection={props.onClearSelection}
+                        onExecuteBatchMerge={props.onExecuteBatchMerge}
+                        onExecuteBatchDelete={props.onExecuteBatchDelete}
                     />
                 )}
             </div>
 
             {/* Right Panel: Adapter View */}
-            <div className={`right-panel custom-scroll ${(props.selectedNode && !props.isLocked) ? 'open' : ''}`}
+            <div className={`right-panel custom-scroll ${(props.selectedNode && !props.isLocked) || props.layoutMode === 'file' ? 'open' : ''}`}
                 style={{ ...rightStyle, position: 'relative', outline: 'none' }}
                 tabIndex={-1} // Allow programmatic focus
             >
@@ -359,6 +436,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                                 </button>
 
                                 <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px' }}></div>
+
                                 <button className={`icon-btn ${props.config?.viewOptions?.wordWrap ? 'active' : ''}`} onClick={() => toggleViewOption('wordWrap')} title="Toggle Word Wrap">
                                     <WrapText size={16} />
                                 </button>
@@ -381,7 +459,9 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                                     onNextFile: () => folderTreeRef.current?.selectNextNode(),
                                     onPrevFile: () => folderTreeRef.current?.selectPrevNode(),
                                     onStatsUpdate: props.onStatsUpdate,
-                                    toggleViewOption: toggleViewOption
+                                    toggleViewOption: toggleViewOption,
+                                    smoothScroll: props.config?.viewOptions?.smoothScrollFile !== false,
+                                    onShowConfirm: props.onShowConfirm
                                 }
                             })}
                         </div>

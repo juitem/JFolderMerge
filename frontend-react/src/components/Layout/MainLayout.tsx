@@ -41,10 +41,10 @@ interface MainLayoutProps {
     onAdjustWidth?: (delta: number) => void;
     isLocked?: boolean;
     setIsLocked?: (b: boolean) => void;
+    layoutMode?: 'folder' | 'split' | 'file';
+    setLayoutMode?: (mode: 'folder' | 'split' | 'file') => void;
 
     // Stats
-    globalStats?: { added: number, removed: number, modified: number };
-    currentFolderStats?: { added: number, removed: number, modified: number } | null;
     fileLineStats?: { added: number, removed: number, groups: number } | null;
 }
 
@@ -122,9 +122,8 @@ export const MainLayout: React.FC<MainLayoutProps> = (props) => {
                 onAdjustWidth={props.onAdjustWidth}
                 isLocked={props.isLocked}
                 setIsLocked={props.setIsLocked}
-                globalStats={props.globalStats}
-                currentFolderStats={props.currentFolderStats}
-                fileLineStats={props.fileLineStats}
+                layoutMode={props.layoutMode}
+                setLayoutMode={props.setLayoutMode}
             />
 
             {/* Path Controls */}

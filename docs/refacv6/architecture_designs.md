@@ -79,15 +79,17 @@ sequenceDiagram
     participant O as Orchestrator
     participant V as FileViewer
 
-    U->>I: KeyDown (Enter)
+    U->>I: KeyDown (v)
     I->>C: Get Active Context?
-    C-->>I: "tree"
-    I->>R: Map "Enter" in "tree" -> "cmd.open"
-    R->>T: Execute "cmd.open" handler
-    T->>O: openFile(focusedNode)
-    O->>O: Decision: Is File? (Yes)
-    O->>V: loadDiff(node.path)
-    V-->>U: UI Update (Viewer Opened)
+    C-->>I: "any"
+    I->>O: Cycle Layout Mode (Folder -> Split -> File)
+    O->>O: Decision: Does File exist? (Update Visibility)
+    O-->>U: UI Update (Panel Layout Changed)
+
+    U->>I: KeyDown (ArrowDown) in AgentView
+    I->>V: navigateBlock(next, smart/block)
+    V->>V: Calculate Next Hunk (Skip unchanged/gaps)
+    V-->>U: Focus + Sync Scroll
 ```
 
 ---

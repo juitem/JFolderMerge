@@ -19,7 +19,7 @@
     --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
     --backdrop-blur: blur(16px);
 
-    --hover-bg: rgba(255, 255, 255, 0.03);
+    --hover-bg: rgba(255, 255, 255, 0.08);
     --selected-bg: rgba(59, 130, 246, 0.15);
     --input-bg: rgba(0, 0, 0, 0.2);
 
@@ -419,22 +419,30 @@ h3 {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 800;
     flex-shrink: 0;
-    margin-left: 6px;
+    margin-left: 8px;
     line-height: 1;
 }
 
-/* ... existing status color classes ... */
-
-/* ... */
+.merge-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    width: 156px;
+    /* Optimized rail for 2x wider merge buttons (24*2 + 48*2 + 4*3) */
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
 
 .merge-btn {
     width: 24px;
+    /* Default square width for diff views */
     height: 24px;
     display: flex;
     align-items: center;
@@ -444,14 +452,15 @@ h3 {
     color: var(--text-secondary);
     background: rgba(0, 0, 0, 0.2);
     cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tree-node .merge-btn {
-    /* width override removed to use base class width (78px) */
+    height: 24px;
+    /* Reset height to standard compact size */
     background: rgba(59, 130, 246, 0.1);
     border-color: rgba(59, 130, 246, 0.2);
     color: var(--text-primary);
-    font-weight: bold;
 }
 
 .tree-node .merge-btn:hover {
@@ -461,12 +470,20 @@ h3 {
 }
 
 .tree-node .delete-btn {
-    width: 32px;
+    width: 24px;
     background: rgba(251, 113, 133, 0.1);
-    /* danger-soft tint */
     border-color: rgba(251, 113, 133, 0.3);
     color: var(--danger-soft);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* .tree-node .merge-btn.to-left opacity removed per user request for clearer icons */
+.tree-node.is-hidden {
+    opacity: 0.5 !important;
+}
+
+.tree-node .merge-btn.to-right {
+    width: 48px;
+    /* 2x wider than 24px delete button, scoped ONLY to tree */
 }
 
 .merge-btn.to-left {
@@ -509,7 +526,7 @@ h3 {
 
 /* 1. Deletion Preview: When hovering Trash icon */
 .tree-node:has(.delete-btn:hover) {
-    background: rgba(244, 63, 94, 0.12) !important;
+    background: rgba(244, 63, 94, 0.2) !important;
 }
 
 .tree-node:has(.delete-btn:hover) .item-name {
@@ -521,12 +538,12 @@ h3 {
 
 /* 2. Merge Preview (To Left): When hovering Accept icon */
 .tree-node:has(.merge-btn.to-left:hover) {
-    background: rgba(16, 185, 129, 0.12) !important;
+    background: rgba(16, 185, 129, 0.2) !important;
 }
 
 /* 3. Merge Preview (To Right): When hovering Revert icon */
 .tree-node:has(.merge-btn.to-right:hover) {
-    background: rgba(236, 72, 153, 0.12) !important;
+    background: rgba(236, 72, 153, 0.2) !important;
 }
 
 /* Optional: Subtle glow to the name when merging */
@@ -577,7 +594,7 @@ h3 {
 
 /* 1. Deletion Preview: Hovering trash icon on a block group */
 .diff-block-group:has(.agent-delete-btn:hover) {
-    background: rgba(244, 63, 94, 0.12) !important;
+    background: rgba(244, 63, 94, 0.2) !important;
     border-color: rgba(244, 63, 94, 0.4) !important;
 }
 
@@ -590,7 +607,7 @@ h3 {
 
 /* 2. Merge Preview: Hovering merge icon on a block group */
 .diff-block-group:has(.agent-merge-btn:hover) {
-    background: rgba(16, 185, 129, 0.12) !important;
+    background: rgba(16, 185, 129, 0.2) !important;
     border-color: rgba(16, 185, 129, 0.4) !important;
 }
 
@@ -616,18 +633,20 @@ h3 {
 
 .item-status.added {
     background: var(--success);
-    color: #fff;
+    color: white;
+    border: none;
 }
 
 .item-status.removed {
     background: var(--danger);
-    color: #fff;
+    color: white;
+    border: none;
 }
 
 .item-status.modified {
     background: var(--warning);
-    color: #1a1a2e;
-    /* Darker text for orange contrast */
+    color: white;
+    border: none;
 }
 
 

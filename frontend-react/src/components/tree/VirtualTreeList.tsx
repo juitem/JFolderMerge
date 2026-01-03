@@ -13,13 +13,18 @@ interface VirtualTreeListProps {
     searchQuery: string;
     folderStats: Map<string, { added: number, removed: number, modified: number }>;
     actions: {
-        onSelect: (node: FileNode) => void;
+        onSelect: (node: FileNode, event?: React.MouseEvent) => void;
         onMerge: (node: FileNode, direction: 'left-to-right' | 'right-to-left') => void;
         onDelete: (node: FileNode, side: 'left' | 'right') => void;
         onFocus?: (node: FileNode) => void;
     };
     side: 'left' | 'right' | 'unified';
     selectedPath?: string | null;
+    selectionSet?: Set<string>;
+    onToggleSelection?: (path: string) => void;
+    virtuosoRef?: React.RefObject<VirtuosoHandle>;
+    scrollerRef?: (ref: HTMLElement | Window | null) => void;
+    isSelectionMode?: boolean;
 }
 
 export const VirtualTreeList: React.FC<VirtualTreeListProps> = ({
@@ -32,21 +37,31 @@ export const VirtualTreeList: React.FC<VirtualTreeListProps> = ({
     searchQuery,
     folderStats,
     actions,
-    side
+    side,
+    selectionSet,
+    onToggleSelection,
+    virtuosoRef: externalVirtuosoRef,
+    scrollerRef,
+    isSelectionMode
 }) => {
-    const virtuosoRef = useRef<VirtuosoHandle>(null);
+    const internalVirtuosoRef = useRef<VirtuosoHandle>(null);
+    const virtuosoRef = externalVirtuosoRef || internalVirtuosoRef;
 
     // Scroll to focused path
     useEffect(() => {
-        if (focusedPath) {
+        console.log('[VirtualTreeList] Effect Triggered. FocusedPath:', focusedPath, 'VisibleNodes:', visibleNodes.length);
+        if (focusedPath !== null && focusedPath !== undefined) {
             const index = visibleNodes.findIndex(n => n.path === focusedPath);
+            console.log('[VirtualTreeList] Calculated Index:', index, 'VirtuosoRef:', !!virtuosoRef.current);
             if (index !== -1 && virtuosoRef.current) {
                 // Use specific alignment for boundaries to improve wrap-around feel
                 let align: 'start' | 'center' | 'end' = 'center';
                 if (index === 0) align = 'start';
                 else if (index === visibleNodes.length - 1) align = 'end';
 
-                virtuosoRef.current.scrollToIndex({ index, align });
+                const behavior = config.viewOptions?.smoothScrollFolder === false ? 'auto' : 'smooth';
+                console.log('[VirtualTreeList] Scrolling to:', index, 'Align:', align, 'Behavior:', behavior);
+                virtuosoRef.current.scrollToIndex({ index, align, behavior });
             }
         }
     }, [focusedPath, visibleNodes]);
@@ -78,10 +93,14 @@ export const VirtualTreeList: React.FC<VirtualTreeListProps> = ({
                             focusedPath={focusedPath}
                             folderStats={folderStats}
                             expandedPaths={expandedPaths}
+                            isInSelectionSet={selectionSet?.has(node.path)}
+                            onToggleSelection={onToggleSelection}
+                            isSelectionMode={isSelectionMode}
                         />
                     );
                 }}
                 style={{ height: '100%', width: '100%' }}
+                scrollerRef={scrollerRef}
             />
         </div>
     );

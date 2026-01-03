@@ -20,6 +20,8 @@ interface DiffViewerProps {
     // Dependency Injection for architecture refactoring
     onSaveFile?: (path: string, content: string) => Promise<void>;
     onFetchContent?: (path: string) => Promise<{ content: string }>;
+    smoothScroll?: boolean;
+    onShowConfirm?: (title: string, message: string, action: () => void) => void;
 }
 
 export interface DiffViewerHandle {
@@ -30,7 +32,7 @@ export interface DiffViewerHandle {
 }
 
 export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
-    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent
+    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent, smoothScroll, onShowConfirm
 }, ref) => {
     const [mode, setMode] = useState<DiffMode>(initialMode);
 
@@ -232,7 +234,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
     // Actually, `DiffViewer` props needs `onStatsUpdate`.
     // Let's modify `DiffViewer` to accept it first.
 
-    const handleLineMerge = async (sourceText: string, targetSide: 'left' | 'right', targetLineIndex: number | null, type: 'insert' | 'replace' | 'delete', viewIndex: number) => {
+    const handleLineMerge = async (sourceText: string, targetSide: 'left' | 'right', targetLineIndex: number | null, type: 'insert' | 'replace' | 'delete', viewIndex: number, deleteCount: number = 1) => {
         setLoading(true);
         try {
             const targetPathBase = targetSide === 'left' ? leftPathBase : rightPathBase;
@@ -246,13 +248,15 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
             let lines = fileData && fileData.content ? fileData.content.split(/\r?\n/) : [];
 
             // 2. Modify Lines
+            const newLines = sourceText ? sourceText.split(/\r?\n/) : [];
+
             if (type === 'delete') {
                 if (targetLineIndex !== null) {
-                    lines.splice(targetLineIndex - 1, 1);
+                    lines.splice(targetLineIndex - 1, deleteCount);
                 }
             } else if (type === 'replace') {
                 if (targetLineIndex !== null) {
-                    lines[targetLineIndex - 1] = sourceText;
+                    lines.splice(targetLineIndex - 1, deleteCount, ...newLines);
                 }
             } else if (type === 'insert') {
                 let insertAt = 0;
@@ -265,7 +269,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         }
                     }
                 }
-                lines.splice(insertAt, 0, sourceText);
+                lines.splice(insertAt, 0, ...newLines);
             }
 
             // 3. Save (Use injected handler or API)
@@ -327,14 +331,48 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
             setLoading(false);
         }
     };
-
     const hasData = (mode === 'raw' && !!rawContent) || (mode !== 'raw' && !!diffData);
 
-    if (loading && !hasData) return <div className="loading-diff">Loading Diff...</div>;
-    // Error can be shown, but sometimes we want to show partial content.
-    if (error) return <div className="error-diff">Error: {error}</div>;
+    const agentScrollerRef = useRef<HTMLElement | Window | null>(null);
+    const sideBySideScrollerRef = useRef<HTMLElement | Window | null>(null);
+    const isScrollingInternal = useRef<string | null>(null);
 
-    // In raw mode, we check rawContent. In other modes, diffData.
+    useEffect(() => {
+        if (mode !== 'combined') return;
+        const agent = agentScrollerRef.current;
+        const side = sideBySideScrollerRef.current;
+        if (!agent || !side) return;
+
+        // Sync logic only works with HTMLElements for now
+        if (!(agent instanceof HTMLElement) || !(side instanceof HTMLElement)) return;
+
+        const onAgentScroll = () => {
+            if (isScrollingInternal.current && isScrollingInternal.current !== 'agent') return;
+            isScrollingInternal.current = 'agent';
+            const ratio = agent.scrollTop / (agent.scrollHeight - agent.clientHeight);
+            side.scrollTop = ratio * (side.scrollHeight - side.clientHeight);
+            setTimeout(() => { if (isScrollingInternal.current === 'agent') isScrollingInternal.current = null; }, 50);
+        };
+
+        const onSideScroll = () => {
+            if (isScrollingInternal.current && isScrollingInternal.current !== 'side') return;
+            isScrollingInternal.current = 'side';
+            const ratio = side.scrollTop / (side.scrollHeight - side.clientHeight);
+            agent.scrollTop = ratio * (agent.scrollHeight - agent.clientHeight);
+            setTimeout(() => { if (isScrollingInternal.current === 'side') isScrollingInternal.current = null; }, 50);
+        };
+
+        agent.addEventListener('scroll', onAgentScroll);
+        side.addEventListener('scroll', onSideScroll);
+
+        return () => {
+            agent.removeEventListener('scroll', onAgentScroll);
+            side.removeEventListener('scroll', onSideScroll);
+        };
+    }, [mode, hasData]);
+
+    if (loading && !hasData) return <div className="loading-diff">Loading Diff...</div>;
+    if (error) return <div className="error-diff">Error: {error}</div>;
     if (!hasData) return <div className="empty-diff">Select a file to compare</div>;
 
     return (
@@ -358,6 +396,8 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         onMerge={handleLineMerge}
                         showLineNumbers={!!config.viewOptions?.showLineNumbers}
                         wrap={!!config.viewOptions?.wordWrap}
+                        mergeMode={config.viewOptions?.mergeMode as 'group' | 'line'}
+                        onShowConfirm={onShowConfirm}
                     />
                 )}
                 {mode === 'raw' && rawContent && (
@@ -376,6 +416,10 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                                 onNextFile={onNextFile}
                                 onPrevFile={onPrevFile}
                                 wrap={!!config.viewOptions?.wordWrap}
+                                scrollerRef={(el) => (agentScrollerRef.current = el)}
+                                smoothScroll={smoothScroll}
+                                mergeMode={config.viewOptions?.mergeMode as 'group' | 'line'}
+                                onShowConfirm={onShowConfirm}
                             />
                         </div>
                         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -386,6 +430,9 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                                 onMerge={handleLineMerge}
                                 showLineNumbers={!!config.viewOptions?.showLineNumbers}
                                 wrap={!!config.viewOptions?.wordWrap}
+                                scrollerRef={(el) => (sideBySideScrollerRef.current = el)}
+                                mergeMode={config.viewOptions?.mergeMode as 'group' | 'line'}
+                                onShowConfirm={onShowConfirm}
                             />
                         </div>
                     </div>
@@ -401,6 +448,9 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         onNextFile={onNextFile}
                         onPrevFile={onPrevFile}
                         wrap={!!config.viewOptions?.wordWrap}
+                        smoothScroll={smoothScroll}
+                        mergeMode={config.viewOptions?.mergeMode as 'group' | 'line'}
+                        onShowConfirm={onShowConfirm}
                     />
                 )}
 
