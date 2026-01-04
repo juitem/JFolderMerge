@@ -82,11 +82,11 @@ const SettingsAdvancedIcon = ({ size = 16 }: { size?: number }) => (
         </div>
     </div>
 );
-
 export function FilterToolbar({
     onCompare,
     loading,
     onAdjustWidth,
+
     isLocked,
     setIsLocked,
     layoutMode,
@@ -231,6 +231,53 @@ export function FilterToolbar({
                                     </div>
                                 </div>
                                 <div style={{ marginBottom: '10px' }}>
+                                    <div style={{ fontSize: '9px', fontWeight: 700, color: '#475569', marginBottom: '4px', letterSpacing: '0.05em' }}>PANE WIDTHS (%)</div>
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px', textAlign: 'center' }}>Split</div>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                value={(config.viewOptions?.leftPanelWidth_split as number) ?? 50}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/[^0-9]/g, '');
+                                                    if (val) setViewOption('leftPanelWidth_split', parseInt(val));
+                                                }}
+                                                style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', fontSize: '14px', padding: '6px 8px', borderRadius: '4px', textAlign: 'center' }}
+                                            />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px', textAlign: 'center' }}>Unified</div>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                value={(config.viewOptions?.leftPanelWidth_unified as number) ?? 20}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/[^0-9]/g, '');
+                                                    if (val) setViewOption('leftPanelWidth_unified', parseInt(val));
+                                                }}
+                                                style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', fontSize: '14px', padding: '6px 8px', borderRadius: '4px', textAlign: 'center' }}
+                                            />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px', textAlign: 'center' }}>Flat</div>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                value={(config.viewOptions?.leftPanelWidth_flat as number) ?? 30}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/[^0-9]/g, '');
+                                                    if (val) setViewOption('leftPanelWidth_flat', parseInt(val));
+                                                }}
+                                                style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', fontSize: '14px', padding: '6px 8px', borderRadius: '4px', textAlign: 'center' }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style={{ marginBottom: '10px' }}>
                                     <div style={{ fontSize: '9px', fontWeight: 700, color: '#475569', marginBottom: '4px', letterSpacing: '0.05em' }}>LOCK TREE STATE</div>
                                     <div className="menu-segmented-control" style={{ width: '100%' }}>
                                         <button className={!isLocked ? 'active' : ''} onClick={() => setIsLocked?.(false)}><LockOpen size={12} /><span>Unlock</span></button>
@@ -295,6 +342,8 @@ export function FilterToolbar({
                     <button className="icon-btn xs" onClick={() => onAdjustWidth?.(-20)} title="Narrower Tree"><ChevronLeft size={14} /></button>
                     <button className="icon-btn xs" onClick={() => onAdjustWidth?.(20)} title="Wider Tree"><ChevronRight size={14} /></button>
                 </div>
+
+
 
                 <div className="segmented-control">
                     <button className={`icon-btn ${layoutMode === 'folder' ? 'active' : ''}`} onClick={() => setLayoutMode?.('folder')} title="Folder Only Container"><PanelLeft size={16} /></button>

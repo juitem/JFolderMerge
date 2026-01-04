@@ -183,12 +183,17 @@ export const useTreeNavigation = (
     const expandParents = useCallback((path: string) => {
         const parts = path.split('/');
         const parentsToExpand = new Set<string>();
-        let currentPath = "";
+
+        let currentPath = path.startsWith('/') ? '/' : '';
         for (let j = 0; j < parts.length - 1; j++) {
             const part = parts[j];
-            if (part === "") continue;
-            currentPath += (currentPath ? "/" : "") + part;
-            if (currentPath) parentsToExpand.add(currentPath);
+            if (part === '') continue;
+
+            if (currentPath !== '' && currentPath !== '/') {
+                currentPath += '/';
+            }
+            currentPath += part;
+            parentsToExpand.add(currentPath);
         }
 
         if (parentsToExpand.size > 0) {
