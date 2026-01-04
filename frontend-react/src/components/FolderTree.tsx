@@ -317,7 +317,9 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
             case 'ArrowRight': {
                 const node = visibleNodes.find(n => n.path === focusedPath);
                 if (node) {
-                    if (e.ctrlKey) {
+                    const isModifier = e.ctrlKey || e.metaKey;
+                    if (isModifier) {
+                        console.log('[FolderTree] Shortcut: ArrowRight + Modifier', { path: node.path, status: node.status });
                         if (node.status === 'added') onDelete(node, 'right');
                         else if (node.status === 'removed') onMerge(node, 'left-to-right');
                         else if (node.status === 'modified') onMerge(node, 'left-to-right');
@@ -331,7 +333,9 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
             case 'ArrowLeft': {
                 const node = visibleNodes.find(n => n.path === focusedPath);
                 if (node) {
-                    if (e.ctrlKey) {
+                    const isModifier = e.ctrlKey || e.metaKey;
+                    if (isModifier) {
+                        console.log('[FolderTree] Shortcut: ArrowLeft + Modifier', { path: node.path, status: node.status });
                         if (node.status === 'added') onMerge(node, 'right-to-left');
                         else if (node.status === 'removed') onDelete(node, 'left');
                         else if (node.status === 'modified') onMerge(node, 'right-to-left');

@@ -88,8 +88,20 @@ sequenceDiagram
 
     U->>I: KeyDown (ArrowDown) in AgentView
     I->>V: navigateBlock(next, smart/block)
+    V->>V: Reset FocusZone to 'content'
     V->>V: Calculate Next Hunk (Skip unchanged/gaps)
     V-->>U: Focus + Sync Scroll
+
+    U->>I: KeyDown (ArrowLeft/Right) in AgentView
+    I->>V: navigateZone(left/right)
+    V->>V: Linear Scale: [Accept] <-> [Content] <-> [Revert] (Sticky Ends)
+    V-->>U: UI Update (Synchronized Icon Pair Highlight)
+
+    U->>I: KeyDown (Enter) in AgentView
+    I->>V: applyMerge(currentZone)
+    V->>V: Check: Is focus on 'Accept' or 'Revert'?
+    V->>V: Execute Merge + Restore Focus to Container
+    V-->>U: UI Update (Refreshed Content + Regained Focus)
 ```
 
 ---

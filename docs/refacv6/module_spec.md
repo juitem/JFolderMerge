@@ -19,6 +19,8 @@
 | | `selectPrevStatus(status)` | 이전 상태(A/M/R) 노드를 찾아 자동 확장 및 이동. (단축키: `Shift + a, r, c`) | Unit Tested |
 | | `quickMerge(path)` | 포커스된 노드에 대해 즉시 머지 실행 (해당하는 경우). | Planned |
 | | `scrollToPath()` | Virtuoso imperative scroll로 특정 노드 노출. | Component Test |
+| | `toggleHidden(path)` | 특정 파일/폴더 숨기기 (단축키: `Ctrl+H`, `Alt+H`). | Unit Tested |
+| | `toggleShowHidden()` | 숨겨진 파일들의 노출 여부 토글 (단축키: `h`). | Unit Tested |
 
 ## 2. File View Module (Viewer)
 
@@ -27,10 +29,15 @@
 | **State** | `selectedFile` | 현재 열려 있는 원본 파일 정보. | Unit Tested |
 | | `diffBlocks` | 계산된 차이점 블록 리스트 및 각각의 머지 상태. | Unit Tested |
 | | `activeIndex` | 현재 에디터 내에서 포커스된 차이점 블록의 인덱스. | Unit Tested |
+| | `focusZone` | 블록 내 세부 포커스 위치 (`content`, `accept`, `revert`). | Unit Tested |
+| | `mergeMode` | 현재 머지 단위 설정 (`group`, `unit`). | Unit Tested |
 | | `isDirty` | 저장되지 않은 머지 변경사항이 있는지 여부. | Component Test |
 | **Functions** | `loadDiff(node)` | 트리에서 선택된 노드에 대해 Diff 데이터 로드 및 렌더링. | Component Test |
 | | `applyMerge(dir)` | 현재 포커스된 블록에 대해 머지 실행 (L->R, R->L). | Unit Tested |
 | | `scrollIntoBlock(i)` | 특정 차이점 블록으로 수직 스크롤 이동. | Visual Verified |
+| | `applyQuickMerge()` | `Accept` 존에서 `Enter` 시 즉시 `Accept` (L <- R) 실행. `Content` 존에서는 동작하지 않음. | Unit Tested |
+| | `navigateZone(dir)` | `ArrowLeft/Right`로 `Accept` <-> `Content` <-> `Revert` 선형 이동 (Sticky). | Unit Tested |
+| | `resetFocus()` | `Esc` 시 아이콘 선택에서 `Content` 존으로 복귀 (Soft Exit). | Unit Tested |
 | | `saveChanges()` | 변경 사항을 서버에 기록하고 트리 상태 업데이트 트리거. | E2E Tested |
 
 ## 3. Input & Command Module
@@ -50,6 +57,9 @@
 *   **Triggers**: `Arrow Keys` -> `cmd.nav`
 *   **Triggers**: `a`, `r`, `c` -> `cmd.nav.nextStatus` (added, removed, modified)
 *   **Triggers**: `Shift + a`, `r`, `c` -> `cmd.nav.prevStatus`
+*   **Triggers**: `h` -> `cmd.tree.toggleShowHidden`
+*   **Triggers**: `Ctrl+H` / `Alt+H` -> `cmd.tree.hideCurrentPath`
+*   **Triggers**: `Esc` (Viewer) -> `cmd.viewer.resetFocus` -> `cmd.viewer.close` (Double Esc)
 
 ## 4. App Service (Orchestrator)
 

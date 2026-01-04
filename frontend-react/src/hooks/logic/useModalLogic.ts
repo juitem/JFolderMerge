@@ -65,9 +65,13 @@ export const useModalLogic = () => {
     const openHistory = (side: 'left' | 'right') => setHistoryState({ isOpen: true, side });
     const closeHistory = () => setHistoryState({ isOpen: false, side: null });
 
+    // Help Modal
+    const [helpOpen, setHelpOpen] = useState(false);
+
     return {
         confirmState, setConfirmState, showAlert, showConfirm,
         browseState, setBrowseState, openBrowse, closeBrowse,
-        historyState, setHistoryState, openHistory, closeHistory
+        historyState, setHistoryState, openHistory, closeHistory,
+        helpOpen, setHelpOpen
     };
 };

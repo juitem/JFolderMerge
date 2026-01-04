@@ -246,6 +246,8 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(
                     }
                 }
                 setFocusZone('content');
+                // Ensure focus returns to the main container after the action
+                setTimeout(() => containerRef.current?.focus(), 50);
             }
         };
 
@@ -271,6 +273,8 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(
                     }
                 }
                 setFocusZone('content');
+                // Ensure focus returns to the main container after the action
+                setTimeout(() => containerRef.current?.focus(), 50);
             }
         };
 
@@ -362,9 +366,10 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(
                     handleDeleteBlock();
                 } else if (activeBlockIndex !== null) {
                     e.preventDefault();
-                    if (focusZone === 'revert') setFocusZone('accept');
-                    else if (focusZone === 'accept') setFocusZone('content');
+                    // Linear scale: [Accept] <-> [Content] <-> [Revert]
+                    if (focusZone === 'accept') setFocusZone('content');
                     else if (focusZone === 'content') setFocusZone('revert');
+                    // If already in revert, stay there
                 }
             } else if (e.key === 'ArrowLeft') {
                 if (e.shiftKey && onMerge && activeBlockIndex !== null) {
@@ -372,22 +377,32 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(
                     handleMergeBlock();
                 } else if (activeBlockIndex !== null) {
                     e.preventDefault();
-                    if (focusZone === 'content') setFocusZone('accept');
-                    else if (focusZone === 'accept') setFocusZone('revert');
-                    else if (focusZone === 'revert') setFocusZone('content');
+                    // Linear scale: [Accept] <-> [Content] <-> [Revert]
+                    if (focusZone === 'revert') setFocusZone('content');
+                    else if (focusZone === 'content') setFocusZone('accept');
+                    // If already in accept, stay there
                 }
             } else if (e.key === 'Enter') {
                 if (activeBlockIndex !== null) {
                     e.preventDefault();
-                    if (focusZone === 'accept' || focusZone === 'content') {
-                        const action = () => handleMergeBlock();
+                    if (focusZone === 'accept') {
+                        const action = () => {
+                            handleMergeBlock();
+                            // Re-focus after modal closes and action completes
+                            setTimeout(() => containerRef.current?.focus(), 100);
+                        };
                         if (onShowConfirm) onShowConfirm("Confirm Merge", "Apply this change to the left side?", action);
                         else action();
                     } else if (focusZone === 'revert') {
-                        const action = () => handleDeleteBlock();
+                        const action = () => {
+                            handleDeleteBlock();
+                            // Re-focus after modal closes and action completes
+                            setTimeout(() => containerRef.current?.focus(), 100);
+                        };
                         if (onShowConfirm) onShowConfirm("Confirm Revert", "Revert this change on the right side?", action);
                         else action();
                     }
+                    // In 'content' zone, Enter does nothing to prevent accidental operations
                 }
             } else if (e.key === 'u' || e.key === 'U') {
                 e.preventDefault();
@@ -480,11 +495,6 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(
                                         onClick={(e) => { e.stopPropagation(); setActiveBlockIndex(idx); setFocusZone('content'); containerRef.current?.focus(); }}
                                     >
                                         {block.lines.map((l, i) => renderLine(l, i))}
-                                        {mergeMode === 'group' && partnerIdx !== null && (
-                                            <div className="smart-pair-indicator" style={{ position: 'absolute', top: '4px', right: '8px', opacity: 0.4, fontSize: '0.65rem', fontWeight: 700, pointerEvents: 'none' }}>
-                                                <ArrowLeftRight size={12} /> {block.type === 'block-removed' ? 'REPLACE' : ''}
-                                            </div>
-                                        )}
                                         <div className="merge-action-overlay" style={{ position: 'absolute', zIndex: 10, top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
                                             {onMerge && (
                                                 <>
@@ -493,7 +503,7 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(
                                                             style={{
                                                                 color: '#ec4899', width: '18px', height: '18px', border: '1px solid #ec4899',
                                                                 background: 'rgba(50, 0, 0, 0.9)', borderRadius: '4px', padding: 0,
-                                                                boxShadow: (isSelfActive && focusZone === 'revert') ? '0 0 0 2px var(--accent-color)' : '0 1px 3px rgba(0,0,0,0.3)',
+                                                                boxShadow: (isActive && focusZone === 'revert') ? '0 0 0 2px var(--accent-color)' : '0 1px 3px rgba(0,0,0,0.3)',
                                                                 opacity: isActive ? 1 : 0.6
                                                             }}
                                                             onClick={(e) => { e.stopPropagation(); setActiveBlockIndex(idx); handleDeleteBlock(); }}
@@ -507,7 +517,7 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(
                                                             style={{
                                                                 color: '#4ade80', width: '18px', height: '18px', border: '1px solid #4ade80',
                                                                 background: 'rgba(0, 50, 0, 0.9)', borderRadius: '4px', padding: 0,
-                                                                boxShadow: (isSelfActive && focusZone === 'accept') ? '0 0 0 2px var(--accent-color)' : '0 1px 3px rgba(0,0,0,0.3)',
+                                                                boxShadow: (isActive && focusZone === 'accept') ? '0 0 0 2px var(--accent-color)' : '0 1px 3px rgba(0,0,0,0.3)',
                                                                 opacity: isActive ? 1 : 0.6
                                                             }}
                                                             onClick={(e) => { e.stopPropagation(); setActiveBlockIndex(idx); handleMergeBlock(); }}
@@ -544,6 +554,41 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(
                             }
                             return renderLine(line, idx);
                         })}
+                    </div>
+                )}
+
+                {/* Floating Global Merge Mode Overlay Indicator */}
+                {mergeMode === 'group' && (
+                    <div style={{
+                        position: 'absolute',
+                        bottom: '20px',
+                        right: '25px',
+                        zIndex: 100,
+                        pointerEvents: 'none',
+                        animation: 'fadeIn 0.3s ease-out'
+                    }}>
+                        <div className="smart-pair-indicator" style={{
+                            position: 'relative',
+                            bottom: 'auto',
+                            right: 'auto',
+                            opacity: 0.9,
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            background: 'rgba(30, 41, 59, 0.95)',
+                            backdropFilter: 'blur(4px)',
+                            padding: '6px 12px',
+                            borderRadius: '20px',
+                            border: '1px solid #60a5fa',
+                            color: '#60a5fa',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                            pointerEvents: 'auto'
+                        }}>
+                            <ArrowLeftRight size={14} />
+                            <span>GROUP MERGE MODE (REPLACE)</span>
+                        </div>
                     </div>
                 )}
             </div>

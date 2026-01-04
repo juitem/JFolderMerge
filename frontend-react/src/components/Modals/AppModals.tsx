@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { BrowseModal } from '../BrowseModal';
 import { HistoryModal } from '../HistoryModal';
 import ConfirmModal from '../ConfirmModal';
+import { HelpModal } from '../HelpModal';
 import type { Config } from '../../types';
 
 import { useConfig } from '../../contexts/ConfigContext';
@@ -39,6 +40,10 @@ interface AppModalsProps {
     // About State
     aboutOpen: boolean;
     setAboutOpen: (b: boolean) => void;
+
+    // Help State
+    helpOpen: boolean;
+    setHelpOpen: (b: boolean) => void;
 }
 
 export const AppModals: React.FC<AppModalsProps> = (props) => {
@@ -130,6 +135,8 @@ export const AppModals: React.FC<AppModalsProps> = (props) => {
                     </div>
                 </div>
             )}
+
+            <HelpModal isOpen={props.helpOpen} onClose={() => props.setHelpOpen(false)} />
         </>
     );
 };

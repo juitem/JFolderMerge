@@ -11,6 +11,8 @@ function App() {
 
   const combinedError = logic.configError || logic.compareError;
 
+  // Help Shortcut (?) moved to useAppLogic.ts
+
   return (
     <>
       <MainLayout
@@ -18,6 +20,7 @@ function App() {
         onSaveSettings={logic.handleSaveSettings}
         onResetSettings={logic.handleResetSettings}
         onOpenAbout={() => logic.setAboutOpen(true)}
+        onOpenHelp={() => logic.setHelpOpen(true)}
         // Toolbar
         searchQuery={logic.searchQuery}
         setSearchQuery={logic.setSearchQuery}
@@ -117,6 +120,8 @@ function App() {
         setConfirmState={logic.setConfirmState}
         aboutOpen={logic.aboutOpen}
         setAboutOpen={logic.setAboutOpen}
+        helpOpen={logic.helpOpen}
+        setHelpOpen={logic.setHelpOpen}
       />
     </>
   );

@@ -8,23 +8,23 @@
     "added": true
   },
   "diffFilters": {
-    "same": false,
+    "same": true,
     "modified": true,
     "added": true,
     "removed": true
   },
   "viewOptions": {
     "darkMode": false,
-    "folderViewMode": "split",
+    "folderViewMode": "flat",
     "showLineNumbers": true,
     "diffMode": "agent",
     "leftPanelWidth_split": 50,
-    "leftPanelWidth_unified": 40,
+    "leftPanelWidth_unified": 30,
     "leftPanelWidth_flat": 25,
     "confirmMerge": false,
     "wordWrap": true,
     "layoutMode": "split",
-    "autoScroll": true,
+    "autoScroll": false,
     "showStatusIcons": true,
     "statusDisplayMode": 1,
     "showDeleteIcons": true,

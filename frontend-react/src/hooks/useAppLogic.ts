@@ -165,6 +165,21 @@ export const useAppLogic = () => {
         return () => window.removeEventListener('keydown', handleKeyDown, true);
     }, [viewState.layoutMode, viewState.setLayoutMode]);
 
+    // Help Shortcut (? / F1)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (['input', 'textarea', 'select'].includes((e.target as HTMLElement).tagName.toLowerCase()) || (e.target as HTMLElement).isContentEditable) {
+                return;
+            }
+            if (e.key === '?' || e.key === 'F1') {
+                e.preventDefault();
+                modalState.setHelpOpen(true);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [modalState.setHelpOpen]);
+
     // -- Handlers --
 
     const handleSaveSettings = async () => {

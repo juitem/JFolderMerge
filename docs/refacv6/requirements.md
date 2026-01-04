@@ -11,6 +11,7 @@
 *   **Batch Efficiency**: Support for selecting all files of a certain type (e.g., **Select All Added**) and performing a bulk Merge or Delete action in one go.
 *   **Action Stability**: Action icons (Merge Left/Right, Delete Left/Right) must be **horizontally aligned** across all rows. This allows the user to perform repetitive actions by moving only vertically, not laterally.
 *   **Quick Actions**: Keyboard-first access to merging (`Ctrl+ArrowRight`), deletion, and jumping to **First/Last Change** without losing place in the tree.
+*   **Visibility Control**: One-click toggle for hiding/showing hidden files (`H`) and individual action icons for a cleaner UI.
 
 ### Developer Perspective
 *   **Decoupled Logic**: Navigation logic (hooks) must be separated from rendering (components) to allow for virtualization (Virtuoso) and testing.
@@ -27,7 +28,10 @@
 ### User Perspective
 *   **Seamless Transition**: Moving from Folder View to File View (via `Enter` or `Space`) should be instant and preserve the "Merge State".
 *   **Focus Management**: After selecting a file, the focus should ideally move to the first change/diff block within the file.
-*   **Merge Control**: Keyboard shortcuts for accepting/reverting changes must be consistent with the Folder View (e.g., `Ctrl+ArrowRight`).
+*   **Merge Control**: Keyboard shortcuts for accepting/reverting changes must be consistent. **Enter** on a block only works when an action (Accept/Revert) is explicitly selected via `ArrowLeft/Right`. This prevents accidental merges.
+*   **Directional Consistency**: Action icons must follow a clear "Data Flow" logic. **Green (`←`)** for Accept (L) and **Red (`→`)** for Revert/Restore (R). Selecting a direction highlights the corresponding icon pair on both blocks in the group.
+*   **Linear Focus Scale**: Navigation within a block is linear: `[Accept] <-> [Content] <-> [Revert]`. `ArrowLeft/Right` keys move focus along this scale and stay at the ends (Sticky).
+*   **Soft-Exit Focus**: Pressing **Esc** should first reset focus from individual icons to the broad block (Content) before fully exiting to the folder tree.
 *   **Consistency**: The "All changes merged!" state must be accurately reflected both in the viewer and the folder tree status icons ('M' -> 'Same').
 
 ### Developer Perspective

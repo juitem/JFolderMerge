@@ -28,15 +28,16 @@
 *   **개선 방향**:
     *   **Scoped Context** 사용: 트리 영역 전체를 감싸는 Context를 통해 `TreeNode`가 직접 명령을 호출. 중간 컴포넌트들의 불필요한 리렌더링 방지.
 
-## 5. 불필요한 트리 전체 리로드 제거
-*   **현재 문제**: 파일 하나만 머지해도 `handleReload`를 통해 서버에서 전체 트리 데이터를 다시 가져옵니다.
-*   **개선 방향**:
-    *   **Optimistic UI Update**: 서버 응답을 기다리지 않고 로컬 트리 상태를 즉시 `'same'`으로 변경.
-    *   서버와는 백그라운드에서 동기화하여 대기 시간 0(Zero Latency) 목표.
+## 6. 의도 기반 액션 잠금 (Intent-based Action Locking)
+*   **현재 문제**: 엔터를 실수로 눌러 원치 않는 머지가 발생하는 경우가 있습니다.
+*   **개선 방향**: 
+    *   **Deterministic Interaction**: 본문(Content) 상태에서는 엔터가 작동하지 않도록 잠금.
+    *   사용자가 명시적으로 `ArrowLeft/Right`를 눌러 '수락' 또는 '반영' 의도를 선택했을 때만 머지가 실행되도록 하여 휴먼 에러 원천 차단.
 
-    *   텍스트가 길어지더라도 버튼의 X좌표는 변하지 않도록 CSS Flexbox/Grid를 활용해 레이아웃을 고정합니다.
+## 7. 액션 버튼의 시각적 안정성 (Action Stability)
+*   텍스트가 길어지더라도 버튼의 X좌표는 변하지 않도록 CSS Flexbox/Grid를 활용해 레이아웃을 고정합니다. ( Repetitive Action 효율성 증대)
 
-## 7. 테스트 주도 진화 (Test-Driven Evolution)
+## 8. 테스트 주도 진화 (Test-Driven Evolution)
 *   **현재 문제**: 수동 테스트에 의존하여 기능 변경 시 부작용(Side Effect)을 감지하기 어렵습니다.
 *   **개선 방향**:
     *   **Unit Test First**: 새로운 서비스를 만들 때 Jest/Vitest를 이용한 단위 테스트를 먼저 작성하여 기존 기능과의 호환성 검증.

@@ -5,7 +5,7 @@ import { UnifiedView } from './diff/UnifiedView';
 import { SideBySideView } from './diff/SideBySideView';
 import { RawView } from './diff/RawView';
 import { AgentView, type AgentViewHandle } from './diff/AgentView';
-import { Layers, Box } from 'lucide-react';
+
 
 interface DiffViewerProps {
     leftPathBase: string;
@@ -391,19 +391,6 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                     position: 'absolute', top: 0, right: 0, padding: '4px 8px',
                     display: 'flex', gap: '8px', alignItems: 'center', zIndex: 100
                 }}>
-                    <button
-                        onClick={toggleMergeMode}
-                        title={`Merge Mode: ${mergeMode === 'group' ? 'Group (Smart)' : 'Unit (Block)'}. Press 'U' to toggle.`}
-                        style={{
-                            padding: '3px 8px', fontSize: '10px', background: 'var(--accent-primary, #3b82f6)', color: 'white',
-                            border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600,
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.3)', textTransform: 'uppercase',
-                            display: 'flex', alignItems: 'center', gap: '4px'
-                        }}
-                    >
-                        {mergeMode === 'group' ? <Box size={10} /> : <Layers size={10} />}
-                        <span>{mergeMode}</span>
-                    </button>
                     {loading && (
                         <div style={{
                             padding: '2px 6px', background: 'rgba(59, 130, 246, 0.8)', color: 'white',

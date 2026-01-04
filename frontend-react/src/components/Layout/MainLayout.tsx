@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ReactNode } from 'react';
-import { Save, Moon, Sun, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Save, Moon, Sun, ZoomIn, ZoomOut, RotateCcw, HelpCircle } from 'lucide-react';
 import { FilterToolbar } from '../FilterToolbar';
 import { useConfig } from '../../contexts/ConfigContext';
 import { PathControls } from '../PathControls';
@@ -12,6 +12,7 @@ interface MainLayoutProps {
     onSaveSettings: () => void;
     onResetSettings?: () => void;
     onOpenAbout: () => void;
+    onOpenHelp: () => void;
     // Toolbar Props
     searchQuery: string;
     setSearchQuery: (s: string) => void;
@@ -108,6 +109,9 @@ export const MainLayout: React.FC<MainLayoutProps> = (props) => {
                     </button>
                     <button className="icon-btn" title="Toggle Theme" onClick={() => setViewOption('darkMode', !isDark)}>
                         {isDark ? <Sun size={18} /> : <Moon size={18} style={{ transform: 'scaleX(-1)' }} />}
+                    </button>
+                    <button className="icon-btn" title="Keyboard Shortcuts (? / F1)" onClick={props.onOpenHelp} style={{ color: 'var(--accent-color)' }}>
+                        <HelpCircle size={18} />
                     </button>
                 </div>
             </header>
