@@ -1,4 +1,4 @@
-# Module Specifications & State Definition (v6)
+# Module Specifications & State Definition (v7)
 
 이 리팩토링의 핵심은 각 모듈이 관리하는 데이터(State)와 제공하는 행위(Functions)를 명확히 분리하여 충돌을 방지하는 것입니다.
 
@@ -111,4 +111,4 @@
 4.  **File Operation Flow**: `Tree/Viewer Module` (Delete/Merge Action) -> `Orchestrator` -> `API Call` -> `Success` -> `Orchestrator.updateNodeStatus`.
 5.  **Layout Resize Flow**: `User Drag` -> `Layout Module.updateWidth()` -> `Global State: sidebarWidth` -> `Tree & Viewer Modules` (Resize Components).
 6.  **Keyboard Flow**: `User Input` -> `Input Service` (Context Check) -> `Command Registry` -> `Active Module` (Execute Function).
-6.  **Update Flow**: `File View` (Merge) -> `Orchestrator` -> `Tree Module` (State: Refresh node status).
+7.  **Update Flow**: `File View` (Merge) -> `Orchestrator` -> `Tree Module` (State: Refresh node status).

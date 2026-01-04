@@ -1,4 +1,4 @@
-# Functional Requirements: Folder View & File View (v6)
+# Functional Requirements: Folder View & File View (v7)
 
 ## 1. Folder View (Tree Navigation)
 
@@ -53,7 +53,7 @@
 
 ---
 
-## 4. Design Guidelines for v6
+## 4. Design Guidelines for v7
 1.  **Don't start coding until the "Command Map" is defined.**
 2.  **Every key event must be traceable to a specific Focus Context.**
 3.  **The Folder Tree is the "Anchor"; its state must be the most resilient part of the app.**

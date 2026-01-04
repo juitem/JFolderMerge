@@ -1,6 +1,6 @@
-# Architecture Design Visuals (v6)
+# Architecture Design Visuals (v7)
 
-v6 아키텍처의 핵심 구조와 흐름을 시각화한 문서입니다.
+v7 아키텍처의 핵심 구조와 흐름을 시각화한 문서입니다.
 
 ---
 
@@ -165,8 +165,8 @@ graph TD
 
 ---
 
-## 6. Data Schema: Core Types (Conceptual v6)
-기존 `types.ts`를 보강한 v6 내부 데이터 구조입니다.
+## 6. Data Schema: Core Types (Conceptual v7)
+기존 `types.ts`를 보강한 v7 내부 데이터 구조입니다.
 
 | Type Name | Property | Description |
 | :--- | :--- | :--- |

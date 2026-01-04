@@ -1,6 +1,6 @@
-# Architecture Optimization Plan (v6)
+# Architecture Optimization Plan (v7)
 
-현재 소스 코드의 기능을 단순히 옮기는 것이 아니라, **v6 아키텍처에서 더 효율적으로 개선할 지점들**을 정리했습니다.
+현재 소스 코드의 기능을 단순히 옮기는 것이 아니라, **v7 아키텍처에서 더 효율적으로 개선할 지점들**을 정리했습니다.
 
 ---
 
