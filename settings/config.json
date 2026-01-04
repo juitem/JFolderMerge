@@ -41,7 +41,7 @@
     "showSelectionCheckboxes": false
   },
   "savedExcludes": {
-    "folders": "__pycache__, .git, .idea, .tmp, .venv, .vscode, dist, jfoldermerge-vscode, node_modules, ROOTFS, venv",
+    "folders": "__pycache__, .git, .idea, .tmp, .venv, .vscode, *_kor, dist, jfoldermerge-vscode, node_modules, ROOTFS, venv",
     "files": ".tmp, *.pyc, .DS_Store"
   }
 }
