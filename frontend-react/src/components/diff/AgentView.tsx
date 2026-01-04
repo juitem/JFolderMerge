@@ -71,6 +71,12 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(
             }
         }, [fullRightPath]);
 
+        useEffect(() => {
+            if (!showSame) {
+                setExpandedContent({});
+            }
+        }, [showSame]);
+
         const parsedItems = useMemo(() => {
             if (!diff) return [];
             const rawItems: DiffItem[] = [];

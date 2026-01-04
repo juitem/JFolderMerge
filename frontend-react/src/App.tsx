@@ -54,6 +54,12 @@ function App() {
 
         // Stats (Line stats remain in Toolbar for now)
         fileLineStats={logic.fileLineStats}
+
+        // Advanced Filter Props
+        hiddenPaths={logic.hiddenPaths}
+        toggleHiddenPath={logic.toggleHiddenPath}
+        showHidden={logic.showHidden}
+        toggleShowHidden={logic.toggleShowHidden}
       >
         <Workspace
           treeData={logic.treeData}
@@ -103,6 +109,16 @@ function App() {
           onClearSelection={logic.clearSelection}
           onExecuteBatchMerge={logic.executeBatchMerge}
           onExecuteBatchDelete={logic.executeBatchDelete}
+
+          // Context Menu
+          contextMenu={logic.contextMenu}
+          onContextMenu={logic.handleContextMenu}
+          onCloseContextMenu={logic.closeContextMenu}
+          externalEditorPath={logic.externalEditorPath}
+          onSetExternalEditor={logic.handleSetExternalEditor}
+          onOpenExternal={logic.handleOpenExternal}
+          diffMode={logic.diffMode}
+          setDiffMode={logic.setDiffMode}
         />
       </MainLayout>
 

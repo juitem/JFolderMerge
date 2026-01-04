@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FolderX, FileX, FileDiff, Bot, Layout, Columns, Rows, FileCode, FileText, WrapText, ChevronsUp, ChevronsDown, Eye, EyeOff, ArrowUpToLine, ArrowDownToLine, Hash } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FileDiff, Bot, Layout, Columns, Rows, FileCode, FileText, WrapText, ChevronsUp, ChevronsDown, Eye, EyeOff, ArrowUpToLine, ArrowDownToLine, Hash } from 'lucide-react';
 import { FolderTree, type FolderTreeHandle } from '../FolderTree';
 
 import { useConfig } from '../../contexts/ConfigContext';
@@ -99,13 +99,10 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
     };
 
 
-    const folderTreeRef = React.useRef<FolderTreeHandle>(null);
-
-    // Track currently focused node in tree (even if not selected/open)
     const [focusedNode, setFocusedNode] = React.useState<FileNode | null>(null);
 
-    // Filter Logic: Hide text inputs when file is open to save space
-    const showFilterInputs = !isFileOpen;
+    const folderTreeRef = React.useRef<FolderTreeHandle>(null);
+
     const activeNode = props.selectedNode || focusedNode;
 
     // --- Viewer Adapter Logic ---
@@ -199,68 +196,6 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                         }}
                     />
 
-                    {/* Exclude Filters */}
-                    {props.excludeFolders !== undefined && (
-                        <div style={{ display: 'flex', gap: '4px', flexShrink: 0, alignItems: 'center' }}>
-                            {/* Exclude Folders */}
-                            {showFilterInputs ? (
-                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                    <input
-                                        type="text"
-                                        placeholder="Excl. Folders"
-                                        value={props.excludeFolders}
-                                        onChange={e => props.setExcludeFolders?.(e.target.value)}
-                                        title="Exclude Folders (comma separated)"
-                                        style={{ width: '500px', padding: '4px 8px', paddingRight: '20px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#222', color: '#eee', fontSize: '0.75rem', height: '24px' }}
-                                    />
-                                    <button
-                                        onClick={() => props.onBrowse?.('import-exclude-folders')}
-                                        style={{ position: 'absolute', right: '2px', background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', display: 'flex' }}
-                                        title="Import Ignore Folders List"
-                                    >
-                                        <FolderX size={15} />
-                                    </button>
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={() => props.onBrowse?.('import-exclude-folders')}
-                                    style={{ background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', display: 'flex', padding: 2 }}
-                                    title={`Import Ignore Folders List (Current: ${props.excludeFolders || 'None'})`}
-                                >
-                                    <FolderX size={16} />
-                                </button>
-                            )}
-
-                            {/* Exclude Files */}
-                            {showFilterInputs ? (
-                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                    <input
-                                        type="text"
-                                        placeholder="Excl. Files"
-                                        value={props.excludeFiles}
-                                        onChange={e => props.setExcludeFiles?.(e.target.value)}
-                                        title="Exclude Files (comma separated)"
-                                        style={{ width: '500px', padding: '4px 8px', paddingRight: '20px', borderRadius: '4px', border: '1px solid #444', backgroundColor: '#222', color: '#eee', fontSize: '0.75rem', height: '24px' }}
-                                    />
-                                    <button
-                                        onClick={() => props.onBrowse?.('import-exclude-files')}
-                                        style={{ position: 'absolute', right: '2px', background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', display: 'flex' }}
-                                        title="Import Ignore Files List"
-                                    >
-                                        <FileX size={15} />
-                                    </button>
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={() => props.onBrowse?.('import-exclude-files')}
-                                    style={{ background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', display: 'flex', padding: 2 }}
-                                    title={`Import Ignore Files List (Current: ${props.excludeFiles || 'None'})`}
-                                >
-                                    <FileX size={16} />
-                                </button>
-                            )}
-                        </div>
-                    )}
 
                     <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexShrink: 0 }}>
                         <button className="icon-btn" style={{ padding: 2, color: '#60a5fa' }} onClick={() => {
@@ -446,6 +381,7 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                                 <button className={`icon-btn ${props.config?.viewOptions?.showLineNumbers ? 'active' : ''}`} onClick={() => toggleViewOption('showLineNumbers')} title="Toggle Line Numbers">
                                     <Hash size={16} />
                                 </button>
+
                             </div>
                         </div>
 

@@ -33,6 +33,10 @@ export interface Config {
         folders?: string;
         files?: string;
     };
+    disabledFilters?: {
+        folders?: string[];
+        files?: string[];
+    };
 }
 
 export interface DiffResult {

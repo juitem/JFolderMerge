@@ -1,5 +1,8 @@
 import React from 'react';
-import { Folder, FileText, Play, BookOpen, ListTree, AlignJustify, PanelRight, PanelLeft, Columns, ChevronLeft, ChevronRight, Lock, LockOpen, Maximize, Minimize, ShieldCheck, ShieldAlert, Focus, Tag, LayoutList, ArrowLeftRight, Trash2, Settings2, Eye, EyeOff, Zap, Hash, WrapText, Layers, Box } from 'lucide-react';
+import { Folder, FileText, Play, BookOpen, ListTree, AlignJustify, PanelRight, PanelLeft, Columns, ChevronLeft, ChevronRight, Lock, LockOpen, Maximize, Minimize, ShieldCheck, ShieldAlert, Focus, Tag, LayoutList, ArrowLeftRight, Trash2, Settings2, Eye, EyeOff, Zap, Hash, WrapText, Layers, Box, RotateCcw, SlidersHorizontal, X, ListChecks, ArrowRightFromLine } from 'lucide-react';
+import { ManageFiltersModal } from './Modals/ManageFiltersModal';
+import { loggingService } from '../services/infrastructure/LoggingService';
+
 import { useConfig } from '../contexts/ConfigContext';
 import type { DiffMode } from '../types';
 
@@ -15,30 +18,94 @@ interface FilterToolbarProps {
     fileLineStats?: { added: number, removed: number, groups: number } | null;
     layoutMode?: 'folder' | 'split' | 'file';
     setLayoutMode?: (mode: 'folder' | 'split' | 'file') => void;
+
+    // Advanced Filter Props
+    excludeFolders?: string;
+    setExcludeFolders?: (s: string) => void;
+    excludeFiles?: string;
+    setExcludeFiles?: (s: string) => void;
+    onBrowse?: (target: 'import-exclude-folders' | 'import-exclude-files') => void;
+    hiddenPaths?: Set<string>;
+    toggleHiddenPath?: (path: string) => void;
+    showHidden?: boolean;
+    toggleShowHidden?: () => void;
 }
 
 export function FilterToolbar({
-    onCompare, loading,
-    // onToggleFileView, // Unused
+    onCompare,
+    loading,
     onAdjustWidth,
     isLocked,
     setIsLocked,
     // fileLineStats, // Unused
     layoutMode,
-    setLayoutMode
+    setLayoutMode,
+
+    excludeFolders,
+    setExcludeFolders,
+    excludeFiles,
+    setExcludeFiles,
+    onBrowse,
+    hiddenPaths,
+    toggleHiddenPath,
+    showHidden,
+    toggleShowHidden
 }: FilterToolbarProps) {
-    const { config, toggleFilter, toggleDiffFilter, setViewOption } = useConfig();
+    const { config, toggleFilter, toggleDiffFilter, setViewOption, saveConfig, toggleViewOption } = useConfig();
     const folderViewMode = config?.viewOptions?.folderViewMode || 'split';
 
     const [isFullScreen, setIsFullScreen] = React.useState(!!document.fullscreenElement);
     const [isViewMenuOpen, setIsViewMenuOpen] = React.useState(false);
     const viewMenuRef = React.useRef<HTMLDivElement>(null);
 
+    // Advanced Filter State
+    const [isFilterSettingsOpen, setIsFilterSettingsOpen] = React.useState(false);
+
+    // Manage Filters Modal State
+    const [manageFilterType, setManageFilterType] = React.useState<'folders' | 'files' | null>(null);
+
+    const handleSaveFilters = (newActive: string, newDisabled: string[]) => {
+        if (!config || !manageFilterType) return;
+
+        // Update local inputs
+        if (manageFilterType === 'folders') {
+            setExcludeFolders?.(newActive);
+        } else {
+            setExcludeFiles?.(newActive);
+        }
+
+        // Update Config
+        const newConfig = { ...config };
+
+        // Update Saved Excludes (Active)
+        newConfig.savedExcludes = {
+            ...newConfig.savedExcludes,
+            [manageFilterType === 'folders' ? 'folders' : 'files']: newActive
+        };
+
+        // Update Disabled Filters
+        newConfig.disabledFilters = {
+            ...newConfig.disabledFilters,
+            [manageFilterType === 'folders' ? 'folders' : 'files']: newDisabled
+        };
+
+        loggingService.info('FilterToolbar', `Saving filters for ${manageFilterType}. Active: ${newActive.length}, Disabled: ${newDisabled.length}`);
+
+        saveConfig(newConfig).catch(err => {
+            console.error("Failed to save filters", err);
+            // Revert? For now just log.
+        });
+    };
+
     React.useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (viewMenuRef.current && !viewMenuRef.current.contains(event.target as Node)) {
                 setIsViewMenuOpen(false);
             }
+            // Logic for filterSettingsRef handles backdrop click now, so this might be redundant given the Modal overlay structure,
+            // but we kept it for the button or if we revert. 
+            // Actually, with the new overlay, the backdrop handles the close.
+            // But let's leave it to avoid breaking changes if specific interactions rely on it.
         };
         if (isViewMenuOpen) {
             document.addEventListener('mousedown', handleClickOutside);
@@ -71,10 +138,83 @@ export function FilterToolbar({
     return (
         <div className="toolbar compact-toolbar">
             <div className="filter-group" style={{ gap: '2px' }}>
+                {/* View Options Dropdown - Moved to Start */}
+                <div className="relative" ref={viewMenuRef} style={{ position: 'relative' }}>
+                    <button
+                        className={`icon-btn ${isViewMenuOpen ? 'active' : ''}`}
+                        onClick={() => setIsViewMenuOpen(!isViewMenuOpen)}
+                        title="View Settings (Status & Actions)"
+                    >
+                        <Settings2 size={16} />
+                    </button>
+                    {isViewMenuOpen && (
+                        <div className="dropdown-menu" style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: '0',
+                            marginTop: '8px',
+                            background: '#1e293b',
+                            border: '1px solid #334155',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                            zIndex: 1000,
+                            minWidth: '220px',
+                            overflow: 'hidden'
+                        }}>
+                            <div className="menu-header" style={{ padding: '8px 12px', borderBottom: '1px solid #334155', background: '#0f172a' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>View Options</span>
+                            </div>
+                            <div className="menu-body" style={{ padding: '4px' }}>
+                                {/* Toggles */}
+                                <div className="menu-item toggle">
+                                    <span className="label">Show Line Numbers</span>
+                                    <button
+                                        className={`toggle-switch ${config?.viewOptions?.lineNumbers ? 'on' : 'off'}`}
+                                        onClick={() => toggleViewOption('lineNumbers')}
+                                    >
+                                        <div className="thumb"></div>
+                                    </button>
+                                </div>
+                                <div className="menu-item toggle">
+                                    <span className="label">Highlight Changes</span>
+                                    <button
+                                        className={`toggle-switch ${config?.viewOptions?.highlightChanges ? 'on' : 'off'}`}
+                                        onClick={() => toggleViewOption('highlightChanges')}
+                                    >
+                                        <div className="thumb"></div>
+                                    </button>
+                                </div>
+                                <div className="menu-item toggle">
+                                    <span className="label">
+                                        Word Wrap
+                                        <span className="sub-label">Wrap long lines</span>
+                                    </span>
+                                    <div className="segmented-control tiny">
+                                        <button
+                                            className={!config?.viewOptions?.wordWrap ? 'active' : ''}
+                                            onClick={() => setViewOption('wordWrap', false)}
+                                            title="Disable Word Wrap"
+                                        >
+                                            <ArrowRightFromLine size={15} />
+                                        </button>
+                                        <button
+                                            className={config?.viewOptions?.wordWrap ? 'active' : ''}
+                                            onClick={() => setViewOption('wordWrap', true)}
+                                            title="Enable Word Wrap"
+                                        >
+                                            <WrapText size={15} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 <button className={`icon-btn ${isFullScreen ? 'active' : ''}`} onClick={toggleFullScreen} title={isFullScreen ? "Exit Full Screen" : "Enter Full Screen"}>
                     {isFullScreen ? <Minimize size={16} /> : <Maximize size={16} />}
                 </button>
-                <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
+
                 <button className={`icon-btn ${folderViewMode === 'split' ? 'active' : ''}`} onClick={() => setViewOption('folderViewMode', 'split')} title="Split Tree View">
                     <BookOpen size={16} />
                 </button>
@@ -84,40 +224,8 @@ export function FilterToolbar({
                 <button className={`icon-btn ${folderViewMode === 'flat' ? 'active' : ''}`} onClick={() => setViewOption('folderViewMode', 'flat')} title="Flat Tree View (No Indent)">
                     <AlignJustify size={16} style={{ transform: 'rotate(90deg)' }} />
                 </button>
-                <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
 
-                {/* Zap Buttons */}
-                <button
-                    className={`icon-btn ${config?.viewOptions?.smoothScrollFolder === false ? 'active' : ''}`}
-                    onClick={() => setViewOption('smoothScrollFolder', config?.viewOptions?.smoothScrollFolder === false)}
-                    title={config?.viewOptions?.smoothScrollFolder === false ? "Folder View: Instant Jump Enabled" : "Folder View: Enable Instant Jump"}
-                >
-                    <Zap size={16} />
-                    <span style={{ fontSize: '10px', marginLeft: '2px', fontWeight: 700 }}>F</span>
-                </button>
-                <button
-                    className={`icon-btn ${config?.viewOptions?.smoothScrollFile === false ? 'active' : ''}`}
-                    onClick={() => setViewOption('smoothScrollFile', config?.viewOptions?.smoothScrollFile === false)}
-                    title={config?.viewOptions?.smoothScrollFile === false ? "File View: Instant Jump Enabled" : "File View: Enable Instant Jump"}
-                >
-                    <Zap size={16} />
-                    <span style={{ fontSize: '10px', marginLeft: '2px', fontWeight: 700 }}>T</span>
-                </button>
 
-                <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
-
-                {/* Unified Merge Mode Toggle */}
-                <button
-                    className={`icon-btn ${config?.viewOptions?.mergeMode === 'unit' ? '' : 'active'}`}
-                    onClick={() => setViewOption('mergeMode', config?.viewOptions?.mergeMode === 'unit' ? 'group' : 'unit')}
-                    title={`Global Merge Mode: ${config?.viewOptions?.mergeMode === 'unit' ? 'Unit (Line-by-Line)' : 'Group (Smart Blocks)'}. Press 'U' to toggle.`}
-                    style={{ color: config?.viewOptions?.mergeMode === 'unit' ? 'var(--text-secondary)' : '#60a5fa' }}
-                >
-                    {config?.viewOptions?.mergeMode === 'unit' ? <Layers size={16} /> : <Box size={16} />}
-                    <span style={{ fontSize: '9px', marginLeft: '1px', fontWeight: 900, opacity: 0.7 }}>M</span>
-                </button>
-
-                <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px', flexShrink: 0 }}></div>
 
                 {/* View Options Dropdown */}
                 <div className="relative" ref={viewMenuRef} style={{ position: 'relative' }}>
@@ -226,6 +334,104 @@ export function FilterToolbar({
                                         title="Enable Auto-Scroll"
                                     >
                                         <Focus size={15} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }}></div>
+
+                            <div className="text-muted" style={{ fontSize: '11px', fontWeight: 600, paddingLeft: '2px', color: '#64748b' }}>SCROLLING</div>
+
+                            {/* Folder Fast Scroll (Zap F) */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Folder Fast Scroll</span>
+                                <div style={{ display: 'flex', background: 'var(--hover-bg)', borderRadius: '6px', padding: '3px', gap: '2px' }}>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.smoothScrollFolder !== false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.smoothScrollFolder !== false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.smoothScrollFolder !== false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('smoothScrollFolder', true)}
+                                        title="Smooth Scrolling"
+                                    >
+                                        <RotateCcw size={15} style={{ opacity: 0.8 }} />
+                                    </button>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.smoothScrollFolder === false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.smoothScrollFolder === false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.smoothScrollFolder === false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('smoothScrollFolder', false)}
+                                        title="Fast Instant Scroll"
+                                    >
+                                        <Zap size={15} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* File Fast Scroll (Zap T) */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>File Fast Scroll</span>
+                                <div style={{ display: 'flex', background: 'var(--hover-bg)', borderRadius: '6px', padding: '3px', gap: '2px' }}>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.smoothScrollFile !== false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.smoothScrollFile !== false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.smoothScrollFile !== false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('smoothScrollFile', true)}
+                                        title="Smooth Scrolling"
+                                    >
+                                        <RotateCcw size={15} style={{ opacity: 0.8 }} />
+                                    </button>
+                                    <button
+                                        className={`toggle-option ${config?.viewOptions?.smoothScrollFile === false ? 'selected' : ''}`}
+                                        style={{
+                                            border: 'none',
+                                            background: config?.viewOptions?.smoothScrollFile === false ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: config?.viewOptions?.smoothScrollFile === false ? '#60a5fa' : 'var(--text-secondary)',
+                                            borderRadius: '4px',
+                                            padding: '4px 8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                            minWidth: '32px'
+                                        }}
+                                        onClick={() => setViewOption('smoothScrollFile', false)}
+                                        title="Fast Instant Scroll"
+                                    >
+                                        <Zap size={15} />
                                     </button>
                                 </div>
                             </div>
@@ -621,6 +827,241 @@ export function FilterToolbar({
                     )}
                 </div>
 
+                {/* Advanced Filter Settings (Modal Overlay) */}
+                <div className="relative">
+                    <button
+                        className={`icon-btn ${isFilterSettingsOpen ? 'active' : ''}`}
+                        onClick={() => setIsFilterSettingsOpen(!isFilterSettingsOpen)}
+                        title="Advanced Filter Settings"
+                    >
+                        <SlidersHorizontal size={16} />
+                    </button>
+                    {isFilterSettingsOpen && (
+                        <>
+                            {/* Backdrop */}
+                            <div
+                                style={{
+                                    position: 'fixed',
+                                    inset: 0,
+                                    background: 'rgba(0,0,0,0.6)',
+                                    zIndex: 900,
+                                    backdropFilter: 'blur(2px)'
+                                }}
+                                onClick={() => setIsFilterSettingsOpen(false)}
+                            />
+
+                            {/* Modal */}
+                            <div className="dropdown-popup" style={{
+                                position: 'fixed',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                background: '#0f172a',
+                                border: '1px solid #334155',
+                                borderRadius: '12px',
+                                boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1)',
+                                padding: '0',
+                                zIndex: 901,
+                                width: '600px',
+                                maxWidth: '90vw',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                maxHeight: '85vh'
+                            }}>
+                                {/* Header */}
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '12px 16px',
+                                    borderBottom: '1px solid rgba(255,255,255,0.1)'
+                                }}>
+                                    <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                        Advanced Filter Settings
+                                    </h3>
+                                    <button
+                                        onClick={() => setIsFilterSettingsOpen(false)}
+                                        className="icon-btn"
+                                        style={{ width: '24px', height: '24px' }}
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+
+                                {/* Body */}
+                                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
+
+                                    <div className="text-muted" style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>EXCLUDE FILTERS</div>
+
+                                    {/* Exclude Folders */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Exclude Folders</span>
+                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                                <button
+                                                    className="icon-btn tiny"
+                                                    onClick={() => setManageFilterType('folders')}
+                                                    title="Manage Folder Filters List"
+                                                >
+                                                    <ListChecks size={14} />
+                                                </button>
+                                                <button
+                                                    className="icon-btn tiny"
+                                                    onClick={() => onBrowse?.('import-exclude-folders')}
+                                                    title="Browse for folders to exclude"
+                                                >
+                                                    <Folder size={12} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            className="filter-input"
+                                            placeholder="e.g. node_modules, .git"
+                                            value={excludeFolders || ''}
+                                            onChange={(e) => setExcludeFolders?.(e.target.value)}
+                                            style={{
+                                                background: 'rgba(0,0,0,0.2)',
+                                                border: '1px solid var(--border-color)',
+                                                borderRadius: '6px',
+                                                padding: '8px',
+                                                color: 'var(--text-primary)',
+                                                fontSize: '13px',
+                                                width: '100%'
+                                            }}
+                                        />
+                                    </div>
+
+                                    {/* Exclude Files */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Exclude Files</span>
+                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                                <button
+                                                    className="icon-btn tiny"
+                                                    onClick={() => setManageFilterType('files')}
+                                                    title="Manage File Filters List"
+                                                >
+                                                    <ListChecks size={14} />
+                                                </button>
+                                                <button
+                                                    className="icon-btn tiny"
+                                                    onClick={() => onBrowse?.('import-exclude-files')}
+                                                    title="Browse for files to exclude"
+                                                >
+                                                    <FileText size={12} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            className="filter-input"
+                                            placeholder="e.g. *.log, .DS_Store"
+                                            value={excludeFiles || ''}
+                                            onChange={(e) => setExcludeFiles?.(e.target.value)}
+                                            style={{
+                                                background: 'rgba(0,0,0,0.2)',
+                                                border: '1px solid var(--border-color)',
+                                                borderRadius: '6px',
+                                                padding: '8px',
+                                                color: 'var(--text-primary)',
+                                                fontSize: '13px',
+                                                width: '100%'
+                                            }}
+                                        />
+                                    </div>
+
+                                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }}></div>
+
+                                    <div className="text-muted" style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>HIDDEN ITEMS</div>
+
+                                    {/* Show Hidden Toggle */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Show Hidden Items</span>
+                                        <button
+                                            className={`toggle-option ${showHidden ? 'selected' : ''}`}
+                                            onClick={toggleShowHidden}
+                                            style={{
+                                                border: 'none',
+                                                background: showHidden ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)',
+                                                color: showHidden ? '#60a5fa' : 'var(--text-secondary)',
+                                                borderRadius: '4px',
+                                                padding: '4px 12px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                transition: 'all 0.2s',
+                                                fontWeight: 500
+                                            }}
+                                        >
+                                            {showHidden ? <Eye size={14} style={{ marginRight: '6px' }} /> : <EyeOff size={14} style={{ marginRight: '6px' }} />}
+                                            {showHidden ? 'Shown' : 'Hidden'}
+                                        </button>
+                                    </div>
+
+                                    {/* Hidden Paths List */}
+                                    {hiddenPaths && hiddenPaths.size > 0 && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                                Manually Hidden ({hiddenPaths.size})
+                                            </span>
+                                            <div style={{
+                                                background: 'rgba(0,0,0,0.2)',
+                                                border: '1px solid var(--border-color)',
+                                                borderRadius: '6px',
+                                                padding: '8px',
+                                                color: 'var(--text-secondary)',
+                                                fontSize: '12px',
+                                                maxHeight: '150px',
+                                                overflowY: 'auto',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '4px'
+                                            }}>
+                                                {Array.from(hiddenPaths).map(path => (
+                                                    <div
+                                                        key={path}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'space-between',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '4px',
+                                                            background: 'rgba(255,255,255,0.05)',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                        className="hidden-path-item"
+                                                        onClick={() => toggleHiddenPath?.(path)}
+                                                        title={`Unhide ${path}`}
+                                                    >
+                                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{path}</span>
+                                                        <Eye size={12} style={{ opacity: 0.5 }} />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
+                                                Click item to unhide, or use eye icon in tree.
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Footer Tip */}
+                                <div style={{
+                                    padding: '12px 16px',
+                                    borderTop: '1px solid rgba(255,255,255,0.1)',
+                                    background: 'rgba(0,0,0,0.2)',
+                                    borderRadius: '0 0 12px 12px',
+                                    fontSize: '12px',
+                                    color: '#64748b'
+                                }}>
+                                    Changes are applied automatically.
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+
                 <button
                     className={`icon-btn ${isLocked ? 'active' : ''}`}
                     onClick={() => setIsLocked?.(!isLocked)}
@@ -676,6 +1117,241 @@ export function FilterToolbar({
             </div>
             <div className="separator"></div>
             <div className="filter-group">
+                {/* Advanced Filter Settings (Modal Overlay) */}
+                <div className="relative">
+                    <button
+                        className={`icon-btn ${isFilterSettingsOpen ? 'active' : ''}`}
+                        onClick={() => setIsFilterSettingsOpen(!isFilterSettingsOpen)}
+                        title="Advanced Filter Settings"
+                    >
+                        <SlidersHorizontal size={16} />
+                    </button>
+                    {isFilterSettingsOpen && (
+                        <>
+                            {/* Backdrop */}
+                            <div
+                                style={{
+                                    position: 'fixed',
+                                    inset: 0,
+                                    background: 'rgba(0,0,0,0.6)',
+                                    zIndex: 900,
+                                    backdropFilter: 'blur(2px)'
+                                }}
+                                onClick={() => setIsFilterSettingsOpen(false)}
+                            />
+
+                            {/* Modal */}
+                            <div className="dropdown-popup" style={{
+                                position: 'fixed',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                background: '#0f172a',
+                                border: '1px solid #334155',
+                                borderRadius: '12px',
+                                boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1)',
+                                padding: '0',
+                                zIndex: 901,
+                                width: '600px',
+                                maxWidth: '90vw',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                maxHeight: '85vh'
+                            }}>
+                                {/* Header */}
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '12px 16px',
+                                    borderBottom: '1px solid rgba(255,255,255,0.1)'
+                                }}>
+                                    <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                        Advanced Filter Settings
+                                    </h3>
+                                    <button
+                                        onClick={() => setIsFilterSettingsOpen(false)}
+                                        className="icon-btn"
+                                        style={{ width: '24px', height: '24px' }}
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+
+                                {/* Body */}
+                                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
+
+                                    <div className="text-muted" style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>EXCLUDE FILTERS</div>
+
+                                    {/* Exclude Folders */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Exclude Folders</span>
+                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                                <button
+                                                    className="icon-btn tiny"
+                                                    onClick={() => setManageFilterType('folders')}
+                                                    title="Manage Folder Filters List"
+                                                >
+                                                    <ListChecks size={14} />
+                                                </button>
+                                                <button
+                                                    className="icon-btn tiny"
+                                                    onClick={() => onBrowse?.('import-exclude-folders')}
+                                                    title="Browse for folders to exclude"
+                                                >
+                                                    <Folder size={12} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            className="filter-input"
+                                            placeholder="e.g. node_modules, .git"
+                                            value={excludeFolders || ''}
+                                            onChange={(e) => setExcludeFolders?.(e.target.value)}
+                                            style={{
+                                                background: 'rgba(0,0,0,0.2)',
+                                                border: '1px solid var(--border-color)',
+                                                borderRadius: '6px',
+                                                padding: '8px',
+                                                color: 'var(--text-primary)',
+                                                fontSize: '13px',
+                                                width: '100%'
+                                            }}
+                                        />
+                                    </div>
+
+                                    {/* Exclude Files */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Exclude Files</span>
+                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                                <button
+                                                    className="icon-btn tiny"
+                                                    onClick={() => setManageFilterType('files')}
+                                                    title="Manage File Filters List"
+                                                >
+                                                    <ListChecks size={14} />
+                                                </button>
+                                                <button
+                                                    className="icon-btn tiny"
+                                                    onClick={() => onBrowse?.('import-exclude-files')}
+                                                    title="Browse for files to exclude"
+                                                >
+                                                    <FileText size={12} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            className="filter-input"
+                                            placeholder="e.g. *.log, .DS_Store"
+                                            value={excludeFiles || ''}
+                                            onChange={(e) => setExcludeFiles?.(e.target.value)}
+                                            style={{
+                                                background: 'rgba(0,0,0,0.2)',
+                                                border: '1px solid var(--border-color)',
+                                                borderRadius: '6px',
+                                                padding: '8px',
+                                                color: 'var(--text-primary)',
+                                                fontSize: '13px',
+                                                width: '100%'
+                                            }}
+                                        />
+                                    </div>
+
+                                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }}></div>
+
+                                    <div className="text-muted" style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>HIDDEN ITEMS</div>
+
+                                    {/* Show Hidden Toggle */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Show Hidden Items</span>
+                                        <button
+                                            className={`toggle-option ${showHidden ? 'selected' : ''}`}
+                                            onClick={toggleShowHidden}
+                                            style={{
+                                                border: 'none',
+                                                background: showHidden ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)',
+                                                color: showHidden ? '#60a5fa' : 'var(--text-secondary)',
+                                                borderRadius: '4px',
+                                                padding: '4px 12px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                transition: 'all 0.2s',
+                                                fontWeight: 500
+                                            }}
+                                        >
+                                            {showHidden ? <Eye size={14} style={{ marginRight: '6px' }} /> : <EyeOff size={14} style={{ marginRight: '6px' }} />}
+                                            {showHidden ? 'Shown' : 'Hidden'}
+                                        </button>
+                                    </div>
+
+                                    {/* Hidden Paths List */}
+                                    {hiddenPaths && hiddenPaths.size > 0 && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                                Manually Hidden ({hiddenPaths.size})
+                                            </span>
+                                            <div style={{
+                                                background: 'rgba(0,0,0,0.2)',
+                                                border: '1px solid var(--border-color)',
+                                                borderRadius: '6px',
+                                                padding: '8px',
+                                                color: 'var(--text-secondary)',
+                                                fontSize: '12px',
+                                                maxHeight: '150px',
+                                                overflowY: 'auto',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '4px'
+                                            }}>
+                                                {Array.from(hiddenPaths).map(path => (
+                                                    <div
+                                                        key={path}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'space-between',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '4px',
+                                                            background: 'rgba(255,255,255,0.05)',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                        className="hidden-path-item"
+                                                        onClick={() => toggleHiddenPath?.(path)}
+                                                        title={`Unhide ${path}`}
+                                                    >
+                                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{path}</span>
+                                                        <Eye size={12} style={{ opacity: 0.5 }} />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
+                                                Click item to unhide, or use eye icon in tree.
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Footer Tip */}
+                                <div style={{
+                                    padding: '12px 16px',
+                                    borderTop: '1px solid rgba(255,255,255,0.1)',
+                                    background: 'rgba(0,0,0,0.2)',
+                                    borderRadius: '0 0 12px 12px',
+                                    fontSize: '12px',
+                                    color: '#64748b'
+                                }}>
+                                    Changes are applied automatically.
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+
                 <Folder size={16} className="filter-icon" />
                 <label className="checkbox-container" title="Show Modified">
                     <input type="checkbox" checked={config.folderFilters?.modified ?? true} onChange={() => toggleFilter('modified')} />
@@ -715,6 +1391,17 @@ export function FilterToolbar({
                     <input type="checkbox" checked={config.diffFilters?.same ?? false} onChange={() => toggleDiffFilter('same')} />
                     <span className="checkmark same"></span>
                 </label>
+
+                {/* Unified Merge Mode Toggle */}
+                <button
+                    className={`icon-btn ${config?.viewOptions?.mergeMode === 'unit' ? '' : 'active'}`}
+                    onClick={() => setViewOption('mergeMode', config?.viewOptions?.mergeMode === 'unit' ? 'group' : 'unit')}
+                    title={`Global Merge Mode: ${config?.viewOptions?.mergeMode === 'unit' ? 'Unit (Line-by-Line)' : 'Group (Smart Blocks)'}. Press 'U' to toggle.`}
+                    style={{ color: config?.viewOptions?.mergeMode === 'unit' ? 'white' : 'white', marginLeft: '8px' }}
+                >
+                    {config?.viewOptions?.mergeMode === 'unit' ? <Layers size={16} /> : <Box size={16} />}
+                    <span style={{ fontSize: '9px', marginLeft: '1px', fontWeight: 900, opacity: 0.7 }}>M</span>
+                </button>
             </div>
 
 
@@ -746,7 +1433,23 @@ export function FilterToolbar({
                     <Play size={16} style={{ marginRight: '6px' }} />
                     {loading ? 'Running...' : 'Compare'}
                 </button>
+
+
             </div>
+
+
+            <ManageFiltersModal
+                isOpen={!!manageFilterType}
+                onClose={() => setManageFilterType(null)}
+                type={manageFilterType || 'folders'}
+                activeFiltersStr={manageFilterType === 'folders' ? (excludeFolders || '') : (excludeFiles || '')}
+                disabledFilters={
+                    manageFilterType === 'folders'
+                        ? (config.disabledFilters?.folders || [])
+                        : (config.disabledFilters?.files || [])
+                }
+                onSave={handleSaveFilters}
+            />
         </div >
     );
 }

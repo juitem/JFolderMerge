@@ -47,6 +47,12 @@ interface MainLayoutProps {
 
     // Stats
     fileLineStats?: { added: number, removed: number, groups: number } | null;
+
+    // Advanced Filter Props (for FilterToolbar)
+    hiddenPaths?: Set<string>;
+    toggleHiddenPath?: (path: string) => void;
+    showHidden?: boolean;
+    toggleShowHidden?: () => void;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = (props) => {
@@ -128,6 +134,17 @@ export const MainLayout: React.FC<MainLayoutProps> = (props) => {
                 setIsLocked={props.setIsLocked}
                 layoutMode={props.layoutMode}
                 setLayoutMode={props.setLayoutMode}
+
+                // Advanced Filters
+                excludeFolders={props.excludeFolders}
+                setExcludeFolders={props.setExcludeFolders}
+                excludeFiles={props.excludeFiles}
+                setExcludeFiles={props.setExcludeFiles}
+                onBrowse={props.onBrowse}
+                hiddenPaths={props.hiddenPaths}
+                toggleHiddenPath={props.toggleHiddenPath}
+                showHidden={props.showHidden}
+                toggleShowHidden={props.toggleShowHidden}
             />
 
             {/* Path Controls */}

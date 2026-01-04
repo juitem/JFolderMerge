@@ -417,7 +417,15 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                     />
                 )}
                 {(mode === 'raw' || mode === 'single') && rawContent && (
-                    <RawView left={rawContent.left} right={rawContent.right} mode={mode === 'single' ? 'single' : 'raw'} />
+                    <RawView
+                        left={rawContent.left}
+                        right={rawContent.right}
+                        mode={mode === 'single' ? 'single' : 'raw'}
+                        showLineNumbers={!!(config.viewOptions?.showLineNumbers ?? true)}
+                        wrap={!!config.viewOptions?.wordWrap}
+                        leftPath={leftPathBase ? leftPathBase + '/' + relPath : undefined}
+                        rightPath={rightPathBase ? rightPathBase + '/' + relPath : undefined}
+                    />
                 )}
                 {mode === 'combined' && diffData && (
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>

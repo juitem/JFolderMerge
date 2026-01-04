@@ -92,8 +92,10 @@ export const useAppLogic = () => {
             configInitialized.current = true;
             if (config.left) setLPath(config.left);
             if (config.right) setRPath(config.right);
+            // Force folder view initially (regardless of saved pref) as no file is selected
+            viewState.setLayoutMode('folder');
         }
-    }, [config]);
+    }, [config, viewState.setLayoutMode]);
 
     const prevSelectedNodePath = useRef<string | null>(null);
 
@@ -173,6 +175,7 @@ export const useAppLogic = () => {
             }
             if (e.key === '?' || e.key === 'F1') {
                 e.preventDefault();
+                e.stopPropagation();
                 modalState.setHelpOpen(true);
             }
         };
@@ -239,6 +242,7 @@ export const useAppLogic = () => {
 
     const onCompare = () => {
         setSelectedNode(null);
+        viewState.setLayoutMode('folder'); // Reset layout to folder view
         compare(lPath, rPath, viewState.excludeFiles, viewState.excludeFolders);
         if (config) {
             saveConfig({ ...config, left: lPath, right: rPath });

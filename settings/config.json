@@ -15,7 +15,7 @@
   },
   "viewOptions": {
     "darkMode": false,
-    "folderViewMode": "flat",
+    "folderViewMode": "split",
     "showLineNumbers": true,
     "diffMode": "agent",
     "leftPanelWidth_split": 50,
@@ -38,7 +38,7 @@
     "showHideIcons": false
   },
   "savedExcludes": {
-    "folders": ".git, .tmp, __pycache__, .vscode, .idea, .venv, venv, ROOTFS, jfoldermerge-vscode, node_modules, dist",
+    "folders": "__pycache__, .git, .idea, .tmp, .venv, .vscode, dist, jfoldermerge-vscode, node_modules, ROOTFS, venv",
     "files": ".tmp, *.pyc, .DS_Store"
   }
 }

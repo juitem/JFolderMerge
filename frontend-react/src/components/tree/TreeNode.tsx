@@ -66,6 +66,9 @@ const TreeNodeComponent: React.FC<TreeNodeProps> = ({
 
     const isFolder = node.type === 'directory';
 
+    const isMissingOnSide = (side === 'left' && node.status === 'added') ||
+        (side === 'right' && node.status === 'removed');
+
     return (
         <div
             className={`tree-row tree-node ${isFolder ? 'directory' : 'file'} ${isFocused ? 'focused-row' : ''} ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''} ${node.status} ${(node as any).isHidden ? 'is-hidden' : ''}`}
@@ -97,7 +100,8 @@ const TreeNodeComponent: React.FC<TreeNodeProps> = ({
                         alignItems: 'center',
                         justifyContent: 'center',
                         padding: '0 4px',
-                        marginRight: '2px'
+                        marginRight: '2px',
+                        visibility: isMissingOnSide ? 'hidden' : 'visible'
                     }}
                 >
                     <input
@@ -123,7 +127,9 @@ const TreeNodeComponent: React.FC<TreeNodeProps> = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     // Hide toggle in flat mode OR for Root (depth 0) to enforce stability
-                    visibility: (isFolder && !isFlat && depth > 0) ? 'visible' : 'hidden',
+                    // Also hide if missing on this side? Directories usually exist in both or handled differently.
+                    // If directory is 'added', it's not on left.
+                    visibility: (isFolder && !isFlat && depth > 0 && !isMissingOnSide) ? 'visible' : 'hidden',
                     transform: isExpanded ? 'rotate(90deg)' : 'none',
                     transition: 'transform 0.1s',
                     color: 'var(--text-secondary, #888)'
@@ -133,7 +139,13 @@ const TreeNodeComponent: React.FC<TreeNodeProps> = ({
             </span>
 
             {/* Icon Area with Depth Badge */}
-            <div style={{ position: 'relative', marginRight: '8px', display: 'flex', alignItems: 'center' }}>
+            <div style={{
+                position: 'relative',
+                marginRight: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                opacity: isMissingOnSide ? 0 : 1
+            }}>
                 {/* Depth Badge for Flat View */}
                 {isFlat && isFolder && (
                     <span className="depth-badge" style={{
@@ -164,6 +176,7 @@ const TreeNodeComponent: React.FC<TreeNodeProps> = ({
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                opacity: isMissingOnSide ? 0 : 1, // Visual hide
                 color: showText ? (
                     node.status === 'added' ? 'var(--success)' :
                         node.status === 'removed' ? 'var(--danger-soft)' :
