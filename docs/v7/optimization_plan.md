@@ -1,49 +1,49 @@
 # Architecture Optimization Plan (v7)
 
-현재 소스 코드의 기능을 단순히 옮기는 것이 아니라, **v7 아키텍처에서 더 효율적으로 개선할 지점들**을 정리했습니다.
+Summary of points for more efficient improvement in the **v7 architecture**, rather than just moving existing source code functions.
 
 ---
 
-## 1. 'God Hook' 해체 (useAppLogic -> Domain Services)
-*   **현재 문제**: `useAppLogic.ts`가 설정, 파일 작업, 통계 계산, 모달 상태를 모두 관리합니다. (약 300라인)
-*   **개선 방향**:
-    *   **FileActionService**: `deleteFile`, `mergeFile` 등 순수 로직 분리. (UI hook 의존성 제거)
-    *   **StatsEngine**: 트리 데이터를 기반으로 A/M/R 통계를 계산하는 로직을 별도 Worker나 Memoized Service로 분리하여 메인 스레드 부담 감소.
-    *   **NavigationStore**: 현재의 포커스 상태(`focusedPath`)를 전역 오케스트레이터가 아닌 전용 Store에서 관리하여 트리 렌더링과 독립적으로 처리.
+## 1. Dismantling the 'God Hook' (useAppLogic -> Domain Services)
+*   **Current Problem**: `useAppLogic.ts` manages settings, file operations, statistics calculation, and modal states all at once. (Approximately 300 lines)
+*   **Direction for Improvement**:
+    *   **FileActionService**: Separate pure logic such as `deleteFile`, `mergeFile`, etc. (Remove UI hook dependencies)
+    *   **StatsEngine**: Separate the logic for calculating A/M/R statistics based on tree data into a separate worker or memoized service to reduce main thread burden.
+    *   **NavigationStore**: Manage the current focus state (`focusedPath`) in a dedicated store rather than the global orchestrator to handle it independently from tree rendering.
 
-## 2. 중복된 파일 조작 로직 통합 (DiffViewer -> Mutation Engine)
-*   **현재 문제**: `handleLineMerge`와 `handleAgentMerge`가 "파일 읽기 -> 줄 나누기 -> 수정 -> 다시 합치기 -> 저장" 과정을 각각 독립적으로 수행합니다.
-*   **개선 방향**: 
-    *   **Command Pattern**을 적용하여 `ApplyPatchCommand` 하나로 통합.
-    *   블록 단위, 라인 단위, 파일 단위 수정이 모두 하나의 엔진을 거치도록 하여 버그 발생 가능성 감소.
+## 2. Integrating Redundant File Manipulation Logic (DiffViewer -> Mutation Engine)
+*   **Current Problem**: `handleLineMerge` and `handleAgentMerge` perform the "Read File -> Split Lines -> Modify -> Join Again -> Save" process independently.
+*   **Direction for Improvement**: 
+    *   Apply the **Command Pattern** to integrate into a single `ApplyPatchCommand`.
+    *   Consolidate block-level, line-level, and file-level modifications through a single engine to reduce the possibility of bugs.
 
-## 3. 선언적 네비게이션 (Switch Case -> Command Map)
-*   **현재 문제**: `FolderTree.tsx`의 70라인에 달하는 `switch(e.key)` 문은 새로운 단축키를 추가할 때마다 컴포넌트를 수정해야 합니다.
-*   **개선 방향**:
-    *   **Input Service**가 키 입력을 추상화된 커맨드(예: `cmd.nav.down`)로 변환.
-    *   컴포넌트는 해당 커맨드가 도착했을 때 무엇을 할지만 등록(Register)하여 유연성 확보.
+## 3. Declarative Navigation (Switch Case -> Command Map)
+*   **Current Problem**: The `switch(e.key)` statement in `FolderTree.tsx`, which reaches 70 lines, requires modifying the component every time a new hotkey is added.
+*   **Direction for Improvement**:
+    *   The **Input Service** abstracts key inputs into commands (e.g., `cmd.nav.down`).
+    *   Components ensure flexibility by registering only what to do when that command arrives.
 
-## 4. 상태 전파 최적화 (Prop Drilling -> Context Bus)
-*   **현재 문제**: `onMerge`, `onDelete` 함수가 `App -> FolderTree -> VirtualTreeList -> TreeNode`까지 4단계를 타고 내려갑니다.
-*   **개선 방향**:
-    *   **Scoped Context** 사용: 트리 영역 전체를 감싸는 Context를 통해 `TreeNode`가 직접 명령을 호출. 중간 컴포넌트들의 불필요한 리렌더링 방지.
+## 4. State Propagation Optimization (Prop Drilling -> Context Bus)
+*   **Current Problem**: Functions like `onMerge` and `onDelete` are passed down through 4 steps: `App -> FolderTree -> VirtualTreeList -> TreeNode`.
+*   **Direction for Improvement**:
+    *   Use **Scoped Context**: `TreeNode` directly calls commands through a context that wraps the entire tree area. Prevent unnecessary re-rendering of intermediate components.
 
-## 6. 의도 기반 액션 잠금 (Intent-based Action Locking)
-*   **현재 문제**: 엔터를 실수로 눌러 원치 않는 머지가 발생하는 경우가 있습니다.
-*   **개선 방향**: 
-    *   **Deterministic Interaction**: 본문(Content) 상태에서는 엔터가 작동하지 않도록 잠금.
-    *   사용자가 명시적으로 `ArrowLeft/Right`를 눌러 '수락' 또는 '반영' 의도를 선택했을 때만 머지가 실행되도록 하여 휴먼 에러 원천 차단.
+## 5. Intent-based Action Locking
+*   **Current Problem**: Desired merges may occur due to accidental Enter key presses.
+*   **Direction for Improvement**: 
+    *   **Deterministic Interaction**: Lock the Enter key so it doesn't work in the main text (Content) state.
+    *   Fundamentally block human error by executing merge only when the user explicitly selects 'Accept' or 'Revert' intent via `ArrowLeft/Right`.
 
-## 7. 액션 버튼의 시각적 안정성 (Action Stability)
-*   텍스트가 길어지더라도 버튼의 X좌표는 변하지 않도록 CSS Flexbox/Grid를 활용해 레이아웃을 고정합니다. ( Repetitive Action 효율성 증대)
+## 6. Visual Stability of Action Buttons (Action Stability)
+*   Utilize CSS Flexbox/Grid to fix the layout so that the X-coordinate of buttons doesn't change even if text length increases. (Increase Repetitive Action efficiency)
 
-## 8. 테스트 주도 진화 (Test-Driven Evolution)
-*   **현재 문제**: 수동 테스트에 의존하여 기능 변경 시 부작용(Side Effect)을 감지하기 어렵습니다.
-*   **개선 방향**:
-    *   **Unit Test First**: 새로운 서비스를 만들 때 Jest/Vitest를 이용한 단위 테스트를 먼저 작성하여 기존 기능과의 호환성 검증.
-    *   **Action Logging**: 모든 커맨드 실행을 로깅하여, 특정 조건에서 왜 뷰어가 열리지 않았는지 등을 사후 분석 가능하게 구성.
+## 7. Test-Driven Evolution
+*   **Current Problem**: Relying on manual testing makes it difficult to detect side effects during functional changes.
+*   **Direction for Improvement**:
+    *   **Unit Test First**: Write unit tests using Jest/Vitest first when creating new services to verify compatibility with existing functions.
+    *   **Action Logging**: Log every command execution to allow post-analysis of why the viewer didn't open under specific conditions.
 
 ---
 
-## 6. 결론: "기능은 유지하되, 구조는 혁신"
-단순 이식(Migration)이 아닌 **진화(Evolution)**를 목표로 합니다. 위 개선안들이 적용되면 코드는 더 짧아지고, 반응 속도는 더 빨라지며, 새로운 기능을 추가하기는 훨씬 쉬워질 것입니다.
+## 8. Conclusion: "Maintain Functionality, Innovate Structure"
+Target **Evolution** rather than simple migration. Once these improvements are applied, the code will be shorter, response speed will be faster, and adding new features will be much easier.
