@@ -8,7 +8,7 @@ interface TreeRowActionsProps {
     actions: {
         onMerge: (node: FileNode, dir: 'left-to-right' | 'right-to-left') => void;
         onDelete: (node: FileNode, side: 'left' | 'right') => void;
-        onHide?: (node: FileNode) => void;
+        onHide?: (path: string) => void;
     };
     showMerge?: boolean;
     showDelete?: boolean;
@@ -126,7 +126,7 @@ export const TreeRowActions: React.FC<TreeRowActionsProps> = ({ node, side, acti
                     style={{ width: '24px', opacity: 0.6 }}
                     onClick={(e) => {
                         e.stopPropagation();
-                        actions.onHide!(node);
+                        actions.onHide!(node.path);
                     }}
                     title="Hide File (Ctrl/Alt+H)"
                 >

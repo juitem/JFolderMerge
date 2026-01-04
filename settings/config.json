@@ -22,7 +22,7 @@
     "leftPanelWidth_unified": 30,
     "leftPanelWidth_flat": 25,
     "confirmMerge": false,
-    "wordWrap": true,
+    "wordWrap": false,
     "layoutMode": "split",
     "autoScroll": false,
     "showStatusIcons": true,
@@ -35,7 +35,10 @@
     "agentMergeMode": "replace",
     "mergeMode": "group",
     "showHidden": false,
-    "showHideIcons": false
+    "showHideIcons": false,
+    "lineNumbers": true,
+    "highlightChanges": true,
+    "showSelectionCheckboxes": false
   },
   "savedExcludes": {
     "folders": "__pycache__, .git, .idea, .tmp, .venv, .vscode, dist, jfoldermerge-vscode, node_modules, ROOTFS, venv",

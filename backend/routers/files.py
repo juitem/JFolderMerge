@@ -2,7 +2,7 @@
 import shutil
 import os
 from fastapi import APIRouter, HTTPException
-from ..models import CopyRequest, SaveRequest, DeleteRequest, ListDirRequest
+from ..models import CopyRequest, SaveRequest, DeleteRequest, ListDirRequest, BatchCopyRequest, BatchDeleteRequest
 
 router = APIRouter()
 
@@ -62,6 +62,81 @@ def save_file(req: SaveRequest):
             except:
                 pass
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/batch-copy")
+def batch_copy_items(req: BatchCopyRequest):
+    created_paths = []
+    try:
+        for item in req.items:
+            # 1. Check Source
+            if not os.path.exists(item.source_path):
+                raise Exception(f"Source not found: {item.source_path}")
+
+            # 2. Prepare Dest
+            dest_parent = os.path.dirname(item.dest_path)
+            if not os.path.exists(dest_parent):
+                os.makedirs(dest_parent, exist_ok=True)
+            
+            # 3. Copy
+            if item.is_dir:
+                if os.path.exists(item.dest_path):
+                    shutil.rmtree(item.dest_path)
+                shutil.copytree(item.source_path, item.dest_path)
+            else:
+                shutil.copy2(item.source_path, item.dest_path)
+            
+            created_paths.append(item.dest_path)
+
+        return {"status": "success", "processed": len(created_paths)}
+
+    except Exception as e:
+        # Rollback: Delete all files/folders created during this transaction
+        print(f"Batch Copy Failed: {e}. Rolling back {len(created_paths)} items.")
+        for path in reversed(created_paths):
+            try:
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                else:
+                    os.remove(path)
+            except Exception as rollback_error:
+                print(f"Rollback failed for {path}: {rollback_error}")
+        
+        raise HTTPException(status_code=500, detail=f"Transaction Failed: {str(e)}")
+
+@router.post("/batch-delete")
+def batch_delete_items(req: BatchDeleteRequest):
+    # Note: Rollback for delete is not supported without a Trash bin.
+    # We will perform a 'check all' pass first to minimize partial failure risk, then delete.
+    
+    # 1. Validation Pass
+    for path in req.paths:
+        if not os.path.exists(path):
+            # We can either fail strict or ignore. 
+            # For transaction-like behavior, failing strict is better.
+            raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    # 2. Execution Pass
+    deleted_paths = []
+    try:
+        for path in req.paths:
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
+            deleted_paths.append(path)
+        
+        return {"status": "success", "processed": len(deleted_paths)}
+
+    except Exception as e:
+        # Partial failure happened.
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "message": "Batch Delete Failed", 
+                "error": str(e), 
+                "deleted": deleted_paths
+            }
+        )
 
 @router.post("/delete")
 def delete_item(req: DeleteRequest):

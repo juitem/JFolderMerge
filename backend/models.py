@@ -29,8 +29,14 @@ class CopyRequest(BaseModel):
     dest_path: str
     is_dir: bool
 
+class BatchCopyRequest(BaseModel):
+    items: List[CopyRequest]
+
 class DeleteRequest(BaseModel):
     path: str
+
+class BatchDeleteRequest(BaseModel):
+    paths: List[str]
 
 class HistoryRequest(BaseModel):
     left_path: str
@@ -58,3 +64,7 @@ class ConfigUpdateRequest(BaseModel):
     diffFilters: Optional[dict] = None
     viewOptions: Optional[dict] = None
     savedExcludes: Optional[dict] = None
+
+class OpenRequest(BaseModel):
+    path: str
+

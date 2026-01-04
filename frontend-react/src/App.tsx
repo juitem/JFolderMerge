@@ -117,8 +117,6 @@ function App() {
           externalEditorPath={logic.externalEditorPath}
           onSetExternalEditor={logic.handleSetExternalEditor}
           onOpenExternal={logic.handleOpenExternal}
-          diffMode={logic.diffMode}
-          setDiffMode={logic.setDiffMode}
         />
       </MainLayout>
 

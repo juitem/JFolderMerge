@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FileDiff, Bot, Layout, Columns, Rows, FileCode, FileText, WrapText, ChevronsUp, ChevronsDown, Eye, EyeOff, ArrowUpToLine, ArrowDownToLine, Hash } from 'lucide-react';
+import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
 import { FolderTree, type FolderTreeHandle } from '../FolderTree';
 
 import { useConfig } from '../../contexts/ConfigContext';
@@ -8,6 +9,7 @@ import { viewerRegistry } from '../../viewers/ViewerRegistry';
 import { layoutService } from '../../services/layout/LayoutService';
 
 interface WorkspaceProps {
+    // ... existing props ...
     // Tree Props
     treeData: FileNode | null;
     config: Config | null;
@@ -58,6 +60,16 @@ interface WorkspaceProps {
     onExecuteBatchMerge?: (dir: 'left-to-right' | 'right-to-left') => void;
     onExecuteBatchDelete?: (side: 'left' | 'right') => void;
     onShowConfirm?: (title: string, message: string, action: () => void) => void;
+
+    // Context Menu Props
+    contextMenu?: { x: number, y: number, items: ContextMenuItem[] } | null;
+    onContextMenu?: (e: React.MouseEvent, node: FileNode) => void;
+    onCloseContextMenu?: () => void;
+
+    // External Tools
+    externalEditorPath?: string;
+    onSetExternalEditor?: (path: string) => void;
+    onOpenExternal?: (node: FileNode) => void;
 }
 
 export const Workspace: React.FC<WorkspaceProps> = (props) => {
@@ -327,6 +339,9 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                         onClearSelection={props.onClearSelection}
                         onExecuteBatchMerge={props.onExecuteBatchMerge}
                         onExecuteBatchDelete={props.onExecuteBatchDelete}
+
+                        // Context Menu Props
+                        onContextMenu={props.onContextMenu}
                     />
                 )}
             </div>
@@ -417,6 +432,16 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
                     </div>
                 )}
             </div>
+
+            {/* Context Menu Rendering */}
+            {props.contextMenu && props.onCloseContextMenu && (
+                <ContextMenu
+                    x={props.contextMenu.x}
+                    y={props.contextMenu.y}
+                    items={props.contextMenu.items}
+                    onClose={props.onCloseContextMenu}
+                />
+            )}
         </div>
     );
 };

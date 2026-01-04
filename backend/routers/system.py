@@ -7,7 +7,7 @@ import subprocess
 import datetime
 from fastapi import APIRouter, HTTPException
 from ..global_state import GlobalState
-from ..models import HistoryRequest, ExternalToolRequest, ConfigUpdateRequest
+from ..models import HistoryRequest, ExternalToolRequest, ConfigUpdateRequest, OpenRequest
 
 router = APIRouter()
 
@@ -140,6 +140,30 @@ def open_external(req: ExternalToolRequest):
              cmd = ["opendiff", req.left_path, req.right_path]
         else:
              raise HTTPException(status_code=501, detail="No suitable diff tool found")
+
+    try:
+        subprocess.Popen(cmd)
+        return {"status": "success", "command": " ".join(cmd)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/open-path")
+def open_path(req: OpenRequest):
+    if not os.path.exists(req.path):
+        raise HTTPException(status_code=404, detail="Path not found")
+
+    system = platform.system()
+    cmd = []
+
+    if system == "Darwin":
+        cmd = ["open", req.path]
+    elif system == "Windows":
+        cmd = ["explorer", req.path]
+    elif system == "Linux":
+        cmd = ["xdg-open", req.path]
+    else:
+        # Fallback for other UNIX-like
+        cmd = ["xdg-open", req.path]
 
     try:
         subprocess.Popen(cmd)

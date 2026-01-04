@@ -84,6 +84,7 @@ export interface FolderTreeProps {
     onSelectByStatus?: (status: 'added' | 'removed' | 'modified') => void;
     onExecuteBatchMerge?: (dir: 'left-to-right' | 'right-to-left') => void;
     onExecuteBatchDelete?: (side: 'left' | 'right') => void;
+    onContextMenu?: (e: React.MouseEvent, node: FileNode) => void;
 }
 
 export interface FolderTreeHandle {
@@ -502,6 +503,7 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
 
         // 1. Handle Directory Expansion (Single Click behavior preservation)
         if (n.type === 'directory' && !event?.ctrlKey && !event?.metaKey && !event?.shiftKey) {
+            setFocusedPath(n.path);
             toggleExpand(n.path);
             return;
         }
@@ -610,8 +612,7 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                             actions={actions}
                             folderStats={folderStats}
                             selectionSet={selectionSet}
-                            // @ts-ignore
-                            isSelectionMode={selectionSet && selectionSet.size > 0}
+                            isSelectionMode={!!((selectionSet && selectionSet.size > 0) || isExplicitSelectionMode || config?.viewOptions?.showSelectionCheckboxes === true)}
                             onToggleSelection={onToggleSelection}
                         />
                     </div>
@@ -635,8 +636,7 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                                             actions={actions}
                                             folderStats={folderStats}
                                             selectionSet={selectionSet}
-                                            // @ts-ignore
-                                            isSelectionMode={selectionSet && selectionSet.size > 0}
+                                            isSelectionMode={!!((selectionSet && selectionSet.size > 0) || isExplicitSelectionMode || config?.viewOptions?.showSelectionCheckboxes === true)}
                                             onToggleSelection={onToggleSelection}
                                             scrollerRef={(el) => (scrollerRefs.left.current = el)}
                                         />
@@ -655,8 +655,7 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                                             actions={actions}
                                             folderStats={folderStats}
                                             selectionSet={selectionSet}
-                                            // @ts-ignore
-                                            isSelectionMode={selectionSet && selectionSet.size > 0}
+                                            isSelectionMode={!!((selectionSet && selectionSet.size > 0) || isExplicitSelectionMode || config?.viewOptions?.showSelectionCheckboxes === true)}
                                             onToggleSelection={onToggleSelection}
                                             scrollerRef={(el) => (scrollerRefs.right.current = el)}
                                         />
