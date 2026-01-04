@@ -149,6 +149,14 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
         selectPrevStatus
     } = useTreeNavigation(root, config, searchQuery, onNavigationSelect, hiddenPaths, showHidden);
 
+    // 4. Focus Zone State (Standardizing with AgentView)
+    const [focusZone, setFocusZone] = React.useState<'content' | 'accept' | 'revert'>('content');
+
+    // Reset zone when path changes
+    useEffect(() => {
+        setFocusZone('content');
+    }, [focusedPath]);
+
     // 2. Sync External Selection to Internal Focus
     useEffect(() => {
         if (selectedNode) {
@@ -303,7 +311,9 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
 
         switch (e.key) {
             case 'Escape':
-                if (onClearSelection && selectionSet && selectionSet.size > 0) {
+                if (focusZone !== 'content') {
+                    setFocusZone('content');
+                } else if (onClearSelection && selectionSet && selectionSet.size > 0) {
                     e.stopPropagation();
                     onClearSelection();
                 }
@@ -326,6 +336,11 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                     } else if (node.type === 'directory') {
                         if (!expandedPaths.has(node.path)) toggleExpand(node.path);
                         else moveFocus(1); // Move to child
+                    } else {
+                        // File Logic: Linear Scale [Accept] <-> [Content] <-> [Revert]
+                        if (focusZone === 'accept') setFocusZone('content');
+                        else if (focusZone === 'content') setFocusZone('revert');
+                        // Sticky at revert
                     }
                 }
                 break;
@@ -341,8 +356,8 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                         else if (node.status === 'modified') onMerge(node, 'right-to-left');
                     } else if (node.type === 'directory' && expandedPaths.has(node.path)) {
                         toggleExpand(node.path);
-                    } else {
-                        // Jump to Parent Logic
+                    } else if (node.type === 'directory') {
+                        // Jump to Parent
                         const currentIndex = visibleNodes.indexOf(node);
                         let parentIndex = -1;
                         for (let i = currentIndex - 1; i >= 0; i--) {
@@ -351,8 +366,24 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                                 break;
                             }
                         }
-                        if (parentIndex !== -1) {
-                            moveFocus(parentIndex - currentIndex);
+                        if (parentIndex !== -1) moveFocus(parentIndex - currentIndex);
+                    } else {
+                        // File Logic: Linear Scale [Accept] <-> [Content] <-> [Revert]
+                        if (focusZone === 'revert') setFocusZone('content');
+                        else if (focusZone === 'content') setFocusZone('accept');
+                        else {
+                            // Already at Accept or Content? 
+                            // If we want to preserve "Jump to Parent" from Accept, we do it here.
+                            // But for now, let's keep it sticky at Accept or just do Jump to Parent if already Accept.
+                            const currentIndex = visibleNodes.indexOf(node);
+                            let parentIndex = -1;
+                            for (let i = currentIndex - 1; i >= 0; i--) {
+                                if ((visibleNodes[i] as any).depth < (node as any).depth) {
+                                    parentIndex = i;
+                                    break;
+                                }
+                            }
+                            if (parentIndex !== -1) moveFocus(parentIndex - currentIndex);
                         }
                     }
                 }
@@ -408,9 +439,20 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                 if (node) {
                     if (node.type === 'directory') toggleExpand(node.path);
                     else {
-                        setOptimisticSelectedPath(node.path);
-                        onSelect(node);
-                        layoutService.focusContent();
+                        if (focusZone === 'accept') {
+                            if (node.status === 'added') onMerge(node, 'right-to-left');
+                            else if (node.status === 'removed') onDelete(node, 'left');
+                            else if (node.status === 'modified') onMerge(node, 'right-to-left');
+                        } else if (focusZone === 'revert') {
+                            if (node.status === 'added') onDelete(node, 'right');
+                            else if (node.status === 'removed') onMerge(node, 'left-to-right');
+                            else if (node.status === 'modified') onMerge(node, 'left-to-right');
+                        } else {
+                            // Default behavior: Select & Focus Content
+                            setOptimisticSelectedPath(node.path);
+                            onSelect(node);
+                            layoutService.focusContent();
+                        }
                     }
                 }
                 break;
@@ -550,6 +592,7 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                             side="unified"
                             expandedPaths={expandedPaths}
                             focusedPath={focusedPath}
+                            focusZone={focusZone}
                             selectedPath={optimisticSelectedPath ?? selectedNode?.path}
                             onToggle={toggleExpand}
                             config={config}
@@ -574,6 +617,7 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                                             side="left"
                                             expandedPaths={expandedPaths}
                                             focusedPath={focusedPath}
+                                            focusZone={focusZone}
                                             selectedPath={optimisticSelectedPath ?? selectedNode?.path}
                                             onToggle={toggleExpand}
                                             config={config}
@@ -593,6 +637,7 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                                             side="right"
                                             expandedPaths={expandedPaths}
                                             focusedPath={focusedPath}
+                                            focusZone={focusZone}
                                             selectedPath={optimisticSelectedPath ?? selectedNode?.path}
                                             onToggle={toggleExpand}
                                             config={config}

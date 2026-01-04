@@ -402,16 +402,15 @@ h3 {
     background: rgba(255, 255, 255, 0.02);
 }
 
-.item-name {
+.node-name {
     font-size: 0.9rem;
     color: var(--text-primary);
     flex: 1;
     /* Push status/icons to right */
-    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-right: 8px;
+    padding: 0 4px;
     transition: all 0.25s ease;
 }
 
@@ -522,32 +521,36 @@ h3 {
     box-shadow: 0 0 12px rgba(244, 63, 94, 0.4);
 }
 
-/* --- Visual Hover Feedback (Action Previews) --- */
+/* --- Visual Hover & Focus Feedback (Action Previews) --- */
 
-/* 1. Deletion Preview: When hovering Trash icon */
-.tree-node:has(.delete-btn:hover) {
+/* 1. Deletion Preview: When hovering or keyboard-focusing Trash icon */
+.tree-node:has(.delete-btn:hover),
+.tree-node:has(.delete-btn.focused-intent) {
     background: rgba(244, 63, 94, 0.2) !important;
 }
 
-.tree-node:has(.delete-btn:hover) .item-name {
+.tree-node:has(.delete-btn:hover) .node-name,
+.tree-node:has(.delete-btn.focused-intent) .node-name {
     text-decoration: line-through;
     opacity: 0.45;
     color: var(--danger-soft);
-    filter: blur(0.4px);
 }
 
-/* 2. Merge Preview (To Left): When hovering Accept icon */
-.tree-node:has(.merge-btn.to-left:hover) {
+/* 2. Merge Preview (To Left): When hovering or keyboard-focusing Accept icon */
+.tree-node:has(.merge-btn.to-left:hover),
+.tree-node:has(.merge-btn.to-left.focused-intent) {
     background: rgba(16, 185, 129, 0.2) !important;
 }
 
-/* 3. Merge Preview (To Right): When hovering Revert icon */
-.tree-node:has(.merge-btn.to-right:hover) {
+/* 3. Merge Preview (To Right): When hovering or keyboard-focusing Revert icon */
+.tree-node:has(.merge-btn.to-right:hover),
+.tree-node:has(.merge-btn.to-right.focused-intent) {
     background: rgba(236, 72, 153, 0.2) !important;
 }
 
 /* Optional: Subtle glow to the name when merging */
-.tree-node:has(.merge-btn:hover) .item-name {
+.tree-node:has(.merge-btn:hover) .node-name,
+.tree-node:has(.focused-intent) .node-name {
     text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
 }
 

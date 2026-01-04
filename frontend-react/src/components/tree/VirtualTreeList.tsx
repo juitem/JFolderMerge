@@ -7,6 +7,7 @@ import { TreeNode } from './TreeNode';
 interface VirtualTreeListProps {
     visibleNodes: FileNode[];
     focusedPath: string | null;
+    focusZone: 'content' | 'accept' | 'revert';
     expandedPaths: Set<string>;
     onToggle: (path: string) => void;
     config: Config;
@@ -30,6 +31,7 @@ interface VirtualTreeListProps {
 export const VirtualTreeList: React.FC<VirtualTreeListProps> = ({
     visibleNodes,
     focusedPath,
+    focusZone,
     selectedPath,
     expandedPaths,
     onToggle,
@@ -84,6 +86,7 @@ export const VirtualTreeList: React.FC<VirtualTreeListProps> = ({
                             side={side}
                             isExpanded={isExpanded}
                             isFocused={isFocused}
+                            focusZone={isFocused ? focusZone : 'content'}
                             isSelected={isSelected}
                             onToggle={onToggle}
                             config={config}

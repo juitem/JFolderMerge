@@ -9,6 +9,7 @@ export interface TreeNodeProps {
     side: 'left' | 'right' | 'unified';
     isExpanded: boolean;
     isFocused: boolean;
+    focusZone?: 'content' | 'accept' | 'revert';
     isSelected?: boolean;
     onToggle: (path: string) => void;
     actions: {
@@ -43,7 +44,8 @@ const TreeNodeComponent: React.FC<TreeNodeProps> = ({
     config,
     isInSelectionSet,
     onToggleSelection,
-    isSelectionMode
+    isSelectionMode,
+    focusZone = 'content'
 }) => {
     // Debugging: Ensure onToggleSelection is defined
     const handleCheckboxClick = React.useCallback((e: React.MouseEvent) => {
@@ -211,6 +213,7 @@ const TreeNodeComponent: React.FC<TreeNodeProps> = ({
                     showMerge={config.viewOptions?.showMergeIcons !== false}
                     showDelete={config.viewOptions?.showDeleteIcons !== false}
                     showHide={config.viewOptions?.showHideIcons !== false}
+                    focusZone={focusZone}
                 />
             </div>
         </div>

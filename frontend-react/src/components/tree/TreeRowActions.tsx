@@ -13,9 +13,10 @@ interface TreeRowActionsProps {
     showMerge?: boolean;
     showDelete?: boolean;
     showHide?: boolean;
+    focusZone?: 'content' | 'accept' | 'revert';
 }
 
-export const TreeRowActions: React.FC<TreeRowActionsProps> = ({ node, side, actions, showMerge = true, showDelete = true, showHide = true }) => {
+export const TreeRowActions: React.FC<TreeRowActionsProps> = ({ node, side, actions, showMerge = true, showDelete = true, showHide = true, focusZone = 'content' }) => {
     // Logic: Always render 4 buttons for alignment, hide irrelevant ones
     const isLeftVisible = (side === 'left' || side === 'unified') && (node.status === 'modified' || node.status === 'removed');
     const isRightVisible = (side === 'right' || side === 'unified') && (node.status === 'modified' || node.status === 'added');
@@ -26,11 +27,20 @@ export const TreeRowActions: React.FC<TreeRowActionsProps> = ({ node, side, acti
             {(side === 'left' || side === 'unified') && (
                 <>
                     {/* 1. Delete Left (24px) */}
+                    {/* 1. Delete Left (24px) - Also ACCEPT Intent for Removed files (Enforce Left doesn't have it) */}
+                    {/* Actually Delete Left is rarely an ACCEPT intent, usually it's just delete. 
+                        But if node.status === 'removed' (Left has it, Right doesn't), 
+                        ArrowLeft (Accept) -> onDelete(left) -> "Accept" that it's gone on Right.
+                    */}
                     {showDelete && (
                         <button
-                            className="merge-btn delete-btn"
+                            className={`merge-btn delete-btn ${focusZone === 'accept' && node.status === 'removed' ? 'focused-intent' : ''}`}
                             tabIndex={-1}
-                            style={{ visibility: isLeftVisible ? 'visible' : 'hidden', width: '24px' }}
+                            style={{
+                                visibility: isLeftVisible ? 'visible' : 'hidden',
+                                width: '24px',
+                                boxShadow: (focusZone === 'accept' && node.status === 'removed') ? '0 0 0 2px #ef4444' : 'none'
+                            }}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 actions.onDelete(node, 'left');
@@ -41,17 +51,21 @@ export const TreeRowActions: React.FC<TreeRowActionsProps> = ({ node, side, acti
                         </button>
                     )}
 
-                    {/* 2. Merge Left to Right (48px) */}
+                    {/* 2. Merge Left to Right (48px) - REVERT Intent */}
                     {showMerge && (
                         <button
-                            className="merge-btn to-right"
+                            className={`merge-btn to-right ${focusZone === 'revert' ? 'focused-intent' : ''}`}
                             tabIndex={-1}
-                            style={{ visibility: isLeftVisible ? 'visible' : 'hidden', width: '48px' }}
+                            style={{
+                                visibility: isLeftVisible ? 'visible' : 'hidden',
+                                width: '48px',
+                                boxShadow: focusZone === 'revert' ? '0 0 0 2px #3b82f6' : 'none'
+                            }}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 actions.onMerge(node, 'left-to-right');
                             }}
-                            title="Copy to Right (Revert)"
+                            title="Copy to Right (Revert/Restore)"
                         >
                             <ArrowRight size={14} strokeWidth={2.5} />
                         </button>
@@ -62,12 +76,16 @@ export const TreeRowActions: React.FC<TreeRowActionsProps> = ({ node, side, acti
             {/* Right Actions Group */}
             {(side === 'right' || side === 'unified') && (
                 <>
-                    {/* 3. Merge Right to Left (48px) */}
+                    {/* 3. Merge Right to Left (48px) - ACCEPT Intent */}
                     {showMerge && (
                         <button
-                            className="merge-btn to-left"
+                            className={`merge-btn to-left ${focusZone === 'accept' ? 'focused-intent' : ''}`}
                             tabIndex={-1}
-                            style={{ visibility: isRightVisible ? 'visible' : 'hidden', width: '48px' }}
+                            style={{
+                                visibility: isRightVisible ? 'visible' : 'hidden',
+                                width: '48px',
+                                boxShadow: focusZone === 'accept' ? '0 0 0 2px #3b82f6' : 'none'
+                            }}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 actions.onMerge(node, 'right-to-left');
@@ -78,12 +96,16 @@ export const TreeRowActions: React.FC<TreeRowActionsProps> = ({ node, side, acti
                         </button>
                     )}
 
-                    {/* 4. Delete Right (24px) */}
+                    {/* 4. Delete Right (24px) - Also REVERT Intent for Added files */}
                     {showDelete && (
                         <button
-                            className="merge-btn delete-btn"
+                            className={`merge-btn delete-btn ${focusZone === 'revert' && node.status === 'added' ? 'focused-intent' : ''}`}
                             tabIndex={-1}
-                            style={{ visibility: isRightVisible ? 'visible' : 'hidden', width: '24px' }}
+                            style={{
+                                visibility: isRightVisible ? 'visible' : 'hidden',
+                                width: '24px',
+                                boxShadow: (focusZone === 'revert' && node.status === 'added') ? '0 0 0 2px #ef4444' : 'none'
+                            }}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 actions.onDelete(node, 'right');
