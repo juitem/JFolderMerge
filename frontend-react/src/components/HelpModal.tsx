@@ -33,10 +33,17 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                 { key: "↑ / ↓", desc: "Navigate files and folders" },
                 { key: "Space / →", desc: "Expand folder or Open file preview" },
                 { key: "←", desc: "Collapse folder or Jump to parent" },
-                { key: "a / r / c", desc: "Jump to next Added / Removed / Modified" },
-                { key: "Shift + a / r / c", desc: "Jump to previous Added / Removed / Modified" },
-                { key: "h", desc: "Toggle visibility of hidden files" },
-                { key: "Ctrl + H", desc: "Hide currently focused file (Alt+H on Mac)" },
+                { key: "q / w", desc: "Select Accept (←) / Revert (→) action" },
+                { key: "Ctrl + Q / W", desc: "Immediate Accept (←) / Revert (→)" },
+                { key: "\\ / Esc", desc: "Reset selection to file content" },
+                { key: "a", desc: "Jump to next Added file" },
+                { key: "r", desc: "Jump to next Removed file" },
+                { key: "c", desc: "Jump to next Modified file" },
+                { key: "Shift + a", desc: "Jump to prev Added file" },
+                { key: "Shift + r", desc: "Jump to prev Removed file" },
+                { key: "Shift + c", desc: "Jump to prev Modified file" },
+                { key: "h", desc: "Toggle hidden files visibility" },
+                { key: "Ctrl + H", desc: "Hide focused file (Alt+H on Mac)" },
             ]
         },
         {
@@ -71,7 +78,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                 backgroundColor: '#1e293b',
                 color: '#f8fafc',
                 width: '100%',
-                maxWidth: '600px',
+                maxWidth: '900px',
                 borderRadius: '12px',
                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -127,31 +134,51 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                             }}>
                                 {section.title}
                             </h3>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(2, 1fr)',
+                                gap: '12px'
+                            }}>
                                 {section.keys.map((item, kIdx) => (
                                     <div key={kIdx} style={{
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'space-between',
-                                        background: 'rgba(255, 255, 255, 0.02)',
-                                        padding: '8px 12px',
-                                        borderRadius: '6px'
-                                    }}>
-                                        <span style={{ fontSize: '14px', color: '#cbd5e1' }}>{item.desc}</span>
+                                        background: 'rgba(255, 255, 255, 0.03)',
+                                        padding: '10px 14px',
+                                        borderRadius: '8px',
+                                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                                        transition: 'all 0.2s ease',
+                                        cursor: 'default'
+                                    }}
+                                        onMouseEnter={e => {
+                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                            e.currentTarget.style.borderColor = 'rgba(96, 165, 250, 0.3)';
+                                            e.currentTarget.style.transform = 'translateY(-1px)';
+                                        }}
+                                        onMouseLeave={e => {
+                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                                            e.currentTarget.style.transform = 'translateY(0)';
+                                        }}>
+                                        <span style={{ fontSize: '13px', color: '#cbd5e1', fontWeight: 500 }}>{item.desc}</span>
                                         <div style={{ display: 'flex', gap: '4px' }}>
                                             {item.key.split(' ').map((k, i) => (
                                                 <kbd key={i} style={{
-                                                    backgroundColor: '#334155',
-                                                    color: '#f1f5f9',
-                                                    border: '1px solid #475569',
-                                                    borderBottom: '2px solid #475569',
-                                                    borderRadius: '4px',
-                                                    padding: '2px 6px',
-                                                    fontSize: '11px',
-                                                    fontWeight: 700,
-                                                    minWidth: '20px',
+                                                    backgroundColor: '#1e293b',
+                                                    color: '#60a5fa',
+                                                    border: '1px solid #3b82f6',
+                                                    borderBottom: '3px solid #1d4ed8',
+                                                    borderRadius: '5px',
+                                                    padding: '2px 8px',
+                                                    fontSize: '10px',
+                                                    fontWeight: 800,
+                                                    minWidth: '24px',
                                                     textAlign: 'center',
-                                                    boxShadow: '0 1px 1px rgba(0,0,0,0.2)'
+                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
                                                 }}>
                                                     {k === '+' ? '+' : k}
                                                 </kbd>

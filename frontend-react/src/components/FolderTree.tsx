@@ -337,10 +337,8 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                         if (!expandedPaths.has(node.path)) toggleExpand(node.path);
                         else moveFocus(1); // Move to child
                     } else {
-                        // File Logic: Linear Scale [Accept] <-> [Content] <-> [Revert]
-                        if (focusZone === 'accept') setFocusZone('content');
-                        else if (focusZone === 'content') setFocusZone('revert');
-                        // Sticky at revert
+                        // File Logic: Move to next node (consistent with directory behavior)
+                        moveFocus(1);
                     }
                 }
                 break;
@@ -356,8 +354,8 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                         else if (node.status === 'modified') onMerge(node, 'right-to-left');
                     } else if (node.type === 'directory' && expandedPaths.has(node.path)) {
                         toggleExpand(node.path);
-                    } else if (node.type === 'directory') {
-                        // Jump to Parent
+                    } else {
+                        // Jump to Parent for both Directories and Files
                         const currentIndex = visibleNodes.indexOf(node);
                         let parentIndex = -1;
                         for (let i = currentIndex - 1; i >= 0; i--) {
@@ -367,29 +365,41 @@ const FolderTreeComponent = React.forwardRef<FolderTreeHandle, FolderTreeProps>(
                             }
                         }
                         if (parentIndex !== -1) moveFocus(parentIndex - currentIndex);
-                    } else {
-                        // File Logic: Linear Scale [Accept] <-> [Content] <-> [Revert]
-                        if (focusZone === 'revert') setFocusZone('content');
-                        else if (focusZone === 'content') setFocusZone('accept');
-                        else {
-                            // Already at Accept or Content? 
-                            // If we want to preserve "Jump to Parent" from Accept, we do it here.
-                            // But for now, let's keep it sticky at Accept or just do Jump to Parent if already Accept.
-                            const currentIndex = visibleNodes.indexOf(node);
-                            let parentIndex = -1;
-                            for (let i = currentIndex - 1; i >= 0; i--) {
-                                if ((visibleNodes[i] as any).depth < (node as any).depth) {
-                                    parentIndex = i;
-                                    break;
-                                }
-                            }
-                            if (parentIndex !== -1) moveFocus(parentIndex - currentIndex);
-                        }
                     }
                 }
                 break;
             }
-            case 'a':
+            case 'q':
+            case 'Q': {
+                const node = visibleNodes.find(n => n.path === focusedPath);
+                const isModifier = e.ctrlKey || e.metaKey;
+                if (isModifier && node) {
+                    e.preventDefault();
+                    if (node.status === 'added') onMerge(node, 'right-to-left');
+                    else if (node.status === 'removed') onDelete(node, 'left');
+                    else if (node.status === 'modified') onMerge(node, 'right-to-left');
+                } else if (!isModifier && !e.shiftKey) {
+                    setFocusZone('accept');
+                }
+                break;
+            }
+            case 'w':
+            case 'W': {
+                const node = visibleNodes.find(n => n.path === focusedPath);
+                const isModifier = e.ctrlKey || e.metaKey;
+                if (isModifier && node) {
+                    e.preventDefault();
+                    if (node.status === 'added') onDelete(node, 'right');
+                    else if (node.status === 'removed') onMerge(node, 'left-to-right');
+                    else if (node.status === 'modified') onMerge(node, 'left-to-right');
+                } else if (!isModifier && !e.shiftKey) {
+                    setFocusZone('revert');
+                }
+                break;
+            }
+            case '\\':
+                setFocusZone('content');
+                break;
             case 'A':
                 if (e.shiftKey) selectPrevStatus('added');
                 else selectNextStatus('added');

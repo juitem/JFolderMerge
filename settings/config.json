@@ -8,14 +8,14 @@
     "added": true
   },
   "diffFilters": {
-    "same": true,
+    "same": false,
     "modified": true,
     "added": true,
     "removed": true
   },
   "viewOptions": {
     "darkMode": false,
-    "folderViewMode": "split",
+    "folderViewMode": "flat",
     "showLineNumbers": true,
     "diffMode": "agent",
     "leftPanelWidth_split": 50,

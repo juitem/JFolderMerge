@@ -44,8 +44,8 @@ export interface AgentViewHandle {
 export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(
     (props, ref) => {
         const { diff, showLineNumbers = true, fullRightPath, showSame = false, onMerge, wrap, mergeMode = 'group', onMergeModeChange, onShowConfirm } = props;
-        const [expandedContent, setExpandedContent] = useState<Record<string, string[]>>({});
-        const [loadingGaps, setLoadingGaps] = useState<Record<string, boolean>>({});
+        const [fullFileLines, setFullFileLines] = useState<string[] | null>(null);
+        const [expandedContent, setExpandedContent] = useState<Record<string, boolean>>({});
         const [activeBlockIndex, setActiveBlockIndex] = useState<number | null>(null);
         const [focusZone, setFocusZone] = useState<'content' | 'revert' | 'accept'>('content');
 
@@ -53,8 +53,22 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(
 
         useEffect(() => {
             setExpandedContent({});
-            setLoadingGaps({});
+            setFullFileLines(null);
             setActiveBlockIndex(null);
+
+            if (fullRightPath) {
+                const loadFile = async () => {
+                    try {
+                        const res = await api.fetchFileContent(fullRightPath);
+                        if (res && res.content) {
+                            setFullFileLines(res.content.split(/\r?\n/));
+                        }
+                    } catch (err) {
+                        console.error("Failed to load full file for AgentView gaps:", err);
+                    }
+                };
+                loadFile();
+            }
         }, [fullRightPath]);
 
         const parsedItems = useMemo(() => {
@@ -175,21 +189,9 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(
             }
         }, [parsedItems]);
 
-        const handleExpand = async (start: number, end: number) => {
-            if (!fullRightPath) return;
+        const handleExpand = (start: number, end: number) => {
             const key = `${start}-${end}`;
-            if (loadingGaps[key]) return;
-            setLoadingGaps(prev => ({ ...prev, [key]: true }));
-            try {
-                const res = await api.fetchFileContent(fullRightPath);
-                if (res && res.content) {
-                    const allLines = res.content.split(/\r?\n/);
-                    const snippet = allLines.slice(start - 1, end);
-                    setExpandedContent(prev => ({ ...prev, [key]: snippet }));
-                }
-            } finally {
-                setLoadingGaps(prev => ({ ...prev, [key]: false }));
-            }
+            setExpandedContent(prev => ({ ...prev, [key]: true }));
         };
 
         const scrollToChangeInternal = (type: 'added' | 'removed' | 'any', direction: 'prev' | 'next' | 'first' | 'last') => {
@@ -432,130 +434,152 @@ export const AgentView = React.forwardRef<AgentViewHandle, AgentViewProps>(
         if (!diff) return <div className="p-4 text-gray-500">No Diff Data</div>;
 
         return (
-            <div className="agent-view-container custom-scroll"
-                ref={(el) => {
-                    // @ts-ignore
-                    containerRef.current = el;
-                    if (props.scrollerRef) props.scrollerRef(el);
-                }}
-                style={{ padding: '0', outline: 'none', border: '2px solid transparent', position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 0 }}
+            <div className="agent-view-container"
                 tabIndex={0}
                 onKeyDown={handleKeyDown}
                 onClick={(e) => e.currentTarget.focus()}
                 onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent-color)'}
                 onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                style={{
+                    padding: '0',
+                    outline: 'none',
+                    border: '2px solid transparent',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    flex: 1,
+                    minHeight: 0,
+                    overflow: 'hidden'
+                }}
             >
-                <div className="agent-control-bar" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, zIndex: 20 }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginRight: 'auto' }}>Agent Controls</span>
-                    <div style={{ display: 'flex', gap: '2px', marginRight: '8px' }}>
-                        <button className="icon-btn small" onClick={() => scrollToChangeInternal('any', 'first')} title="First Change"><ChevronsUp size={14} /></button>
-                        <button className="icon-btn small" onClick={() => scrollToChangeInternal('any', 'prev')} title="Previous Change"><ChevronUp size={14} /></button>
-                        <button className="icon-btn small" onClick={() => scrollToChangeInternal('any', 'next')} title="Next Change"><ChevronDown size={14} /></button>
-                        <button className="icon-btn small" onClick={() => scrollToChangeInternal('any', 'last')} title="Last Change"><ChevronsDown size={14} /></button>
-                    </div>
-                    <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }}></div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="merge-btn small" style={{ width: 'auto', padding: '0 8px', gap: '4px', fontSize: '0.8rem', height: '24px' }}
-                            onClick={() => { if (activeBlockIndex !== null) handleDeleteBlock(); }} title="Merge Left to Right">
-                            <ArrowRight size={14} /><ArrowRight size={14} />Merge<sup style={{ color: '#ec4899', fontWeight: 800 }}>R</sup>
-                        </button>
-                        <button className="merge-btn small" style={{ width: 'auto', padding: '0 8px', gap: '4px', fontSize: '0.8rem', height: '24px' }}
-                            onClick={() => { if (activeBlockIndex !== null) handleMergeBlock(); }} title="Merge Right to Left">
-                            <ArrowLeft size={14} /><ArrowLeft size={14} />Merge<sup style={{ color: '#10b981', fontWeight: 800 }}>L</sup>
-                        </button>
-                    </div>
-                </div>
-
-                {!parsedItems.some(i => 'lines' in i) ? (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--panel-bg)', borderRadius: 'var(--radius-lg)', margin: '10px', border: '1px solid var(--border-color)' }}>
-                        <div className="text-center p-8">
-                            <CheckCircle size={64} style={{ color: 'var(--success)', margin: '0 auto 20px auto', opacity: 0.8 }} />
-                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600 }}>All changes merged!</h3>
-                            <p style={{ color: 'var(--text-secondary)', marginTop: '12px' }}>This file is now synchronized.</p>
+                <div className="custom-scroll"
+                    ref={(el) => {
+                        // @ts-ignore
+                        containerRef.current = el;
+                        if (props.scrollerRef) props.scrollerRef(el);
+                    }}
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        flex: 1,
+                        overflowY: 'auto',
+                        minHeight: 0,
+                        outline: 'none'
+                    }}
+                >
+                    <div className="agent-control-bar" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, zIndex: 20 }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginRight: 'auto' }}>Agent Controls</span>
+                        <div style={{ display: 'flex', gap: '2px', marginRight: '8px' }}>
+                            <button className="icon-btn small" onClick={() => scrollToChangeInternal('any', 'first')} title="First Change"><ChevronsUp size={14} /></button>
+                            <button className="icon-btn small" onClick={() => scrollToChangeInternal('any', 'prev')} title="Previous Change"><ChevronUp size={14} /></button>
+                            <button className="icon-btn small" onClick={() => scrollToChangeInternal('any', 'next')} title="Next Change"><ChevronDown size={14} /></button>
+                            <button className="icon-btn small" onClick={() => scrollToChangeInternal('any', 'last')} title="Last Change"><ChevronsDown size={14} /></button>
+                        </div>
+                        <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }}></div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button className="merge-btn small" style={{ width: 'auto', padding: '0 8px', gap: '4px', fontSize: '0.8rem', height: '24px' }}
+                                onClick={() => { if (activeBlockIndex !== null) handleDeleteBlock(); }} title="Merge Left to Right">
+                                <ArrowRight size={14} /><ArrowRight size={14} />Merge<sup style={{ color: '#ec4899', fontWeight: 800 }}>R</sup>
+                            </button>
+                            <button className="merge-btn small" style={{ width: 'auto', padding: '0 8px', gap: '4px', fontSize: '0.8rem', height: '24px' }}
+                                onClick={() => { if (activeBlockIndex !== null) handleMergeBlock(); }} title="Merge Right to Left">
+                                <ArrowLeft size={14} /><ArrowLeft size={14} />Merge<sup style={{ color: '#10b981', fontWeight: 800 }}>L</sup>
+                            </button>
                         </div>
                     </div>
-                ) : (
-                    <div className="agent-diff-table" style={{ flex: 1, padding: '0 10px 10px 10px' }}>
-                        {parsedItems.map((item, idx) => {
-                            if ('lines' in item) {
-                                const block = item as DiffBlock;
-                                const partnerIdx = getPartnerIndex(idx);
-                                const isSelfActive = activeBlockIndex === idx;
-                                const isPartnerActive = mergeMode === 'group' && partnerIdx !== null && activeBlockIndex === partnerIdx;
-                                const isActive = isSelfActive || isPartnerActive;
 
-                                return (
-                                    <div key={idx} data-block-index={idx}
-                                        className={`diff-block-group group-${block.type.split('-')[1]} ${isActive ? 'active' : ''}`}
-                                        style={{
-                                            position: 'relative',
-                                            cursor: 'pointer',
-                                            boxShadow: (isSelfActive && focusZone === 'content' && mergeMode !== 'group') ? 'inset 0 0 0 2px var(--accent-color)' : 'none'
-                                        }}
-                                        onClick={(e) => { e.stopPropagation(); setActiveBlockIndex(idx); setFocusZone('content'); containerRef.current?.focus(); }}
-                                    >
-                                        {block.lines.map((l, i) => renderLine(l, i))}
-                                        <div className="merge-action-overlay" style={{ position: 'absolute', zIndex: 10, top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
-                                            {onMerge && (
-                                                <>
-                                                    <div style={{ position: 'absolute', top: 0, left: showLineNumbers ? '52px' : '5px', pointerEvents: 'auto' }}>
-                                                        <button className="icon-btn xs agent-merge-btn"
-                                                            style={{
-                                                                color: '#ec4899', width: '18px', height: '18px', border: '1px solid #ec4899',
-                                                                background: 'rgba(50, 0, 0, 0.9)', borderRadius: '4px', padding: 0,
-                                                                boxShadow: (isActive && focusZone === 'revert') ? '0 0 0 2px var(--accent-color)' : '0 1px 3px rgba(0,0,0,0.3)',
-                                                                opacity: isActive ? 1 : 0.6
-                                                            }}
-                                                            onClick={(e) => { e.stopPropagation(); setActiveBlockIndex(idx); handleDeleteBlock(); }}
-                                                            title="Revert Change (Right to Right)"
-                                                        >
-                                                            <ArrowRight size={12} strokeWidth={2.5} />
-                                                        </button>
-                                                    </div>
-                                                    <div style={{ position: 'absolute', top: 0, left: showLineNumbers ? '106px' : '30px', pointerEvents: 'auto' }}>
-                                                        <button className="icon-btn xs agent-merge-btn"
-                                                            style={{
-                                                                color: '#4ade80', width: '18px', height: '18px', border: '1px solid #4ade80',
-                                                                background: 'rgba(0, 50, 0, 0.9)', borderRadius: '4px', padding: 0,
-                                                                boxShadow: (isActive && focusZone === 'accept') ? '0 0 0 2px var(--accent-color)' : '0 1px 3px rgba(0,0,0,0.3)',
-                                                                opacity: isActive ? 1 : 0.6
-                                                            }}
-                                                            onClick={(e) => { e.stopPropagation(); setActiveBlockIndex(idx); handleMergeBlock(); }}
-                                                            title="Accept Change (Right to Left)"
-                                                        >
-                                                            <ArrowLeft size={12} strokeWidth={2.5} />
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            }
+                    {!parsedItems.some(i => 'lines' in i) ? (
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--panel-bg)', borderRadius: 'var(--radius-lg)', margin: '10px', border: '1px solid var(--border-color)' }}>
+                            <div className="text-center p-8">
+                                <CheckCircle size={64} style={{ color: 'var(--success)', margin: '0 auto 20px auto', opacity: 0.8 }} />
+                                <h3 style={{ fontSize: '1.5rem', fontWeight: 600 }}>All changes merged!</h3>
+                                <p style={{ color: 'var(--text-secondary)', marginTop: '12px' }}>This file is now synchronized.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="agent-diff-table" style={{ flex: 1, padding: '0 10px 10px 10px' }}>
+                            {parsedItems.map((item, idx) => {
+                                if ('lines' in item) {
+                                    const block = item as DiffBlock;
+                                    const partnerIdx = getPartnerIndex(idx);
+                                    const isSelfActive = activeBlockIndex === idx;
+                                    const isPartnerActive = mergeMode === 'group' && partnerIdx !== null && activeBlockIndex === partnerIdx;
+                                    const isActive = isSelfActive || isPartnerActive;
 
-                            const line = item as DiffLine;
-                            if (line.type === 'gap') {
-                                const key = `${line.gapStart}-${line.gapEnd}`;
-                                const expandedLines = expandedContent[key];
-                                if (expandedLines || showSame) {
-                                    if (!expandedLines) return <div key={idx} className="agent-diff-row gap"><div className="agent-gap-bar">Loading...</div></div>;
-                                    return expandedLines.map((content, i) => (
-                                        <div key={`${key}-${i}`} className="agent-diff-row same expanded">
-                                            {showLineNumbers && (<><div className="agent-gutter noselect"></div><div className="agent-gutter noselect">{(line.gapStart || 0) + i}</div></>)}
-                                            <div className="agent-content">{content}</div>
+                                    return (
+                                        <div key={idx} data-block-index={idx}
+                                            className={`diff-block-group group-${block.type.split('-')[1]} ${isActive ? 'active' : ''}`}
+                                            style={{
+                                                position: 'relative',
+                                                cursor: 'pointer',
+                                                boxShadow: (isSelfActive && focusZone === 'content' && mergeMode !== 'group') ? 'inset 0 0 0 2px var(--accent-color)' : 'none'
+                                            }}
+                                            onClick={(e) => { e.stopPropagation(); setActiveBlockIndex(idx); setFocusZone('content'); containerRef.current?.focus(); }}
+                                        >
+                                            {block.lines.map((l, i) => renderLine(l, i))}
+                                            <div className="merge-action-overlay" style={{ position: 'absolute', zIndex: 10, top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
+                                                {onMerge && (
+                                                    <>
+                                                        <div style={{ position: 'absolute', top: 0, left: showLineNumbers ? '52px' : '5px', pointerEvents: 'auto' }}>
+                                                            <button className="icon-btn xs agent-merge-btn"
+                                                                style={{
+                                                                    color: '#ec4899', width: '18px', height: '18px', border: '1px solid #ec4899',
+                                                                    background: 'rgba(50, 0, 0, 0.9)', borderRadius: '4px', padding: 0,
+                                                                    boxShadow: (isActive && focusZone === 'revert') ? '0 0 0 2px var(--accent-color)' : '0 1px 3px rgba(0,0,0,0.3)',
+                                                                    opacity: isActive ? 1 : 0.6
+                                                                }}
+                                                                onClick={(e) => { e.stopPropagation(); setActiveBlockIndex(idx); handleDeleteBlock(); }}
+                                                                title="Revert Change (Right to Right)"
+                                                            >
+                                                                <ArrowRight size={12} strokeWidth={2.5} />
+                                                            </button>
+                                                        </div>
+                                                        <div style={{ position: 'absolute', top: 0, left: showLineNumbers ? '106px' : '30px', pointerEvents: 'auto' }}>
+                                                            <button className="icon-btn xs agent-merge-btn"
+                                                                style={{
+                                                                    color: '#4ade80', width: '18px', height: '18px', border: '1px solid #4ade80',
+                                                                    background: 'rgba(0, 50, 0, 0.9)', borderRadius: '4px', padding: 0,
+                                                                    boxShadow: (isActive && focusZone === 'accept') ? '0 0 0 2px var(--accent-color)' : '0 1px 3px rgba(0,0,0,0.3)',
+                                                                    opacity: isActive ? 1 : 0.6
+                                                                }}
+                                                                onClick={(e) => { e.stopPropagation(); setActiveBlockIndex(idx); handleMergeBlock(); }}
+                                                                title="Accept Change (Right to Left)"
+                                                            >
+                                                                <ArrowLeft size={12} strokeWidth={2.5} />
+                                                            </button>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
-                                    ));
+                                    );
                                 }
-                                return (
-                                    <div key={idx} className="agent-diff-row gap">
-                                        <div className="agent-gap-bar" onClick={() => line.gapStart && line.gapEnd && handleExpand(line.gapStart, line.gapEnd)}>↕ {line.content}</div>
-                                    </div>
-                                );
-                            }
-                            return renderLine(line, idx);
-                        })}
-                    </div>
-                )}
+
+                                const line = item as DiffLine;
+                                if (line.type === 'gap') {
+                                    const key = `${line.gapStart}-${line.gapEnd}`;
+                                    const isExpanded = showSame || !!expandedContent[key];
+                                    if (isExpanded) {
+                                        if (!fullFileLines) return <div key={idx} className="agent-diff-row gap"><div className="agent-gap-bar">Loading file content...</div></div>;
+                                        const snippet = fullFileLines.slice((line.gapStart || 1) - 1, line.gapEnd);
+                                        return snippet.map((content, i) => (
+                                            <div key={`${key}-${i}`} className="agent-diff-row same expanded">
+                                                {showLineNumbers && (<><div className="agent-gutter noselect"></div><div className="agent-gutter noselect">{(line.gapStart || 0) + i}</div></>)}
+                                                <div className="agent-content">{content}</div>
+                                            </div>
+                                        ));
+                                    }
+                                    return (
+                                        <div key={idx} className="agent-diff-row gap">
+                                            <div className="agent-gap-bar" onClick={() => line.gapStart && line.gapEnd && handleExpand(line.gapStart, line.gapEnd)}>↕ {line.content}</div>
+                                        </div>
+                                    );
+                                }
+                                return renderLine(line, idx);
+                            })}
+                        </div>
+                    )}
+                </div>
 
                 {/* Floating Global Merge Mode Overlay Indicator */}
                 {mergeMode === 'group' && (

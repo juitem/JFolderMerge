@@ -2,3 +2,5 @@ backend/__pycache__/
 frontend/__pycache__/
 *__pycache__/
 venv/
+test/test_left/
+test/test_right/
