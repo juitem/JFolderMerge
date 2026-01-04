@@ -11,6 +11,8 @@ function App() {
 
   const combinedError = logic.configError || logic.compareError;
 
+  // Help Shortcut (?) moved to useAppLogic.ts
+
   return (
     <>
       <MainLayout
@@ -18,6 +20,7 @@ function App() {
         onSaveSettings={logic.handleSaveSettings}
         onResetSettings={logic.handleResetSettings}
         onOpenAbout={() => logic.setAboutOpen(true)}
+        onOpenHelp={() => logic.setHelpOpen(true)}
         // Toolbar
         searchQuery={logic.searchQuery}
         setSearchQuery={logic.setSearchQuery}
@@ -38,16 +41,25 @@ function App() {
         onHistory={(side) => logic.setHistoryState({ isOpen: true, side })}
         onSwap={logic.handleSwap}
         // Error
+        // Error
         error={combinedError}
         // File
         selectedFilePath={logic.selectedNode?.path}
         onToggleFileView={() => logic.setIsExpanded(!logic.isExpanded)}
+        isLocked={logic.isLocked}
+        setIsLocked={logic.setIsLocked}
         onAdjustWidth={logic.handleAdjustWidth}
+        layoutMode={logic.layoutMode}
+        setLayoutMode={logic.setLayoutMode}
 
-        // Stats
-        globalStats={logic.globalStats}
-        currentFolderStats={logic.currentFolderStats}
+        // Stats (Line stats remain in Toolbar for now)
         fileLineStats={logic.fileLineStats}
+
+        // Advanced Filter Props
+        hiddenPaths={logic.hiddenPaths}
+        toggleHiddenPath={logic.toggleHiddenPath}
+        showHidden={logic.showHidden}
+        toggleShowHidden={logic.toggleShowHidden}
       >
         <Workspace
           treeData={logic.treeData}
@@ -64,6 +76,9 @@ function App() {
           setDiffMode={logic.setDiffMode}
           isExpanded={logic.isExpanded}
           setIsExpanded={logic.setIsExpanded}
+          isLocked={logic.isLocked}
+          setIsLocked={logic.setIsLocked}
+          layoutMode={logic.layoutMode}
           leftPanelWidth={logic.leftPanelWidth}
 
           excludeFolders={logic.excludeFolders}
@@ -74,6 +89,36 @@ function App() {
           onBrowse={logic.openBrowse}
           onReload={logic.handleReload}
           onStatsUpdate={logic.updateFileLineStats}
+          selectionSet={logic.selectionSet}
+          onToggleSelection={logic.toggleSelection}
+          onToggleBatchSelection={logic.toggleSelectionBatch}
+          hiddenPaths={logic.hiddenPaths}
+          toggleHiddenPath={logic.toggleHiddenPath}
+          showHidden={logic.showHidden}
+          toggleShowHidden={logic.toggleShowHidden}
+
+          // Confirmation
+          onShowConfirm={logic.showConfirm}
+
+          // Stats & Selection for StatusBar
+          globalStats={logic.globalStats}
+          currentFolderStats={logic.currentFolderStats}
+          fileLineStats={logic.fileLineStats}
+          selectionCount={logic.selectionSet.size}
+          onSelectByStatus={logic.selectByStatus}
+          onClearSelection={logic.clearSelection}
+          onExecuteBatchMerge={logic.executeBatchMerge}
+          onExecuteBatchDelete={logic.executeBatchDelete}
+
+          // Context Menu
+          contextMenu={logic.contextMenu}
+          onContextMenu={logic.handleContextMenu}
+          onCloseContextMenu={logic.closeContextMenu}
+          externalEditorPath={logic.externalEditorPath}
+          onSetExternalEditor={logic.handleSetExternalEditor}
+          onOpenExternal={logic.handleOpenExternal}
+          diffMode={logic.diffMode}
+          setDiffMode={logic.setDiffMode}
         />
       </MainLayout>
 
@@ -91,6 +136,8 @@ function App() {
         setConfirmState={logic.setConfirmState}
         aboutOpen={logic.aboutOpen}
         setAboutOpen={logic.setAboutOpen}
+        helpOpen={logic.helpOpen}
+        setHelpOpen={logic.setHelpOpen}
       />
     </>
   );

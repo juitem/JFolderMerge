@@ -1,144 +1,224 @@
 import { useEffect, useState, useRef } from 'react';
 import { api } from '../api';
-import type { FileNode, DiffMode } from '../types';
+import type { FileNode } from '../types';
 import { useConfig } from '../contexts/ConfigContext';
-import { useFolderCompare } from './useFolderCompare';
-import { useFileSystem } from './useFileSystem';
+import { useTreeData } from './logic/useTreeData';
+import { useModalLogic } from './logic/useModalLogic';
+import { useViewState } from './logic/useViewState';
+import { statsService } from '../services/logic/StatsService';
+import { fileMutationService } from '../services/logic/FileMutationService';
+import { loggingService } from '../services/infrastructure/LoggingService';
 
 export const useAppLogic = () => {
     // Global Config
-    const { config, loading: configLoading, error: configError, saveConfig } = useConfig();
+    const { config, saveConfig, loading: configLoading, error: configError } = useConfig();
 
-    // Local State
-    const [leftPath, setLeftPath] = useState("");
-    const [rightPath, setRightPath] = useState("");
-    const [searchQuery, setSearchQuery] = useState("");
-    const [excludeFolders, setExcludeFolders] = useState("");
-    const [excludeFiles, setExcludeFiles] = useState("");
+    // Sub-Hooks
+    const viewState = useViewState();
+    const modalState = useModalLogic();
+
+    // Path State
+    const [lPath, setLPath] = useState("");
+    const [rPath, setRPath] = useState("");
+
+    // Tree Data
+    const {
+        treeData,
+        loading: compareLoading,
+        error: compareError,
+        compare,
+        patchNode,
+        removeNode
+    } = useTreeData();
+
+    // Selection State
     const [selectedNode, setSelectedNode] = useState<FileNode | null>(null);
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [diffMode, setDiffMode] = useState<DiffMode>('side-by-side');
-    const [aboutOpen, setAboutOpen] = useState(false);
-    const [leftPanelWidth, setLeftPanelWidth] = useState(50); // Default 50% for split
+    const [selectionSet, setSelectionSet] = useState<Set<string>>(new Set());
 
-    // Modal States
-    const [confirmState, setConfirmState] = useState<{
-        isOpen: boolean;
-        title: string;
-        message: string;
-        action: (() => void) | null;
-        isAlert?: boolean;
-    }>({ isOpen: false, title: '', message: '', action: null, isAlert: false });
-
-    const [browseState, setBrowseState] = useState<{
-        isOpen: boolean,
-        target: 'left' | 'right' | 'import-exclude-folders' | 'import-exclude-files' | null,
-        mode: 'file' | 'directory'
-    }>({ isOpen: false, target: null, mode: 'directory' });
-
-    const [historyState, setHistoryState] = useState<{ isOpen: boolean, side: 'left' | 'right' | null }>({ isOpen: false, side: null });
-
-    // Compare Hook
-    const { treeData, loading: compareLoading, error: compareError, compare } = useFolderCompare();
-
-    // Reload Action
-    const handleReload = () => {
-        compare(leftPath, rightPath, excludeFiles, excludeFolders);
+    const toggleSelectionBatch = (paths: string[]) => {
+        setSelectionSet(prev => {
+            const next = new Set(prev);
+            paths.forEach(path => {
+                if (next.has(path)) next.delete(path);
+                else next.add(path);
+            });
+            return next;
+        });
     };
 
-    // File System Hook
-    const { copyItem, deleteItem } = useFileSystem(handleReload);
+    const toggleSelection = (path: string) => {
+        setSelectionSet(prev => {
+            const next = new Set(prev);
+            if (next.has(path)) next.delete(path);
+            else next.add(path);
+            return next;
+        });
+    };
+
+    const selectByStatus = (status: 'added' | 'removed' | 'modified') => {
+        if (!treeData) return;
+        const paths = new Set<string>();
+        const traverse = (node: FileNode) => {
+            if (node.type === 'file' && node.status === status) {
+                paths.add(node.path);
+            }
+            node.children?.forEach(traverse);
+        };
+        traverse(treeData);
+        setSelectionSet(paths);
+        loggingService.info('AppLogic', `Selected ${paths.size} items with status: ${status}`);
+    };
+
+    const clearSelection = () => {
+        setSelectionSet(new Set());
+        setExplicitSelectionMode(false);
+    };
+
+    const [isExplicitSelectionMode, setExplicitSelectionMode] = useState(false);
+
+
+    // Reload Handler
+    const handleReload = () => {
+        loggingService.info('AppLogic', 'Manual Refresh Triggered');
+        compare(lPath, rPath, viewState.excludeFiles, viewState.excludeFolders);
+    };
 
     // -- Effects --
-
     const configInitialized = useRef(false);
 
-    // Initialize paths from config (Run once when config loads)
+    // Initialize paths from config
     useEffect(() => {
         if (config && !configInitialized.current) {
             configInitialized.current = true;
-            // Always set from config on first load, even if local state was temporarily typed into
-            if (config.left) setLeftPath(config.left);
-            if (config.right) setRightPath(config.right);
-
-            if (config.savedExcludes?.folders) setExcludeFolders(config.savedExcludes.folders);
-            if (config.savedExcludes?.files) setExcludeFiles(config.savedExcludes.files);
-            if (config.viewOptions?.diffMode) setDiffMode(config.viewOptions.diffMode as DiffMode);
-
-            // Initial Width Load logic is handled by the mode-watcher effect below, 
-            // but we need to ensure it runs at least once. 
-            // The effect below has [config?.viewOptions?.folderViewMode] dependency, so it will run when config loads.
+            if (config.left) setLPath(config.left);
+            if (config.right) setRPath(config.right);
+            // Force folder view initially (regardless of saved pref) as no file is selected
+            viewState.setLayoutMode('folder');
         }
-    }, [config]);
+    }, [config, viewState.setLayoutMode]);
 
-    // Mode-specific width persistence
+    const prevSelectedNodePath = useRef<string | null>(null);
+
+    // Sync selectedNode
     useEffect(() => {
-        if (!config) return;
-        const mode = (config.viewOptions?.folderViewMode as string) || 'split';
-        const key = `leftPanelWidth_${mode}`;
-
-        // Check if there is a saved width for this specific mode
-        const savedWidth = config.viewOptions?.[key];
-
-        if (savedWidth) {
-            setLeftPanelWidth(Number(savedWidth));
-        } else {
-            // Defaults
-            if (mode === 'unified') setLeftPanelWidth(20);
-            else if (mode === 'split') setLeftPanelWidth(50);
-            else setLeftPanelWidth(30);
+        if (!treeData || !selectedNode) {
+            prevSelectedNodePath.current = null;
+            return;
         }
-    }, [config?.viewOptions?.folderViewMode]);
+        const findNodeByPath = (node: FileNode, path: string): FileNode | null => {
+            if (node.path === path) return node;
+            if (node.children) {
+                for (const child of node.children) {
+                    const found = findNodeByPath(child, path);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+        const updatedNode = findNodeByPath(treeData, selectedNode.path);
+        if (updatedNode && updatedNode !== selectedNode) {
+            setSelectedNode(updatedNode);
+        }
+    }, [treeData, selectedNode]);
+
+    // Auto-switch to split view when file selected (Dynamic Behavior)
+    useEffect(() => {
+        if (!viewState.isLocked) {
+            const currentPath = selectedNode?.path || null;
+            // Only auto-switch if the selected node actually changed (null -> path or path -> null)
+            if (currentPath !== prevSelectedNodePath.current) {
+                if (currentPath && viewState.layoutMode === 'folder') {
+                    viewState.setLayoutMode('split');
+                } else if (!currentPath && viewState.layoutMode !== 'folder') {
+                    viewState.setLayoutMode('folder');
+                }
+                prevSelectedNodePath.current = currentPath;
+            }
+        }
+    }, [selectedNode, viewState.isLocked, viewState.layoutMode, viewState.setLayoutMode]);
+
+    // View Cycle Shortcut (v)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if user is typing in an input
+            if (['input', 'textarea', 'select'].includes((e.target as HTMLElement).tagName.toLowerCase()) || (e.target as HTMLElement).isContentEditable) {
+                return;
+            }
+
+            if (e.key.toLowerCase() === 'v' || e.code === 'KeyV') {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const modes: ('folder' | 'split' | 'file')[] = ['folder', 'split', 'file'];
+                const current = viewState.layoutMode || 'split';
+                const currentIndex = modes.indexOf(current);
+
+                let nextIndex;
+                if (e.shiftKey) {
+                    nextIndex = (currentIndex - 1 + modes.length) % modes.length;
+                } else {
+                    nextIndex = (currentIndex + 1) % modes.length;
+                }
+                viewState.setLayoutMode(modes[nextIndex]);
+                loggingService.info('AppLogic', `Layout mode cycled to: ${modes[nextIndex]}`);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown, true); // Use capture phase to ensure it works even if children have listeners
+        return () => window.removeEventListener('keydown', handleKeyDown, true);
+    }, [viewState.layoutMode, viewState.setLayoutMode]);
+
+    // Help Shortcut (? / F1)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (['input', 'textarea', 'select'].includes((e.target as HTMLElement).tagName.toLowerCase()) || (e.target as HTMLElement).isContentEditable) {
+                return;
+            }
+            if (e.key === '?' || e.key === 'F1') {
+                e.preventDefault();
+                e.stopPropagation();
+                modalState.setHelpOpen(true);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [modalState.setHelpOpen]);
 
     // -- Handlers --
-
-    const showAlert = (title: string, message: string) => {
-        setConfirmState({
-            isOpen: true,
-            title,
-            message,
-            action: null,
-            isAlert: true
-        });
-    };
 
     const handleSaveSettings = async () => {
         if (!config) return;
         try {
             const mode = (config.viewOptions?.folderViewMode as string) || 'split';
             const widthKey = `leftPanelWidth_${mode}`;
-
             const toSave = {
                 ...config,
-                left: leftPath,
-                right: rightPath,
+                left: lPath,
+                right: rPath,
                 savedExcludes: {
-                    folders: excludeFolders,
-                    files: excludeFiles
+                    folders: viewState.excludeFolders,
+                    files: viewState.excludeFiles
                 },
                 viewOptions: {
                     ...config.viewOptions,
-                    diffMode: diffMode,
-                    [widthKey]: leftPanelWidth
+                    diffMode: viewState.diffMode,
+                    [widthKey]: viewState.leftPanelWidth
                 }
             };
             await saveConfig(toSave);
-            showAlert("Settings Saved", "Configuration has been saved successfully.");
+            modalState.showAlert("Settings Saved", "Configuration has been saved successfully.");
         } catch (e: any) {
-            showAlert("Save Failed", "Failed to save: " + e.message);
+            modalState.showAlert("Save Failed", "Failed to save: " + e.message);
         }
     };
 
     const handleResetSettings = async () => {
         if (!confirm("Are you sure you want to reset all settings to default?")) return;
         try {
-            // Reset local state
-            setExcludeFolders("");
-            setExcludeFiles("");
-            setLeftPanelWidth(50);
-            setDiffMode('side-by-side');
+            viewState.setExcludeFolders("");
+            viewState.setExcludeFiles("");
+            viewState.setLeftPanelWidth(50);
+            viewState.setDiffMode('side-by-side');
 
-            // Save cleared config
             const defaultConfig = {
                 left: config?.left || "",
                 right: config?.right || "",
@@ -153,254 +233,227 @@ export const useAppLogic = () => {
                     leftPanelWidth_flat: 30
                 }
             };
-
             await api.saveConfig(defaultConfig);
-            // Optionally reload? useConfig hook should update automatically.
-            showAlert("Settings Reset", "All settings have been reset to default.");
+            modalState.showAlert("Settings Reset", "All settings reset to default.");
         } catch (e: any) {
-            showAlert("Reset Failed", "Failed to reset settings: " + e.message);
+            modalState.showAlert("Reset Failed", e.message);
         }
     };
 
     const onCompare = () => {
         setSelectedNode(null);
-        compare(leftPath, rightPath, excludeFiles, excludeFolders);
-
-        // Auto-save paths as defaults (persisting the EXACT values used for comparison)
+        viewState.setLayoutMode('folder'); // Reset layout to folder view
+        compare(lPath, rPath, viewState.excludeFiles, viewState.excludeFolders);
         if (config) {
-            saveConfig({
-                ...config,
-                left: leftPath,
-                right: rightPath
-            });
+            saveConfig({ ...config, left: lPath, right: rPath });
         }
     };
 
     const handleMerge = (node: FileNode, direction: 'left-to-right' | 'right-to-left') => {
-        const skipConfirm = config?.viewOptions?.confirmMerge === false;
-
-        if (skipConfirm) {
-            copyItem(node, direction, leftPath, rightPath).catch(e => showAlert("Merge Failed", e.message));
-            return;
-        }
-
-        setConfirmState({
-            isOpen: true,
-            title: 'Confirm Merge',
-            message: `Are you sure you want to merge (copy) ${node.name} from ${direction === 'left-to-right' ? 'Left to Right' : 'Right to Left'}? This will overwrite the destination.`,
-            action: async () => {
-                try {
-                    await copyItem(node, direction, leftPath, rightPath);
-                } catch (e: any) {
-                    showAlert("Merge Failed", e.message);
-                }
+        const performMerge = async () => {
+            const originalStatus = node.status;
+            try {
+                patchNode(node.path, { status: 'same' });
+                const src = direction === 'left-to-right' ? lPath + '/' + node.path : rPath + '/' + node.path;
+                const dest = direction === 'left-to-right' ? rPath + '/' + node.path : lPath + '/' + node.path;
+                await fileMutationService.mergeFile(src, dest, node.type === 'directory');
+                loggingService.info('AppLogic', `Merge successful: ${node.path}`);
+            } catch (e: any) {
+                patchNode(node.path, { status: originalStatus });
+                modalState.showAlert("Merge Failed", e.message);
+                loggingService.error('AppLogic', `Merge failed: ${node.path}`, e);
             }
-        });
+        };
+
+        if (config?.viewOptions?.confirmMerge === false) {
+            performMerge();
+        } else {
+            modalState.showConfirm('Confirm Merge', `Merge ${node.name}?`, performMerge);
+        }
     };
 
     const handleDelete = (node: FileNode, side: 'left' | 'right') => {
-        const skipConfirm = config?.viewOptions?.confirmDelete === false;
-
-        if (skipConfirm) {
-            deleteItem(node, side, leftPath, rightPath).catch(e => showAlert("Delete Failed", e.message));
-            return;
-        }
-
-        setConfirmState({
-            isOpen: true,
-            title: 'Confirm Delete',
-            message: `Are you sure you want to delete ${node.name} from the ${side} side? This cannot be undone.`,
-            action: async () => {
-                try {
-                    await deleteItem(node, side, leftPath, rightPath);
-                } catch (e: any) {
-                    showAlert("Delete Failed", e.message);
-                }
+        const performDelete = async () => {
+            try {
+                removeNode(node.path);
+                const fullPath = (side === 'left' ? lPath : rPath) + '/' + node.path;
+                await fileMutationService.deleteItem(fullPath);
+                loggingService.info('AppLogic', `Delete successful: ${fullPath}`);
+            } catch (e: any) {
+                handleReload();
+                modalState.showAlert("Delete Failed", e.message);
+                loggingService.error('AppLogic', `Delete failed: ${node.path}`, e);
             }
-        });
+        };
+
+        if (config?.viewOptions?.confirmDelete === false) {
+            performDelete();
+        } else {
+            modalState.showConfirm('Confirm Delete', `Delete ${node.name} from ${side}?`, performDelete);
+        }
     };
 
-    const openBrowse = (target: 'left' | 'right' | 'import-exclude-folders' | 'import-exclude-files') => {
-        const mode = (target === 'import-exclude-folders' || target === 'import-exclude-files') ? 'file' : 'directory';
-        setBrowseState({ isOpen: true, target, mode });
+    const executeBatchMerge = async (direction: 'left-to-right' | 'right-to-left') => {
+        if (selectionSet.size === 0) return;
+        const itemsToMerge: any[] = [];
+        const traverse = (node: FileNode) => {
+            if (selectionSet.has(node.path)) {
+                const src = direction === 'left-to-right' ? lPath + '/' + node.path : rPath + '/' + node.path;
+                const dest = direction === 'left-to-right' ? rPath + '/' + node.path : lPath + '/' + node.path;
+                itemsToMerge.push({ src, dest, isDir: node.type === 'directory', path: node.path });
+            }
+            node.children?.forEach(traverse);
+        };
+        if (treeData) traverse(treeData);
+
+        if (itemsToMerge.length === 0) return;
+
+        const performBatch = async () => {
+            loggingService.info('AppLogic', `Executing batch merge for ${itemsToMerge.length} items`);
+            const results = await fileMutationService.mergeBatch(itemsToMerge);
+            const failed = results.filter(r => !r.success);
+
+            // Update UI for successful ones
+            results.filter(r => r.success).forEach(r => patchNode(r.path, { status: 'same' }));
+
+            if (failed.length > 0) {
+                modalState.showAlert("Batch Merge Partially Failed", `${failed.length} items failed to merge. Check logs for details.`);
+            } else {
+                modalState.showAlert("Batch Merge Complete", `Successfully merged ${itemsToMerge.length} items.`);
+                setSelectionSet(new Set());
+            }
+        };
+
+        if (config?.viewOptions?.confirmMerge === false) {
+            performBatch();
+        } else {
+            modalState.showConfirm('Confirm Batch Merge', `Merge all ${itemsToMerge.length} selected items?`, performBatch);
+        }
+    };
+
+    const executeBatchDelete = async (side: 'left' | 'right') => {
+        if (selectionSet.size === 0) return;
+        const pathsToDelete: string[] = [];
+        const nodePathsInRange: string[] = [];
+
+        const traverse = (node: FileNode) => {
+            if (selectionSet.has(node.path)) {
+                pathsToDelete.push((side === 'left' ? lPath : rPath) + '/' + node.path);
+                nodePathsInRange.push(node.path);
+            }
+            node.children?.forEach(traverse);
+        };
+        if (treeData) traverse(treeData);
+
+        if (pathsToDelete.length === 0) return;
+
+        const performBatch = async () => {
+            loggingService.info('AppLogic', `Executing batch delete for ${pathsToDelete.length} items`);
+            const results = await fileMutationService.deleteBatch(pathsToDelete);
+            const failed = results.filter(r => !r.success);
+
+            // Reload tree to be safe after bulk delete if many successes
+            if (results.some(r => r.success)) {
+                handleReload();
+            }
+
+            if (failed.length > 0) {
+                modalState.showAlert("Batch Delete Partially Failed", `${failed.length} items failed to delete.`);
+            } else {
+                modalState.showAlert("Batch Delete Complete", `Successfully deleted ${pathsToDelete.length} items.`);
+                setSelectionSet(new Set());
+            }
+        };
+
+        if (config?.viewOptions?.confirmDelete === false) {
+            performBatch();
+        } else {
+            modalState.showConfirm('Confirm Batch Delete', `Delete all ${pathsToDelete.length} selected items from ${side}?`, performBatch);
+        }
     };
 
     const handleBrowseSelect = async (path: string) => {
-        if (browseState.target === 'left') setLeftPath(path);
-        else if (browseState.target === 'right') setRightPath(path);
-        else if (browseState.target === 'import-exclude-folders' || browseState.target === 'import-exclude-files') {
+        if (modalState.browseState.target === 'left') setLPath(path);
+        else if (modalState.browseState.target === 'right') setRPath(path);
+        else if (modalState.browseState.target?.includes('exclude')) {
             try {
                 const data = await api.fetchFileContent(path);
-                if (data && data.content) {
-                    const lines = data.content.split(/\r?\n/)
-                        .map((l: string) => l.trim())
-                        .filter((l: string) => l && !l.startsWith('#'))
-                        .join(', ');
-
-                    if (browseState.target === 'import-exclude-folders') setExcludeFolders(lines);
-                    else setExcludeFiles(lines);
+                if (data?.content) {
+                    const lines = data.content.split(/\r?\n/).map((l: string) => l.trim()).filter((l: string) => l && !l.startsWith('#')).join(', ');
+                    if (modalState.browseState.target.includes('folders')) viewState.setExcludeFolders(lines);
+                    else viewState.setExcludeFiles(lines);
                 }
             } catch (e: any) {
-                showAlert("Import Failed", e.message);
+                modalState.showAlert("Import Failed", e.message);
             }
         }
     };
 
     const handleHistorySelect = (left: string, right?: string) => {
-        if (historyState.side === 'left') setLeftPath(left);
-        else if (historyState.side === 'right') setRightPath(left);
-        else if (right) {
-            setLeftPath(left);
-            setRightPath(right);
-        }
+        if (modalState.historyState.side === 'left') setLPath(left);
+        else if (modalState.historyState.side === 'right') setRPath(left);
+        else if (right) { setLPath(left); setRPath(right); }
     };
 
     const handleSwap = () => {
-        const temp = leftPath;
-        setLeftPath(rightPath);
-        setRightPath(temp);
+        const temp = lPath;
+        setLPath(rPath);
+        setRPath(temp);
     };
 
-    // --- Stats Calculation Logic ---
-    const [globalStats, setGlobalStats] = useState<{ added: number, removed: number, modified: number }>({ added: 0, removed: 0, modified: 0 });
+    // Stats Logic
+    const [globalStats, setGlobalStats] = useState({ added: 0, removed: 0, modified: 0 });
     const [currentFolderStats, setCurrentFolderStats] = useState<{ added: number, removed: number, modified: number } | null>(null);
     const [fileLineStats, setFileLineStats] = useState<{ added: number, removed: number, groups: number } | null>(null);
 
-    // Calculate Global Stats when treeData changes
     useEffect(() => {
-        if (!treeData) {
-            setGlobalStats({ added: 0, removed: 0, modified: 0 });
-            return;
-        }
-
-        const stats = { added: 0, removed: 0, modified: 0 };
-        const traverse = (node: FileNode) => {
-            if (node.type === 'file') {
-                if (node.status === 'added') stats.added++;
-                if (node.status === 'removed') stats.removed++;
-                if (node.status === 'modified') stats.modified++;
-            }
-            if (node.children) node.children.forEach(traverse);
-        };
-        traverse(treeData);
-        setGlobalStats(stats);
+        setGlobalStats(statsService.calculateGlobal(treeData));
     }, [treeData]);
 
-    // Calculate Current Folder Stats when selectedNode or treeData changes
     useEffect(() => {
-        if (!treeData || !selectedNode) {
-            setCurrentFolderStats(null);
-            return;
-        }
-
-        // Find parent folder of selectedNode
+        if (!treeData || !selectedNode) { setCurrentFolderStats(null); return; }
         let parentStats = { added: 0, removed: 0, modified: 0 };
         let found = false;
-
-        const traverseToFindParent = (node: FileNode): boolean => {
-            if (node.children) {
-                if (node.children.some(child => child.path === selectedNode.path)) {
-                    const stats = { added: 0, removed: 0, modified: 0 };
-                    const countStats = (n: FileNode) => {
-                        if (n.type === 'file') {
-                            if (n.status === 'added') stats.added++;
-                            if (n.status === 'removed') stats.removed++;
-                            if (n.status === 'modified') stats.modified++;
-                        }
-                        if (n.children) n.children.forEach(countStats);
-                    };
-                    countStats(node);
-                    parentStats = stats;
-                    found = true;
-                    return true;
-                }
-                for (const child of node.children) {
-                    if (traverseToFindParent(child)) return true;
-                }
+        const traverse = (node: FileNode): boolean => {
+            if (node.children?.some((c: FileNode) => c.path === selectedNode.path)) {
+                parentStats = statsService.calculateFolder(node);
+                found = true;
+                return true;
             }
-            return false;
+            return node.children?.some(traverse) ?? false;
         };
-
-        if (treeData.children?.some(c => c.path === selectedNode.path)) {
-            const stats = { added: 0, removed: 0, modified: 0 };
-            const countStats = (n: FileNode) => {
-                if (n.type === 'file') {
-                    if (n.status === 'added') stats.added++;
-                    if (n.status === 'removed') stats.removed++;
-                    if (n.status === 'modified') stats.modified++;
-                }
-                if (n.children) n.children.forEach(countStats);
-            };
-            countStats(treeData);
-            parentStats = stats;
+        if (treeData.children?.some((c: FileNode) => c.path === selectedNode.path)) {
+            parentStats = statsService.calculateFolder(treeData);
             found = true;
         } else {
-            traverseToFindParent(treeData);
+            traverse(treeData);
         }
-
-        if (found) {
-            setCurrentFolderStats(parentStats);
-        } else {
-            setCurrentFolderStats(null);
-        }
-
+        setCurrentFolderStats(found ? parentStats : null);
     }, [treeData, selectedNode]);
 
-    // Callback to update file line stats from DiffViewer
-    const updateFileLineStats = (added: number, removed: number, groups: number) => {
-        setFileLineStats({ added, removed, groups });
-    };
-
-    const handleAdjustWidth = (delta: number) => {
-        setLeftPanelWidth(prev => {
-            const next = prev + delta;
-            // Clamp between 10% and 50%
-            return Math.max(10, Math.min(50, next));
-        });
-    };
-
-    // Return everything needed by UI
     return {
-        // Config & Loading
         config, configLoading, configError,
-        compareLoading, compareError,
-
-        // State
-        leftPath, setLeftPath,
-        rightPath, setRightPath,
-        searchQuery, setSearchQuery,
-        excludeFolders, setExcludeFolders,
-        excludeFiles, setExcludeFiles,
+        treeData, compareLoading, compareError,
+        leftPath: lPath, setLeftPath: setLPath,
+        rightPath: rPath, setRightPath: setRPath,
         selectedNode, setSelectedNode,
-        isExpanded, setIsExpanded,
-        diffMode, setDiffMode,
-        aboutOpen, setAboutOpen,
-        leftPanelWidth,
-        treeData,
-
-        // Modal States
-        confirmState, setConfirmState,
-        browseState, setBrowseState,
-        historyState, setHistoryState,
-
-        // Actions
-        handleSaveSettings,
-        handleResetSettings,
-        onCompare,
-        handleMerge,
-        handleDelete,
-        openBrowse,
-        handleBrowseSelect,
-        handleHistorySelect,
-        handleSwap,
-        handleReload,
-        handleAdjustWidth,
+        selectionSet, toggleSelection, toggleSelectionBatch, selectByStatus, clearSelection,
+        isExplicitSelectionMode, setExplicitSelectionMode,
+        executeBatchMerge, executeBatchDelete,
+        globalStats, currentFolderStats, fileLineStats,
+        updateFileLineStats: (a: number, r: number, g: number) => setFileLineStats({ added: a, removed: r, groups: g }),
+        patchNode, removeNode,
+        ...viewState,
+        ...modalState,
+        handleSaveSettings, handleResetSettings,
+        onCompare, handleMerge, handleDelete,
+        handleBrowseSelect, handleHistorySelect,
+        handleSwap, handleReload,
         toggleViewOption: useConfig().toggleViewOption,
-
-        // Stats
-        globalStats,
-        currentFolderStats,
-        fileLineStats,
-        updateFileLineStats
+        openBrowse: modalState.openBrowse,
+        hiddenPaths: viewState.hiddenPaths,
+        toggleHiddenPath: viewState.toggleHiddenPath,
+        showHidden: viewState.showHidden,
+        toggleShowHidden: viewState.toggleShowHidden
     };
 };

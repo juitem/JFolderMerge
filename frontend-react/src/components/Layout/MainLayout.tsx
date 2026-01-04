@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ReactNode } from 'react';
-import { Save, Moon, Sun, ZoomIn, ZoomOut, RotateCcw, Globe, FolderOpen, FileText } from 'lucide-react';
+import { Save, Moon, Sun, ZoomIn, ZoomOut, RotateCcw, HelpCircle } from 'lucide-react';
 import { FilterToolbar } from '../FilterToolbar';
 import { useConfig } from '../../contexts/ConfigContext';
 import { PathControls } from '../PathControls';
@@ -12,6 +12,7 @@ interface MainLayoutProps {
     onSaveSettings: () => void;
     onResetSettings?: () => void;
     onOpenAbout: () => void;
+    onOpenHelp: () => void;
     // Toolbar Props
     searchQuery: string;
     setSearchQuery: (s: string) => void;
@@ -39,11 +40,19 @@ interface MainLayoutProps {
     // Layout Actions
     onToggleFileView?: () => void;
     onAdjustWidth?: (delta: number) => void;
+    isLocked?: boolean;
+    setIsLocked?: (b: boolean) => void;
+    layoutMode?: 'folder' | 'split' | 'file';
+    setLayoutMode?: (mode: 'folder' | 'split' | 'file') => void;
 
     // Stats
-    globalStats?: { added: number, removed: number, modified: number };
-    currentFolderStats?: { added: number, removed: number, modified: number } | null;
     fileLineStats?: { added: number, removed: number, groups: number } | null;
+
+    // Advanced Filter Props (for FilterToolbar)
+    hiddenPaths?: Set<string>;
+    toggleHiddenPath?: (path: string) => void;
+    showHidden?: boolean;
+    toggleShowHidden?: () => void;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = (props) => {
@@ -71,46 +80,6 @@ export const MainLayout: React.FC<MainLayoutProps> = (props) => {
                     </h1>
                 </div>
                 <div className="header-actions">
-                    {/* Global Stats */}
-                    {props.globalStats && (
-                        <span style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, opacity: 0.9, marginRight: '16px' }}>
-                            <Globe size={16} />
-                            <span style={{ color: '#ef4444' }}>-{props.globalStats.removed}</span>
-                            <span style={{ color: '#f59e0b' }}>!{props.globalStats.modified}</span>
-                            <span style={{ color: '#10b981' }}>+{props.globalStats.added}</span>
-                        </span>
-                    )}
-
-                    {/* Current Folder Stats */}
-                    {props.currentFolderStats && (
-                        <span style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.8, marginRight: '20px', borderLeft: '1px solid rgba(255,255,255,0.2)', paddingLeft: '16px' }}>
-                            <FolderOpen size={16} />
-                            <span style={{ color: '#ef4444' }}>-{props.currentFolderStats.removed}</span>
-                            <span style={{ color: '#f59e0b' }}>!{props.currentFolderStats.modified}</span>
-                            <span style={{ color: '#10b981' }}>+{props.currentFolderStats.added}</span>
-                        </span>
-                    )}
-
-                    {/* File Line Stats (New Location) */}
-                    {props.fileLineStats && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginRight: '20px', borderLeft: '1px solid rgba(255,255,255,0.2)', paddingLeft: '16px' }}>
-                            <FileText size={16} style={{ color: 'var(--text-secondary)', opacity: 0.8 }} />
-                            <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: '4px' }}>
-                                {/* Group Count (Main) */}
-                                <span style={{ fontSize: '14px', fontWeight: 800, fontStyle: 'italic', color: '#f59e0b', textShadow: 'none' }}>
-                                    {props.fileLineStats.groups}
-                                </span>
-                                {/* Line Counts (Inline) */}
-                                <span style={{ fontSize: '11px', display: 'flex', gap: '3px', fontWeight: 600, color: 'var(--text-secondary)', opacity: 0.8 }}>
-                                    (
-                                    <span style={{ color: '#10b981' }}>+{props.fileLineStats.added}</span>
-                                    <span style={{ color: '#ef4444' }}>-{props.fileLineStats.removed}</span>
-                                    )
-                                </span>
-                            </div>
-                        </span>
-                    )}
-
                     {/* File Name Display */}
                     {props.selectedFilePath && (
                         <div style={{
@@ -147,6 +116,9 @@ export const MainLayout: React.FC<MainLayoutProps> = (props) => {
                     <button className="icon-btn" title="Toggle Theme" onClick={() => setViewOption('darkMode', !isDark)}>
                         {isDark ? <Sun size={18} /> : <Moon size={18} style={{ transform: 'scaleX(-1)' }} />}
                     </button>
+                    <button className="icon-btn" title="Keyboard Shortcuts (? / F1)" onClick={props.onOpenHelp} style={{ color: 'var(--accent-color)' }}>
+                        <HelpCircle size={18} />
+                    </button>
                 </div>
             </header>
 
@@ -158,6 +130,21 @@ export const MainLayout: React.FC<MainLayoutProps> = (props) => {
                 setDiffMode={props.setDiffMode}
                 onToggleFileView={props.onToggleFileView}
                 onAdjustWidth={props.onAdjustWidth}
+                isLocked={props.isLocked}
+                setIsLocked={props.setIsLocked}
+                layoutMode={props.layoutMode}
+                setLayoutMode={props.setLayoutMode}
+
+                // Advanced Filters
+                excludeFolders={props.excludeFolders}
+                setExcludeFolders={props.setExcludeFolders}
+                excludeFiles={props.excludeFiles}
+                setExcludeFiles={props.setExcludeFiles}
+                onBrowse={props.onBrowse}
+                hiddenPaths={props.hiddenPaths}
+                toggleHiddenPath={props.toggleHiddenPath}
+                showHidden={props.showHidden}
+                toggleShowHidden={props.toggleShowHidden}
             />
 
             {/* Path Controls */}

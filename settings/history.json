@@ -2,7 +2,27 @@
   {
     "left_path": "/Users/juitem/Docker/ContainerFolder/JF",
     "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
-    "timestamp": "2026-01-01T05:42:58.260692"
+    "timestamp": "2026-01-04T23:33:38.653814"
+  },
+  {
+    "left_path": "test/test_left",
+    "right_path": "test/test_right",
+    "timestamp": "2026-01-04T17:45:28.238219"
+  },
+  {
+    "left_path": "/Users/juitem/Docker/ContainerFolder/JF",
+    "right_path": "test/test_right",
+    "timestamp": "2026-01-04T01:45:01.322716"
+  },
+  {
+    "left_path": "/Users/juitem/Docker/ContainerFolder/JF",
+    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/",
+    "timestamp": "2026-01-03T00:53:38.516080"
+  },
+  {
+    "left_path": "/Users/juitem/Docker/ContainerFolder/JF/test/test_left",
+    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/test/test_right",
+    "timestamp": "2026-01-01T21:09:14.235050"
   },
   {
     "left_path": "",
@@ -10,19 +30,9 @@
     "timestamp": "2026-01-01T05:29:54.353689"
   },
   {
-    "left_path": "/Users/juitem/Docker/ContainerFolder/JF/test/test_left",
-    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/test/test_right",
-    "timestamp": "2026-01-01T03:50:06.872446"
-  },
-  {
     "left_path": "/Users/juitem/Docker/ContainerFolder/JF/test_left",
     "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/test/test_right",
     "timestamp": "2026-01-01T00:50:27.843664"
-  },
-  {
-    "left_path": "/Users/juitem/Docker/ContainerFolder/JF",
-    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/",
-    "timestamp": "2025-12-31T23:47:59.451259"
   },
   {
     "left_path": "test/A",
@@ -38,15 +48,5 @@
     "left_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/test/A",
     "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/test/B",
     "timestamp": "2025-12-29T00:53:13.043681"
-  },
-  {
-    "left_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/frontend-react/src/Users/juitem/Docker/ContainerFolder/FolderComp/test/A",
-    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/test/B",
-    "timestamp": "2025-12-29T00:50:43.102186"
-  },
-  {
-    "left_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
-    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
-    "timestamp": "2025-12-29T00:43:55.718226"
   }
 ]

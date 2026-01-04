@@ -1,8 +1,0 @@
-Start of file.
-[ADD START]
-Feature A: New capability added.
-Feature B: Enhanced performance.
-Feature C: Better user interface.
-Feature D: Bug fixes included.
-[ADD END]
-End of file.

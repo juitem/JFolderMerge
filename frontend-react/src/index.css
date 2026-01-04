@@ -7,10 +7,10 @@
     --accent-color: #3b82f6;
     --accent-hover: #2563eb;
     --success: #10b981;
-    --danger: #ef4444;
-    --danger-soft: #fb7185;
-    --danger-vibrant: #f43f5e;
-    --warning: #f59e0b;
+    --danger: #cc2d2d;
+    --danger-soft: #e53e3e;
+    --danger-vibrant: #dc2626;
+    --warning: #d97706;
     --font-family: 'Inter', system-ui, -apple-system, sans-serif;
 
     /* Premium Semantics */
@@ -19,7 +19,7 @@
     --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
     --backdrop-blur: blur(16px);
 
-    --hover-bg: rgba(255, 255, 255, 0.03);
+    --hover-bg: rgba(255, 255, 255, 0.08);
     --selected-bg: rgba(59, 130, 246, 0.15);
     --input-bg: rgba(0, 0, 0, 0.2);
 
@@ -92,6 +92,7 @@ h3 {
     letter-spacing: -0.02em;
     background: linear-gradient(135deg, #60a5fa 0%, #c084fc 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     display: flex;
     align-items: center;
@@ -302,8 +303,20 @@ h3 {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    /* Fix Layout Shift: Reserve border space always */
     background: rgba(0, 0, 0, 0.1);
-    border-right: 1px solid var(--border-color);
+    border: 1px solid transparent;
+    /* Always present (top/left/bottom) */
+    border-right-color: var(--border-color);
+    /* Visible right border by default */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.left-panel:focus-within {
+    border-color: var(--accent-color) !important;
+    /* Border width doesn't change (1px -> 1px), so no movement */
+    box-shadow: 0 0 0 1px var(--accent-color);
+    /* Glow */
 }
 
 .right-panel {
@@ -362,43 +375,73 @@ h3 {
     /* Adjust for border */
 }
 
-.tree-row.focused-row {
-    background: rgba(59, 130, 246, 0.4);
-    /* Stronger background */
-    box-shadow: inset 4px 0 0 0 var(--accent-color);
-    /* Thicker indicator */
-    outline: 1px solid rgba(59, 130, 246, 0.5);
-    /* Explicit outline to ensure visibility */
+/* Swap: Collapsed folders get the accent, Expanded get normal/dim? */
+/* "The two colors should be opposite" */
+/* Collapsed Directory = Accent (Blue) - "Previous was better" */
+.tree-row.directory:not(.expanded) .node-name {
+    color: var(--accent-color);
+    font-weight: 500;
 }
 
-.item-name {
+/* Expanded Directory = Normal (White) */
+.tree-row.directory.expanded .node-name {
+    color: var(--text-primary);
+    font-weight: normal;
+}
+
+.tree-container:focus .tree-row.focused-row {
+    /* Focus Navigation Style (Cursor) - Only show when container is focused */
+    background: rgba(255, 255, 255, 0.05);
+    outline: 2px solid var(--accent-color);
+    outline-offset: -2px;
+    z-index: 10;
+}
+
+/* Subtle indicator even when not focused (optional, but let's keep it clean first) */
+.tree-row.focused-row {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.node-name {
     font-size: 0.9rem;
     color: var(--text-primary);
     flex: 1;
     /* Push status/icons to right */
-    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-right: 8px;
+    padding: 0 4px;
     transition: all 0.25s ease;
 }
 
 .item-status {
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 99px;
-    text-transform: uppercase;
-    /* margin-left: 8px; Removed, using flex gap */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 800;
+    flex-shrink: 0;
+    margin-left: 8px;
+    line-height: 1;
 }
 
-/* ... existing status color classes ... */
-
-/* ... */
+.merge-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    width: 156px;
+    /* Optimized rail for 2x wider merge buttons (24*2 + 48*2 + 4*3) */
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
 
 .merge-btn {
     width: 24px;
+    /* Default square width for diff views */
     height: 24px;
     display: flex;
     align-items: center;
@@ -408,31 +451,38 @@ h3 {
     color: var(--text-secondary);
     background: rgba(0, 0, 0, 0.2);
     cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.tree-row .merge-btn {
-    width: 50px;
-    /* 2x wider for Tree View */
-    background: rgba(59, 130, 246, 0.2);
-    /* More visible */
-    border-color: rgba(59, 130, 246, 0.4);
+.tree-node .merge-btn {
+    height: 24px;
+    /* Reset height to standard compact size */
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.2);
     color: var(--text-primary);
-    font-weight: bold;
 }
 
-.tree-row .merge-btn:hover {
+.tree-node .merge-btn:hover {
     background: var(--accent-color);
     border-color: var(--accent-color);
     color: white;
 }
 
-.tree-row .delete-btn {
-    width: 32px;
+.tree-node .delete-btn {
+    width: 24px;
     background: rgba(251, 113, 133, 0.1);
-    /* danger-soft tint */
     border-color: rgba(251, 113, 133, 0.3);
     color: var(--danger-soft);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* .tree-node .merge-btn.to-left opacity removed per user request for clearer icons */
+.tree-node.is-hidden {
+    opacity: 0.5 !important;
+}
+
+.tree-node .merge-btn.to-right {
+    width: 48px;
+    /* 2x wider than 24px delete button, scoped ONLY to tree */
 }
 
 .merge-btn.to-left {
@@ -463,7 +513,7 @@ h3 {
     color: white;
 }
 
-.tree-row .delete-btn:hover {
+.tree-node .delete-btn:hover {
     background: var(--danger-vibrant);
     border-color: var(--danger-vibrant);
     color: white;
@@ -471,32 +521,36 @@ h3 {
     box-shadow: 0 0 12px rgba(244, 63, 94, 0.4);
 }
 
-/* --- Visual Hover Feedback (Action Previews) --- */
+/* --- Visual Hover & Focus Feedback (Action Previews) --- */
 
-/* 1. Deletion Preview: When hovering Trash icon */
-.tree-row:has(.delete-btn:hover) {
-    background: rgba(244, 63, 94, 0.12) !important;
+/* 1. Deletion Preview: When hovering or keyboard-focusing Trash icon */
+.tree-node:has(.delete-btn:hover),
+.tree-node:has(.delete-btn.focused-intent) {
+    background: rgba(244, 63, 94, 0.2) !important;
 }
 
-.tree-row:has(.delete-btn:hover) .item-name {
+.tree-node:has(.delete-btn:hover) .node-name,
+.tree-node:has(.delete-btn.focused-intent) .node-name {
     text-decoration: line-through;
     opacity: 0.45;
     color: var(--danger-soft);
-    filter: blur(0.4px);
 }
 
-/* 2. Merge Preview (To Left): When hovering Accept icon */
-.tree-row:has(.merge-btn.to-left:hover) {
-    background: rgba(16, 185, 129, 0.12) !important;
+/* 2. Merge Preview (To Left): When hovering or keyboard-focusing Accept icon */
+.tree-node:has(.merge-btn.to-left:hover),
+.tree-node:has(.merge-btn.to-left.focused-intent) {
+    background: rgba(16, 185, 129, 0.2) !important;
 }
 
-/* 3. Merge Preview (To Right): When hovering Revert icon */
-.tree-row:has(.merge-btn.to-right:hover) {
-    background: rgba(236, 72, 153, 0.12) !important;
+/* 3. Merge Preview (To Right): When hovering or keyboard-focusing Revert icon */
+.tree-node:has(.merge-btn.to-right:hover),
+.tree-node:has(.merge-btn.to-right.focused-intent) {
+    background: rgba(236, 72, 153, 0.2) !important;
 }
 
 /* Optional: Subtle glow to the name when merging */
-.tree-row:has(.merge-btn:hover) .item-name {
+.tree-node:has(.merge-btn:hover) .node-name,
+.tree-node:has(.focused-intent) .node-name {
     text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
 }
 
@@ -543,7 +597,7 @@ h3 {
 
 /* 1. Deletion Preview: Hovering trash icon on a block group */
 .diff-block-group:has(.agent-delete-btn:hover) {
-    background: rgba(244, 63, 94, 0.12) !important;
+    background: rgba(244, 63, 94, 0.2) !important;
     border-color: rgba(244, 63, 94, 0.4) !important;
 }
 
@@ -556,7 +610,7 @@ h3 {
 
 /* 2. Merge Preview: Hovering merge icon on a block group */
 .diff-block-group:has(.agent-merge-btn:hover) {
-    background: rgba(16, 185, 129, 0.12) !important;
+    background: rgba(16, 185, 129, 0.2) !important;
     border-color: rgba(16, 185, 129, 0.4) !important;
 }
 
@@ -581,18 +635,21 @@ h3 {
 }
 
 .item-status.added {
-    background: var(--diff-added-bg);
-    color: var(--success);
+    background: var(--success);
+    color: white;
+    border: none;
 }
 
 .item-status.removed {
-    background: var(--diff-removed-bg);
-    color: var(--danger);
+    background: var(--danger);
+    color: white;
+    border: none;
 }
 
 .item-status.modified {
-    background: var(--diff-modified-bg);
-    color: var(--warning);
+    background: var(--warning);
+    color: white;
+    border: none;
 }
 
 
@@ -948,7 +1005,8 @@ h3 {
 
 .merge-actions {
     display: flex;
-    gap: 4px;
+    gap: 1px;
+    /* Tighter gap */
     opacity: 0.8;
     transition: opacity 0.2s;
     margin-left: auto;
@@ -961,27 +1019,43 @@ h3 {
 }
 
 .merge-btn {
-    width: 24px;
+    width: 40px;
+    /* Reduced by ~50% from 78px per user request */
     height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 4px;
+    /* Sharper corners */
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
     background: rgba(0, 0, 0, 0.2);
     cursor: pointer;
+    padding: 0;
 }
 
 .merge-btn:hover {
     background: var(--accent-color);
     color: white;
     border-color: var(--accent-color);
+    z-index: 1;
+}
+
+.merge-btn.delete {
+    width: 30px;
+    /* Increased by 50% from 20px */
+    background: rgba(255, 0, 0, 0.1);
+    border-color: rgba(255, 0, 0, 0.2);
+}
+
+.merge-btn.delete:hover {
+    background: var(--danger);
+    border-color: var(--danger);
 }
 
 .merge-btn.small {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     padding: 0;
 }
 
@@ -1173,14 +1247,16 @@ h3 {
 
 /* Ensure removed blocks keep their red tinge but get highlighted */
 .diff-block-group.group-removed.active {
-    background-color: rgba(239, 68, 68, 0.1);
-    box-shadow: inset 2px 0 0 0 var(--danger);
+    background-color: rgba(239, 68, 68, 0.25);
+    box-shadow: inset 3px 0 0 0 var(--danger);
+    outline: 1px solid rgba(239, 68, 68, 0.4);
 }
 
 /* Ensure added blocks keep their green tinge but get highlighted */
 .diff-block-group.group-added.active {
-    background-color: rgba(16, 185, 129, 0.1);
-    box-shadow: inset 2px 0 0 0 var(--success);
+    background-color: rgba(16, 185, 129, 0.25);
+    box-shadow: inset 3px 0 0 0 var(--success);
+    outline: 1px solid rgba(16, 185, 129, 0.4);
 }
 
 /* Chevron Icons for Tree */
@@ -1242,18 +1318,16 @@ h3 {
     background: transparent;
 }
 
-/* Active State - Removed (Left / Trashable) -> Read Background */
+/* Active State - Removed (Left / Trashable) -> Read Background / Already defined above, but ensuring consistency */
 .diff-block-group.group-removed.active {
     outline-color: #f87171 !important;
-    background-color: rgba(239, 68, 68, 0.15);
-    /* Red tint */
+    background-color: rgba(239, 68, 68, 0.3) !important;
 }
 
-/* Active State - Added (Right / Keepable) -> Green Background */
+/* Active State - Added (Right / Keepable) -> Green Background / Already defined above, but ensuring consistency */
 .diff-block-group.group-added.active {
     outline-color: #4ade80 !important;
-    background-color: rgba(74, 222, 128, 0.15);
-    /* Green tint */
+    background-color: rgba(74, 222, 128, 0.3) !important;
 }
 
 /* Agent View Merge Buttons - Compact & Elegant Styling */
@@ -1291,13 +1365,35 @@ h3 {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     background: #fb923c;
     color: #fff;
     border-radius: 50%;
     flex-shrink: 0;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    position: relative;
+}
+
+.file-level-f {
+    position: absolute;
+    top: -5px;
+    right: -4px;
+    font-size: 9px;
+    font-weight: 900;
+    background: #fb923c;
+    /* Same orange */
+    color: #fff;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid #1a1a2e;
+    /* Match theme background or contrasting border */
+    line-height: 1;
+    z-index: 10;
 }
 
 .agent-apply-text {

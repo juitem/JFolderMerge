@@ -1,6 +1,6 @@
 export type FileStatus = 'same' | 'modified' | 'added' | 'removed';
 export type FileType = 'file' | 'directory';
-export type DiffMode = 'unified' | 'side-by-side' | 'raw' | 'combined' | 'agent';
+export type DiffMode = 'unified' | 'side-by-side' | 'raw' | 'single' | 'combined' | 'agent';
 
 export interface FileNode {
     name: string;
@@ -10,6 +10,7 @@ export interface FileNode {
     children?: FileNode[];
     left_name?: string;
     right_name?: string;
+    depth?: number; // Added for flat-list rendering
 }
 
 // TreeData is usually just the Root FileNode (merged)
@@ -31,6 +32,10 @@ export interface Config {
     savedExcludes?: {
         folders?: string;
         files?: string;
+    };
+    disabledFilters?: {
+        folders?: string[];
+        files?: string[];
     };
 }
 

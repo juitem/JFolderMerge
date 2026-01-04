@@ -6,6 +6,7 @@ import { SideBySideView } from './diff/SideBySideView';
 import { RawView } from './diff/RawView';
 import { AgentView, type AgentViewHandle } from './diff/AgentView';
 
+
 interface DiffViewerProps {
     leftPathBase: string;
     rightPathBase: string;
@@ -17,6 +18,12 @@ interface DiffViewerProps {
     onPrevFile?: () => void;
     onReload?: () => void;
     onStatsUpdate?: (added: number, removed: number, groups: number) => void;
+    // Dependency Injection for architecture refactoring
+    onSaveFile?: (path: string, content: string) => Promise<void>;
+    onFetchContent?: (path: string) => Promise<{ content: string }>;
+    smoothScroll?: boolean;
+    onShowConfirm?: (title: string, message: string, action: () => void) => void;
+    setViewOption?: (key: string, value: any) => void;
 }
 
 export interface DiffViewerHandle {
@@ -27,16 +34,23 @@ export interface DiffViewerHandle {
 }
 
 export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
-    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate
+    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent, smoothScroll, onShowConfirm, setViewOption
 }, ref) => {
     const [mode, setMode] = useState<DiffMode>(initialMode);
+    const mergeMode = (config.viewOptions?.mergeMode as 'group' | 'unit') || 'group';
+
+    const toggleMergeMode = () => {
+        if (setViewOption) {
+            setViewOption('mergeMode', mergeMode === 'group' ? 'unit' : 'group');
+        }
+    };
 
     // ... (lines 33-40 skipped in diff, but I must match context if I replace start)
     // Actually, I can just replace the definition line.
 
 
 
-    // Sync if initialMode changes (though usually App passes persisted state)
+    // Sync if initialMode changes
     useEffect(() => {
         if (initialMode && initialMode !== mode) {
             setMode(initialMode);
@@ -82,14 +96,14 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
     const fetchDiff = async () => {
         setLoading(true);
         setError("");
-        setDiffData(null);
-        setRawContent(null);
+        // DO NOT setDiffData(null) or setRawContent(null) here. 
+        // This ensures the component stays mounted during refresh, preserving its state (like cursor position).
 
         try {
             const fullLeft = leftPathBase + '/' + relPath;
             const fullRight = rightPathBase + '/' + relPath;
 
-            if (mode === 'raw') {
+            if (mode === 'raw' || mode === 'single') {
                 // Fetch raw content for both files
                 // We use Promise.allSettled to allow one side to be missing (e.g. added/removed file)
                 const [leftRes, rightRes] = await Promise.allSettled([
@@ -121,7 +135,15 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
         }
     };
 
+    const lastPathRef = useRef("");
+
     useEffect(() => {
+        const fullPath = relPath;
+        if (fullPath !== lastPathRef.current) {
+            setDiffData(null);
+            setRawContent(null);
+            lastPathRef.current = fullPath;
+        }
         fetchDiff();
     }, [relPath, mode, leftPathBase, rightPathBase]);
 
@@ -221,25 +243,29 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
     // Actually, `DiffViewer` props needs `onStatsUpdate`.
     // Let's modify `DiffViewer` to accept it first.
 
-    const handleLineMerge = async (sourceText: string, targetSide: 'left' | 'right', targetLineIndex: number | null, type: 'insert' | 'replace' | 'delete', viewIndex: number) => {
+    const handleLineMerge = async (sourceText: string, targetSide: 'left' | 'right', targetLineIndex: number | null, type: 'insert' | 'replace' | 'delete', viewIndex: number, deleteCount: number = 1) => {
         setLoading(true);
         try {
             const targetPathBase = targetSide === 'left' ? leftPathBase : rightPathBase;
             const fullTargetPath = targetPathBase + '/' + relPath;
 
-            // 1. Fetch current target content
-            const fileData = await api.fetchFileContent(fullTargetPath);
+            // 1. Fetch current target content (Use injected handler or API)
+            const fileData = onFetchContent
+                ? await onFetchContent(fullTargetPath)
+                : await api.fetchFileContent(fullTargetPath);
+
             let lines = fileData && fileData.content ? fileData.content.split(/\r?\n/) : [];
 
             // 2. Modify Lines
+            const newLines = sourceText ? sourceText.split(/\r?\n/) : [];
+
             if (type === 'delete') {
                 if (targetLineIndex !== null) {
-                    // Line numbers are 1-based, array is 0-based
-                    lines.splice(targetLineIndex - 1, 1);
+                    lines.splice(targetLineIndex - 1, deleteCount);
                 }
             } else if (type === 'replace') {
                 if (targetLineIndex !== null) {
-                    lines[targetLineIndex - 1] = sourceText;
+                    lines.splice(targetLineIndex - 1, deleteCount, ...newLines);
                 }
             } else if (type === 'insert') {
                 let insertAt = 0;
@@ -247,20 +273,25 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                 if (rows) {
                     for (let i = viewIndex - 1; i >= 0; i--) {
                         if (rows[i].line) {
-                            insertAt = rows[i].line; // Insert AFTER this line
+                            insertAt = rows[i].line;
                             break;
                         }
                     }
                 }
-                lines.splice(insertAt, 0, sourceText);
+                lines.splice(insertAt, 0, ...newLines);
             }
 
-            // 3. Save
-            await api.saveFile(fullTargetPath, lines.join('\n'));
+            // 3. Save (Use injected handler or API)
+            const newContent = lines.join('\n');
+            if (onSaveFile) {
+                await onSaveFile(fullTargetPath, newContent);
+            } else {
+                await api.saveFile(fullTargetPath, newContent);
+            }
 
             // 4. Refresh
             await fetchDiff();
-            onReload?.(); // Refresh global tree
+            onReload?.();
         } catch (e: any) {
             setError("Merge failed: " + e.message);
             setLoading(false);
@@ -274,32 +305,32 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
             const fullTargetPath = targetPathBase + '/' + relPath;
 
             // 1. Fetch
-            const fileData = await api.fetchFileContent(fullTargetPath);
+            const fileData = onFetchContent
+                ? await onFetchContent(fullTargetPath)
+                : await api.fetchFileContent(fullTargetPath);
             let lines = fileData && fileData.content ? fileData.content.split(/\r?\n/) : [];
 
             // 2. Modify
             if (type === 'delete') {
-                // anchorLine is 1-based, starting line to delete
-                // linesToMerge length is how many lines to delete
                 if (anchorLine > 0 && anchorLine <= lines.length) {
                     lines.splice(anchorLine - 1, linesToMerge.length);
                 }
             } else if (type === 'insert') {
-                // Insert lines AFTER anchorLine (1-based)
-                // If anchorLine is 0, insert at beginning.
                 lines.splice(anchorLine, 0, ...linesToMerge);
             } else if (type === 'replace') {
-                // Replace logic: Delete X lines ending at anchorLine, then Insert.
-                // anchorLine is 1-based end of the block to be replaced (from parsing state).
-                // deleteCount is number of lines to remove.
-                const startIndex = anchorLine - deleteCount;
+                const startIndex = anchorLine - 1;
                 if (startIndex >= 0 && startIndex < lines.length) {
                     lines.splice(startIndex, deleteCount, ...linesToMerge);
                 }
             }
 
             // 3. Save
-            await api.saveFile(fullTargetPath, lines.join('\n'));
+            const newContent = lines.join('\n');
+            if (onSaveFile) {
+                await onSaveFile(fullTargetPath, newContent);
+            } else {
+                await api.saveFile(fullTargetPath, newContent);
+            }
 
             // 4. Refresh
             await fetchDiff();
@@ -309,17 +340,67 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
             setLoading(false);
         }
     };
+    const hasData = ((mode === 'raw' || mode === 'single') && !!rawContent) || (mode !== 'raw' && mode !== 'single' && !!diffData);
 
-    if (loading) return <div className="loading-diff">Loading Diff...</div>;
-    // Error can be shown, but sometimes we want to show partial content.
+    const agentScrollerRef = useRef<HTMLElement | Window | null>(null);
+    const sideBySideScrollerRef = useRef<HTMLElement | Window | null>(null);
+    const isScrollingInternal = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (mode !== 'combined') return;
+        const agent = agentScrollerRef.current;
+        const side = sideBySideScrollerRef.current;
+        if (!agent || !side) return;
+
+        // Sync logic only works with HTMLElements for now
+        if (!(agent instanceof HTMLElement) || !(side instanceof HTMLElement)) return;
+
+        const onAgentScroll = () => {
+            if (isScrollingInternal.current && isScrollingInternal.current !== 'agent') return;
+            isScrollingInternal.current = 'agent';
+            const ratio = agent.scrollTop / (agent.scrollHeight - agent.clientHeight);
+            side.scrollTop = ratio * (side.scrollHeight - side.clientHeight);
+            setTimeout(() => { if (isScrollingInternal.current === 'agent') isScrollingInternal.current = null; }, 50);
+        };
+
+        const onSideScroll = () => {
+            if (isScrollingInternal.current && isScrollingInternal.current !== 'side') return;
+            isScrollingInternal.current = 'side';
+            const ratio = side.scrollTop / (side.scrollHeight - side.clientHeight);
+            agent.scrollTop = ratio * (agent.scrollHeight - agent.clientHeight);
+            setTimeout(() => { if (isScrollingInternal.current === 'side') isScrollingInternal.current = null; }, 50);
+        };
+
+        agent.addEventListener('scroll', onAgentScroll);
+        side.addEventListener('scroll', onSideScroll);
+
+        return () => {
+            agent.removeEventListener('scroll', onAgentScroll);
+            side.removeEventListener('scroll', onSideScroll);
+        };
+    }, [mode, hasData]);
+
+    if (loading && !hasData) return <div className="loading-diff">Loading Diff...</div>;
     if (error) return <div className="error-diff">Error: {error}</div>;
-
-    // In raw mode, we check rawContent. In other modes, diffData.
-    if (mode === 'raw' && !rawContent) return <div className="empty-diff">Select a file to compare</div>;
-    if (mode !== 'raw' && !diffData) return <div className="empty-diff">Select a file to compare</div>;
+    if (!hasData) return <div className="empty-diff">Select a file to compare</div>;
 
     return (
-        <div className="diff-component">
+        <div className="diff-component" style={{ position: 'relative' }}>
+            {hasData && (
+                <div style={{
+                    position: 'absolute', top: 0, right: 0, padding: '4px 8px',
+                    display: 'flex', gap: '8px', alignItems: 'center', zIndex: 100
+                }}>
+                    {loading && (
+                        <div style={{
+                            padding: '2px 6px', background: 'rgba(59, 130, 246, 0.8)', color: 'white',
+                            fontSize: '10px', borderRadius: '4px'
+                        }}>
+                            Refreshing...
+                        </div>
+                    )}
+                </div>
+            )}
             <div className={`diff-content ${mode}`}>
                 {mode === 'unified' && diffData && <UnifiedView diff={diffData.diff} filters={config.diffFilters} />}
                 {mode === 'side-by-side' && diffData && (
@@ -329,11 +410,22 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         filters={config.diffFilters}
                         onMerge={handleLineMerge}
                         showLineNumbers={!!config.viewOptions?.showLineNumbers}
-                        wrap={!!config.viewOptions?.diffViewWrap}
+                        wrap={!!config.viewOptions?.wordWrap}
+                        mergeMode={mergeMode}
+                        onMergeModeChange={toggleMergeMode}
+                        onShowConfirm={onShowConfirm}
                     />
                 )}
-                {mode === 'raw' && rawContent && (
-                    <RawView left={rawContent.left} right={rawContent.right} />
+                {(mode === 'raw' || mode === 'single') && rawContent && (
+                    <RawView
+                        left={rawContent.left}
+                        right={rawContent.right}
+                        mode={mode === 'single' ? 'single' : 'raw'}
+                        showLineNumbers={!!(config.viewOptions?.showLineNumbers ?? true)}
+                        wrap={!!config.viewOptions?.wordWrap}
+                        leftPath={leftPathBase ? leftPathBase + '/' + relPath : undefined}
+                        rightPath={rightPathBase ? rightPathBase + '/' + relPath : undefined}
+                    />
                 )}
                 {mode === 'combined' && diffData && (
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
@@ -347,6 +439,12 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                                 onMerge={handleAgentMerge}
                                 onNextFile={onNextFile}
                                 onPrevFile={onPrevFile}
+                                wrap={!!config.viewOptions?.wordWrap}
+                                scrollerRef={(el) => (agentScrollerRef.current = el)}
+                                smoothScroll={smoothScroll}
+                                mergeMode={mergeMode}
+                                onMergeModeChange={toggleMergeMode}
+                                onShowConfirm={onShowConfirm}
                             />
                         </div>
                         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -356,7 +454,11 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                                 filters={config.diffFilters}
                                 onMerge={handleLineMerge}
                                 showLineNumbers={!!config.viewOptions?.showLineNumbers}
-                                wrap={!!config.viewOptions?.diffViewWrap}
+                                wrap={!!config.viewOptions?.wordWrap}
+                                scrollerRef={(el) => (sideBySideScrollerRef.current = el)}
+                                mergeMode={mergeMode}
+                                onMergeModeChange={toggleMergeMode}
+                                onShowConfirm={onShowConfirm}
                             />
                         </div>
                     </div>
@@ -371,6 +473,11 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         onMerge={handleAgentMerge}
                         onNextFile={onNextFile}
                         onPrevFile={onPrevFile}
+                        wrap={!!config.viewOptions?.wordWrap}
+                        smoothScroll={smoothScroll}
+                        mergeMode={mergeMode}
+                        onMergeModeChange={toggleMergeMode}
+                        onShowConfirm={onShowConfirm}
                     />
                 )}
 
