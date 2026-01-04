@@ -21,6 +21,8 @@
 | | `scrollToPath()` | Virtuoso imperative scroll로 특정 노드 노출. | Component Test |
 | | `toggleHidden(path)` | 특정 파일/폴더 숨기기 (단축키: `Ctrl+H`, `Alt+H`). | Unit Tested |
 | | `toggleShowHidden()` | 숨겨진 파일들의 노출 여부 토글 (단축키: `h`). | Unit Tested |
+| | `handleContextMenu(e, node)` | 우클릭 시 Context Menu 표시 및 상태 설정. | Manual Verified |
+| | `executeContextAction(action)` | 메뉴 액션(Merge, Delete, Open External) 실행. | Manual Verified |
 
 ## 2. File View Module (Viewer)
 
@@ -39,6 +41,8 @@
 | | `navigateZone(dir)` | `ArrowLeft/Right`로 `Accept` <-> `Content` <-> `Revert` 선형 이동 (Sticky). | Unit Tested |
 | | `resetFocus()` | `Esc` 시 아이콘 선택에서 `Content` 존으로 복귀 (Soft Exit). | Unit Tested |
 | | `saveChanges()` | 변경 사항을 서버에 기록하고 트리 상태 업데이트 트리거. | E2E Tested |
+| | `toggleEditMode()` | Single View에서 읽기 전용/편집 모드 전환. | Manual Verified |
+| | `updateContent(text)` | 편집 모드에서 파일 내용 수정 (Undo/Redo 지원). | Manual Verified |
 
 ## 3. Input & Command Module
 
@@ -73,6 +77,7 @@
 | **Functions** | `runCompare()` | 좌/우 경로에 대해 전체 재검사 및 트리 구성. | Integration Test |
 | | `openBrowse(target)` | 폴더 브라우저 모달 열기 (Left/Right/Excludes). | Manual Verified |
 | | `updateNodeStatus()` | 뷰어의 변경을 트리 노드와 부모 통계에 즉각 반영. | Unit Tested |
+| | `openExternal(path)` | 시스템 기본 연결 프로그램 또는 설정된 에디터로 파일 열기. | Manual Verified |
 
 ## 5. Layout Module (Resizer)
 
