@@ -1,4 +1,4 @@
-# Module Specifications & State Definition (v6)
+# Module Specifications & State Definition (v7)
 
 이 리팩토링의 핵심은 각 모듈이 관리하는 데이터(State)와 제공하는 행위(Functions)를 명확히 분리하여 충돌을 방지하는 것입니다.
 
@@ -69,12 +69,15 @@
 
 | Category | Item Name | Description | Test Status |
 | :--- | :--- | :--- | :--- |
-| **State** | `projectConfig` | 필터, 제외 파일/폴더 목록, 레이아웃 모드. | Context Test |
+| **State** | `projectConfig` | 필터, 제외 파일/폴더 목록, 레이아웃 및 뷰 옵션 전역 설정. | Context Test |
+| | `viewOptions` | `showLineNumbers`, `wordWrap`, `statusDisplayMode`, `showSelectionCheckboxes`, `autoScroll` 등 UI 제어 옵션. | Unit Tested |
 | | `globalStats` | 프로젝트 전체의 A/M/R 합계. | Unit Tested |
 | | `historyItems` | 최근 비교한 경로 쌍 리스트. | Service Test |
 | **Services** | `FileMutationService`| 파일 읽기/수정/저장 로직 통합 관리 (DRY 원칙). | Unit Tested |
 | | `StatsService` | 트리 데이터를 기반으로 통계를 실시간 자동 계산. | Unit Tested |
-| **Functions** | `runCompare()` | 좌/우 경로에 대해 전체 재검사 및 트리 구성. | Integration Test |
+| **Functions** | `setViewOption(key, val)` | 개별 뷰 옵션을 명시적으로 설정. | Unit Tested |
+| | `toggleFilter(status)` | 폴더 필터(A/M/R/S) 토글. 미설정 시 기본값(`true`) 처리. | Unit Tested |
+| | `runCompare()` | 좌/우 경로에 대해 전체 재검사 및 트리 구성. | Integration Test |
 | | `openBrowse(target)` | 폴더 브라우저 모달 열기 (Left/Right/Excludes). | Manual Verified |
 | | `updateNodeStatus()` | 뷰어의 변경을 트리 노드와 부모 통계에 즉각 반영. | Unit Tested |
 | | `openExternal(path)` | 시스템 기본 연결 프로그램 또는 설정된 에디터로 파일 열기. | Manual Verified |
@@ -111,4 +114,4 @@
 4.  **File Operation Flow**: `Tree/Viewer Module` (Delete/Merge Action) -> `Orchestrator` -> `API Call` -> `Success` -> `Orchestrator.updateNodeStatus`.
 5.  **Layout Resize Flow**: `User Drag` -> `Layout Module.updateWidth()` -> `Global State: sidebarWidth` -> `Tree & Viewer Modules` (Resize Components).
 6.  **Keyboard Flow**: `User Input` -> `Input Service` (Context Check) -> `Command Registry` -> `Active Module` (Execute Function).
-6.  **Update Flow**: `File View` (Merge) -> `Orchestrator` -> `Tree Module` (State: Refresh node status).
+7.  **Update Flow**: `File View` (Merge) -> `Orchestrator` -> `Tree Module` (State: Refresh node status).

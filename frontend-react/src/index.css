@@ -211,6 +211,10 @@ h3 {
     box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
 }
 
+.relative {
+    position: relative;
+}
+
 .primary-btn {
     background: var(--accent-color);
     color: white;
@@ -264,10 +268,15 @@ h3 {
     display: flex;
     align-items: center;
     gap: 16px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    /* Prevent wrapping to keep layout stable */
     background: rgba(0, 0, 0, 0.1);
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 0;
+    position: relative;
+    z-index: 100;
+    /* Ensure toolbar is above main content */
+    overflow: visible;
 }
 
 .toolbar.compact-toolbar {
@@ -1406,4 +1415,305 @@ h3 {
 
 .agent-apply-btn:hover .agent-apply-text {
     filter: brightness(1.05);
+}
+
+
+/* --- Restoration of Missing Components (Dropdowns, Toggles, Segmented) --- */
+
+/* Menu Item Wrapper */
+.menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: transparent;
+    transition: background 0.2s;
+    user-select: none;
+}
+
+.menu-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.menu-item.active {
+    background: rgba(59, 130, 246, 0.05);
+}
+
+
+.menu-item .label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    width: 36px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 99px;
+    border: 1px solid var(--border-color);
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    outline: none;
+    flex-shrink: 0;
+}
+
+.toggle-switch:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.toggle-switch.on {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+}
+
+.toggle-switch .thumb {
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch.on .thumb {
+    left: 18px;
+    /* 36 - 14 - 2(padding) - 2(border) = 18 roughly */
+    background: white;
+}
+
+/* Segmented Control */
+.segmented-control {
+    display: flex;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 2px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.segmented-control.tiny {
+    padding: 2px;
+    gap: 2px;
+}
+
+.segmented-control.compact {
+    padding: 1px;
+    min-width: 60px;
+}
+
+.segmented-control.compact button {
+    padding: 2px 4px;
+    font-size: 0.65rem;
+}
+
+.segmented-control button {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    line-height: 1;
+}
+
+.segmented-control button svg {
+    width: 14px !important;
+    height: 14px !important;
+    color: currentColor;
+}
+
+.segmented-control button.active {
+    background: var(--accent-color);
+    color: white;
+}
+
+/* Specific styling for segmented controls inside dropdown menus */
+.menu-segmented-control {
+    display: flex;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 2px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.menu-segmented-control button {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 4px 2px;
+    border-radius: 4px;
+    font-size: 0.55rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    line-height: 1.1;
+    min-width: 0;
+}
+
+.menu-segmented-control button svg {
+    width: 12px !important;
+    height: 12px !important;
+    margin-bottom: 1px;
+    color: currentColor;
+}
+
+.menu-segmented-control button:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.menu-segmented-control button.active {
+    background: var(--accent-color);
+    color: white;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.menu-segmented-control button span {
+    font-size: 8px;
+    font-weight: 500;
+    text-transform: uppercase;
+    opacity: 0.6;
+    letter-spacing: -0.01em;
+}
+
+.menu-segmented-control button.active span {
+    opacity: 1;
+    font-weight: 700;
+}
+
+/* Dropdown Menu (for File Options) */
+.dropdown-menu {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    min-width: 220px;
+    overflow: hidden;
+    animation: fadeIn 0.1s ease-out;
+}
+
+/* Sub-labels in menu items */
+.menu-item .sub-label {
+    display: block;
+    font-size: 0.7rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+/* Filter Input (for Overlay) */
+.filter-input {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px;
+    color: var(--text-primary);
+    font-size: 13px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.filter-input:focus {
+    border-color: var(--accent-color);
+}
+
+/* Premium Menu Checkboxes */
+.menu-filter-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 4px 0;
+}
+
+.menu-filter-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 6px 2px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.menu-filter-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.menu-filter-item.active {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+.menu-filter-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+}
+
+.menu-filter-item.active .menu-filter-dot {
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.menu-filter-item.active .menu-filter-dot.modified {
+    background: var(--warning);
+}
+
+.menu-filter-item.active .menu-filter-dot.added {
+    background: var(--success);
+}
+
+.menu-filter-item.active .menu-filter-dot.removed {
+    background: var(--danger);
+}
+
+.menu-filter-item.active .menu-filter-dot.same {
+    background: var(--text-secondary);
+}
+
+.menu-filter-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+}
+
+.menu-filter-item.active .menu-filter-label {
+    color: var(--text-primary);
 }

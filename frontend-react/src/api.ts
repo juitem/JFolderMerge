@@ -134,5 +134,13 @@ export const api = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ left_path: leftPath, right_path: rightPath, tool })
         });
+    },
+
+    async openPath(path: string): Promise<any> {
+        return request<any>('/api/open-path', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path })
+        });
     }
 };

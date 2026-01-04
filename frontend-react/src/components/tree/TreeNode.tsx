@@ -17,7 +17,8 @@ export interface TreeNodeProps {
         onMerge: (node: FileNode, direction: 'left-to-right' | 'right-to-left') => void;
         onDelete: (node: FileNode, side: 'left' | 'right') => void;
         onFocus?: (node: FileNode) => void;
-        onHide?: (node: FileNode) => void;
+        onHide?: (path: string) => void;
+        onContextMenu?: (e: React.MouseEvent, node: FileNode) => void;
     };
     // stats removed from props or ignored if unused
     stats?: { added: number, removed: number, modified: number };
@@ -73,6 +74,7 @@ const TreeNodeComponent: React.FC<TreeNodeProps> = ({
         <div
             className={`tree-row tree-node ${isFolder ? 'directory' : 'file'} ${isFocused ? 'focused-row' : ''} ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''} ${node.status} ${(node as any).isHidden ? 'is-hidden' : ''}`}
             onClick={(e) => actions.onSelect(node, e)}
+            onContextMenu={(e) => actions.onContextMenu && actions.onContextMenu(e, node)}
             onDoubleClick={(e) => {
                 actions.onSelect(node, e);
                 // Also trigger focus to content if it's a file, as per cmd.open behavior
@@ -91,7 +93,7 @@ const TreeNodeComponent: React.FC<TreeNodeProps> = ({
         >
 
             {/* Selection Checkbox */}
-            {(isInSelectionSet || isSelectionMode) && (
+            {(config.viewOptions?.showSelectionCheckboxes !== false) && (isInSelectionSet || isSelectionMode || config.viewOptions?.showSelectionCheckboxes === true) && (
                 <div
                     className="node-checkbox"
                     onClick={handleCheckboxClick}

@@ -18,6 +18,8 @@ interface VirtualTreeListProps {
         onMerge: (node: FileNode, direction: 'left-to-right' | 'right-to-left') => void;
         onDelete: (node: FileNode, side: 'left' | 'right') => void;
         onFocus?: (node: FileNode) => void;
+        onHide?: (path: string) => void;
+        onContextMenu?: (e: React.MouseEvent, node: FileNode) => void;
     };
     side: 'left' | 'right' | 'unified';
     selectedPath?: string | null;
@@ -51,22 +53,25 @@ export const VirtualTreeList: React.FC<VirtualTreeListProps> = ({
 
     // Scroll to focused path
     useEffect(() => {
+        const autoScroll = config.viewOptions?.autoScroll !== false;
+        if (!autoScroll) return;
+
         console.log('[VirtualTreeList] Effect Triggered. FocusedPath:', focusedPath, 'VisibleNodes:', visibleNodes.length);
         if (focusedPath !== null && focusedPath !== undefined) {
             const index = visibleNodes.findIndex(n => n.path === focusedPath);
             console.log('[VirtualTreeList] Calculated Index:', index, 'VirtuosoRef:', !!virtuosoRef.current);
             if (index !== -1 && virtuosoRef.current) {
                 // Use specific alignment for boundaries to improve wrap-around feel
-                let align: 'start' | 'center' | 'end' = 'center';
+                let align: 'start' | 'center' | 'end' | undefined;
                 if (index === 0) align = 'start';
                 else if (index === visibleNodes.length - 1) align = 'end';
 
                 const behavior = config.viewOptions?.smoothScrollFolder === false ? 'auto' : 'smooth';
-                console.log('[VirtualTreeList] Scrolling to:', index, 'Align:', align, 'Behavior:', behavior);
+                // console.log('[VirtualTreeList] Scrolling to:', index, 'Align:', align, 'Behavior:', behavior);
                 virtuosoRef.current.scrollToIndex({ index, align, behavior });
             }
         }
-    }, [focusedPath, visibleNodes]);
+    }, [focusedPath, visibleNodes, config.viewOptions?.autoScroll]);
 
     return (
         <div style={{ flex: 1, height: '100%', width: '100%' }}>

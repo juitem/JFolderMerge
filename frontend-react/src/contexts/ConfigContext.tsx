@@ -47,18 +47,19 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     const toggleFilter = (key: string) => {
         if (!config) return;
         const currentFilters = config.folderFilters || {};
-        const newFilters = { ...currentFilters, [key]: !currentFilters[key] };
-        const newConfig = { ...config, folderFilters: newFilters };
-        setConfig(newConfig);
-        // Optional: Auto-save or wait for explicit save?
-        // App.tsx logic was just setConfig.
+        // Default to true for folder filters as per UI (?? true)
+        const currentVal = currentFilters[key] ?? true;
+        const newFilters = { ...currentFilters, [key]: !currentVal };
+        setConfig({ ...config, folderFilters: newFilters });
     };
 
     const toggleDiffFilter = (key: string) => {
         if (!config) return;
-        const currentFilters = config.diffFilters || { same: false, modified: true, added: true, removed: true };
-        const newFilters = { ...currentFilters, [key]: !currentFilters[key] };
-        setConfig({ ...config, diffFilters: newFilters });
+        const currentFilters = config.diffFilters || {};
+        // Default: 'same' is false, others are true
+        const defaultValue = key === 'same' ? false : true;
+        const currentVal = currentFilters[key] ?? defaultValue;
+        setConfig({ ...config, diffFilters: { ...currentFilters, [key]: !currentVal } });
     };
     const toggleViewOption = (key: string) => {
         if (!config) return;

@@ -1,4 +1,4 @@
-# Functional Requirements: Folder View & File View (v6)
+# Functional Requirements: Folder View & File View (v7)
 
 ## 1. Folder View (Tree Navigation)
 
@@ -9,9 +9,9 @@
 *   **Root Integrity**: The project root should stay visible and expanded to provide context, while children can be toggled.
 *   **Granular Discovery**: Ability to jump specifically to the **Next Added** or **Next Removed** file, bypassing modified files if needed.
 *   **Batch Efficiency**: Support for selecting all files of a certain type (e.g., **Select All Added**) and performing a bulk Merge or Delete action in one go.
-*   **Action Stability**: Action icons (Merge Left/Right, Delete Left/Right) must be **horizontally aligned** across all rows. This allows the user to perform repetitive actions by moving only vertically, not laterally.
+*   **Visibility Control**: One-click toggle for hiding/showing hidden files (`H`). Individual control over **Select Boxes** (Hide/Smart/Show icons) and **Status Display Mode** (TAG/TEXT/BOTH) for a cleaner, customizable UI.
 *   **Quick Actions**: Keyboard-first access to merging (`Ctrl+ArrowRight`), deletion, and jumping to **First/Last Change** without losing place in the tree.
-*   **Visibility Control**: One-click toggle for hiding/showing hidden files (`H`) and individual action icons for a cleaner UI.
+*   **Action Stability**: Action icons (Merge Left/Right, Delete Left/Right) must be **horizontally aligned** across all rows. This allows the user to perform repetitive actions by moving only vertically, not laterally.
 
 ### Developer Perspective
 *   **Decoupled Logic**: Navigation logic (hooks) must be separated from rendering (components) to allow for virtualization (Virtuoso) and testing.
@@ -53,7 +53,7 @@
 
 ---
 
-## 4. Design Guidelines for v6
+## 4. Design Guidelines for v7
 1.  **Don't start coding until the "Command Map" is defined.**
 2.  **Every key event must be traceable to a specific Focus Context.**
 3.  **The Folder Tree is the "Anchor"; its state must be the most resilient part of the app.**

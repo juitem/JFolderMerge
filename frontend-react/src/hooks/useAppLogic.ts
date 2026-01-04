@@ -431,6 +431,86 @@ export const useAppLogic = () => {
         setCurrentFolderStats(found ? parentStats : null);
     }, [treeData, selectedNode]);
 
+    // -- Context Menu Logic --
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, items: any[] } | null>(null);
+
+    const closeContextMenu = () => setContextMenu(null);
+
+    const handleContextMenu = (e: React.MouseEvent, node: FileNode) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const items = [
+            {
+                label: 'Merge to Right',
+                onClick: () => handleMerge(node, 'left-to-right'),
+                disabled: node.status === 'same' || (node.status === 'added' && config?.viewOptions?.folderViewMode !== 'unified')
+            },
+            {
+                label: 'Merge to Left',
+                onClick: () => handleMerge(node, 'right-to-left'),
+                disabled: node.status === 'same' || (node.status === 'removed' && config?.viewOptions?.folderViewMode !== 'unified')
+            },
+            { separator: true },
+            {
+                label: 'Delete from Left',
+                onClick: () => handleDelete(node, 'left'),
+                disabled: node.status === 'added'
+            },
+            {
+                label: 'Delete from Right',
+                onClick: () => handleDelete(node, 'right'),
+                disabled: node.status === 'removed'
+            },
+            { separator: true },
+            {
+                label: 'Open Containing Folder (Left)',
+                onClick: () => api.openPath(lPath + "/" + node.path), // Basic implementation, might need path adjustment if node is root
+            },
+            {
+                label: 'Open Containing Folder (Right)',
+                onClick: () => api.openPath(rPath + "/" + node.path),
+            }
+        ];
+
+        // Filter actions based on existence?
+        // Open Folder should probably open the PARENT folder, selecting the file if possible.
+        // api.openPath implementation uses 'open/explorer' which usually opens the file if it's a file, or folder if folder.
+        // User asked for "Open Folder". If I pass file path to 'open -R' (mac) it reveals.
+        // My backend open_path implementation does generic 'open'.
+        // On Mac 'open /path/to/file' opens the file. 'open -R' reveals.
+        // But for now, let's keep it simple or adjust backend later. 
+        // Better: Open the PARENT directory.
+
+        const parentPathLeft = (lPath + "/" + node.path).substring(0, (lPath + "/" + node.path).lastIndexOf('/'));
+        const parentPathRight = (rPath + "/" + node.path).substring(0, (rPath + "/" + node.path).lastIndexOf('/'));
+
+        const smartItems = [
+            {
+                label: 'Reveal in Finder/Explorer (Left)',
+                onClick: () => api.openPath(node.type === 'directory' ? lPath + "/" + node.path : parentPathLeft),
+                disabled: node.status === 'added' // Not on left
+            },
+            {
+                label: 'Reveal in Finder/Explorer (Right)',
+                onClick: () => api.openPath(node.type === 'directory' ? rPath + "/" + node.path : parentPathRight),
+                disabled: node.status === 'removed' // Not on right
+            }
+        ];
+
+
+        setContextMenu({ x: e.clientX, y: e.clientY, items: [...items.slice(0, 5), { separator: true }, ...smartItems] });
+    };
+
+    const handleSetExternalEditor = (path: string) => {
+        // Placeholder for external editor setting if needed
+        console.log("Set External Editor", path);
+    };
+
+    const handleOpenExternal = (node: FileNode) => {
+        api.openExternal(lPath + '/' + node.path, rPath + '/' + node.path);
+    };
+
     return {
         config, configLoading, configError,
         treeData, compareLoading, compareError,
@@ -454,6 +534,15 @@ export const useAppLogic = () => {
         hiddenPaths: viewState.hiddenPaths,
         toggleHiddenPath: viewState.toggleHiddenPath,
         showHidden: viewState.showHidden,
-        toggleShowHidden: viewState.toggleShowHidden
+        toggleShowHidden: viewState.toggleShowHidden,
+
+        // Context Menu
+        contextMenu,
+        handleContextMenu,
+        closeContextMenu,
+        handleSetExternalEditor,
+        handleOpenExternal,
+        externalEditorPath: 'default'
     };
 };
+
