@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { api } from '../api';
 import type { FileNode } from '../types';
 import { useConfig } from '../contexts/ConfigContext';
@@ -78,10 +78,10 @@ export const useAppLogic = () => {
 
 
     // Reload Handler
-    const handleReload = () => {
+    const handleReload = useCallback(() => {
         loggingService.info('AppLogic', 'Manual Refresh Triggered');
         compare(lPath, rPath, viewState.excludeFiles, viewState.excludeFolders);
-    };
+    }, [compare, lPath, rPath, viewState.excludeFiles, viewState.excludeFolders]);
 
     // -- Effects --
     const configInitialized = useRef(false);
@@ -240,16 +240,16 @@ export const useAppLogic = () => {
         }
     };
 
-    const onCompare = () => {
+    const onCompare = useCallback(() => {
         setSelectedNode(null);
         viewState.setLayoutMode('folder'); // Reset layout to folder view
         compare(lPath, rPath, viewState.excludeFiles, viewState.excludeFolders);
         if (config) {
             saveConfig({ ...config, left: lPath, right: rPath });
         }
-    };
+    }, [compare, lPath, rPath, viewState.excludeFiles, viewState.excludeFolders, config, saveConfig]);
 
-    const handleMerge = (node: FileNode, direction: 'left-to-right' | 'right-to-left') => {
+    const handleMerge = useCallback((node: FileNode, direction: 'left-to-right' | 'right-to-left') => {
         const performMerge = async () => {
             const originalStatus = node.status;
             try {
@@ -270,9 +270,9 @@ export const useAppLogic = () => {
         } else {
             modalState.showConfirm('Confirm Merge', `Merge ${node.name}?`, performMerge);
         }
-    };
+    }, [lPath, rPath, patchNode, config, modalState]);
 
-    const handleDelete = (node: FileNode, side: 'left' | 'right') => {
+    const handleDelete = useCallback((node: FileNode, side: 'left' | 'right') => {
         const performDelete = async () => {
             try {
                 removeNode(node.path);
@@ -292,7 +292,7 @@ export const useAppLogic = () => {
         } else {
             modalState.showConfirm('Confirm Delete', `Delete ${node.name} from ${side}?`, performDelete);
         }
-    };
+    }, [lPath, rPath, removeNode, handleReload, config, modalState]);
 
     const executeBatchMerge = async (direction: 'left-to-right' | 'right-to-left') => {
         if (selectionSet.size === 0) return;

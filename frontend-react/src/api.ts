@@ -1,5 +1,18 @@
 import type { Config, TreeData, DiffResult, ListDirResult, HistoryItem, DiffMode } from './types';
 
+// In-memory cache for file content and diff results
+const contentCache = new Map<string, any>();
+const diffCache = new Map<string, DiffResult>();
+
+export function invalidateFileCache(path: string) {
+    for (const key of contentCache.keys()) {
+        if (key.includes(path)) contentCache.delete(key);
+    }
+    for (const key of diffCache.keys()) {
+        if (key.includes(path)) diffCache.delete(key);
+    }
+}
+
 // Helper for Fetch handling
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
     const response = await fetch(url, options);
@@ -46,9 +59,14 @@ export const api = {
     },
 
     async fetchFileContent(path: string): Promise<any> {
+        if (contentCache.has(path)) return contentCache.get(path);
         const response = await fetch(`/api/content?path=${encodeURIComponent(path)}`);
-        if (response.ok) return response.json();
-        return null; // Or throw
+        if (response.ok) {
+            const data = await response.json();
+            contentCache.set(path, data);
+            return data;
+        }
+        return null;
     },
 
     async fetchDiff(leftPath: string, rightPath: string, mode: DiffMode | 'both'): Promise<DiffResult> {
@@ -56,7 +74,10 @@ export const api = {
         if (mode === 'both') backendMode = 'side-by-side';
         if (mode === 'agent') backendMode = 'unified'; // Backend doesn't know agent, use unified
 
-        return request<DiffResult>('/api/diff', {
+        const cacheKey = `${leftPath}||${rightPath}||${backendMode}`;
+        if (diffCache.has(cacheKey)) return diffCache.get(cacheKey)!;
+
+        const result = await request<DiffResult>('/api/diff', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -65,9 +86,12 @@ export const api = {
                 mode: backendMode
             })
         });
+        diffCache.set(cacheKey, result);
+        return result;
     },
 
     async saveFile(path: string, content: string): Promise<void> {
+        invalidateFileCache(path);
         await fetch('/api/save-file', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -91,6 +115,7 @@ export const api = {
     },
 
     async deleteItem(path: string): Promise<any> {
+        invalidateFileCache(path);
         return request<any>('/api/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
