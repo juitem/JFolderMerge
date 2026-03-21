@@ -332,19 +332,41 @@ export const RawView: React.FC<RawViewProps> = ({
         );
     }
 
+    const leftMdRef = useRef<HTMLDivElement>(null);
+    const rightMdRef = useRef<HTMLDivElement>(null);
+    const isSyncingScroll = useRef(false);
+
+    const handleLeftScroll = () => {
+        if (isSyncingScroll.current || !leftMdRef.current || !rightMdRef.current) return;
+        isSyncingScroll.current = true;
+        const el = leftMdRef.current;
+        const ratio = el.scrollTop / (el.scrollHeight - el.clientHeight || 1);
+        rightMdRef.current.scrollTop = ratio * (rightMdRef.current.scrollHeight - rightMdRef.current.clientHeight);
+        setTimeout(() => { isSyncingScroll.current = false; }, 50);
+    };
+
+    const handleRightScroll = () => {
+        if (isSyncingScroll.current || !leftMdRef.current || !rightMdRef.current) return;
+        isSyncingScroll.current = true;
+        const el = rightMdRef.current;
+        const ratio = el.scrollTop / (el.scrollHeight - el.clientHeight || 1);
+        leftMdRef.current.scrollTop = ratio * (leftMdRef.current.scrollHeight - leftMdRef.current.clientHeight);
+        setTimeout(() => { isSyncingScroll.current = false; }, 50);
+    };
+
     return (
         <div className="raw-diff-container" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
             <div className="diff-col left" style={{ flex: 1, padding: '0', borderRight: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
                 <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Left</div>
                 {isMarkdownMode
-                    ? <div className="markdown-preview custom-scroll" style={{ flex: 1, padding: '20px', overflow: 'auto', background: '#0f172a', color: '#e2e8f0' }}><ReactMarkdown>{currentLeft}</ReactMarkdown></div>
+                    ? <div ref={leftMdRef} onScroll={handleLeftScroll} className="markdown-preview custom-scroll" style={{ flex: 1, padding: '20px', overflow: 'auto', background: '#0f172a', color: '#e2e8f0' }}><ReactMarkdown>{currentLeft}</ReactMarkdown></div>
                     : <EditorComponent content={currentLeft} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
                 }
             </div>
             <div className="diff-col right" style={{ flex: 1, padding: '0', display: 'flex', flexDirection: 'column' }}>
                 <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Right</div>
                 {isMarkdownMode
-                    ? <div className="markdown-preview custom-scroll" style={{ flex: 1, padding: '20px', overflow: 'auto', background: '#0f172a', color: '#e2e8f0' }}><ReactMarkdown>{currentRight}</ReactMarkdown></div>
+                    ? <div ref={rightMdRef} onScroll={handleRightScroll} className="markdown-preview custom-scroll" style={{ flex: 1, padding: '20px', overflow: 'auto', background: '#0f172a', color: '#e2e8f0' }}><ReactMarkdown>{currentRight}</ReactMarkdown></div>
                     : <EditorComponent content={currentRight} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
                 }
             </div>

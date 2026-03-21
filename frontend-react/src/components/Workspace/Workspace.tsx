@@ -79,6 +79,7 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
     const isFileOpen = !!props.selectedNode;
 
     const isMarkdownFile = !!(props.selectedNode?.name?.match(/\.(md|mdx)$/i));
+    const isImageFile = !!(props.selectedNode?.name?.match(/\.(webp|png|jpg|jpeg|gif|bmp|ico|tiff?|avif)$/i));
     const [isMarkdownMode, setIsMarkdownMode] = React.useState(false);
     React.useEffect(() => { if (!isMarkdownFile) setIsMarkdownMode(false); }, [isMarkdownFile]);
 
@@ -434,7 +435,8 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
                                     setViewOption: setViewOption,
                                     smoothScroll: props.config?.viewOptions?.smoothScrollFile !== false,
                                     onShowConfirm: props.onShowConfirm,
-                                    isMarkdownMode
+                                    isMarkdownMode,
+                                    isImageFile
                                 }
                             })}
                         </div>
