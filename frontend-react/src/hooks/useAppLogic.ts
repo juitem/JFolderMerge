@@ -279,6 +279,7 @@ export const useAppLogic = () => {
                 const fullPath = (side === 'left' ? lPath : rPath) + '/' + node.path;
                 await fileMutationService.deleteItem(fullPath);
                 loggingService.info('AppLogic', `Delete successful: ${fullPath}`);
+                handleReload();
             } catch (e: any) {
                 handleReload();
                 modalState.showAlert("Delete Failed", e.message);
