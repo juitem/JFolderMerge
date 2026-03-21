@@ -9,8 +9,9 @@ interface RawViewProps {
     mode?: 'raw' | 'single';
     showLineNumbers?: boolean;
     wrap?: boolean;
-    leftPath?: string; // Add path props for saving
+    leftPath?: string;
     rightPath?: string;
+    isMarkdownMode?: boolean;
 }
 
 interface EditorProps {
@@ -148,7 +149,8 @@ export const RawView: React.FC<RawViewProps> = ({
     showLineNumbers = true,
     wrap = false,
     leftPath = '',
-    rightPath = ''
+    rightPath = '',
+    isMarkdownMode = false
 }) => {
     const [activeSide, setActiveSide] = useState<'left' | 'right'>('right');
     const [history, setHistory] = useState<{ left: string[], right: string[] }>({ left: [], right: [] });
@@ -334,21 +336,17 @@ export const RawView: React.FC<RawViewProps> = ({
         <div className="raw-diff-container" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
             <div className="diff-col left" style={{ flex: 1, padding: '0', borderRight: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
                 <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Left</div>
-                <EditorComponent
-                    content={currentLeft}
-                    readOnly={true}
-                    showLineNumbers={showLineNumbers}
-                    wrap={wrap}
-                />
+                {isMarkdownMode
+                    ? <div className="markdown-preview custom-scroll" style={{ flex: 1, padding: '20px', overflow: 'auto', background: '#0f172a', color: '#e2e8f0' }}><ReactMarkdown>{currentLeft}</ReactMarkdown></div>
+                    : <EditorComponent content={currentLeft} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
+                }
             </div>
             <div className="diff-col right" style={{ flex: 1, padding: '0', display: 'flex', flexDirection: 'column' }}>
                 <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Right</div>
-                <EditorComponent
-                    content={currentRight}
-                    readOnly={true}
-                    showLineNumbers={showLineNumbers}
-                    wrap={wrap}
-                />
+                {isMarkdownMode
+                    ? <div className="markdown-preview custom-scroll" style={{ flex: 1, padding: '20px', overflow: 'auto', background: '#0f172a', color: '#e2e8f0' }}><ReactMarkdown>{currentRight}</ReactMarkdown></div>
+                    : <EditorComponent content={currentRight} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
+                }
             </div>
         </div>
     );

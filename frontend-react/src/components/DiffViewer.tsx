@@ -24,6 +24,7 @@ interface DiffViewerProps {
     smoothScroll?: boolean;
     onShowConfirm?: (title: string, message: string, action: () => void) => void;
     setViewOption?: (key: string, value: any) => void;
+    isMarkdownMode?: boolean;
 }
 
 export interface DiffViewerHandle {
@@ -34,7 +35,7 @@ export interface DiffViewerHandle {
 }
 
 export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
-    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent, smoothScroll, onShowConfirm, setViewOption
+    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent, smoothScroll, onShowConfirm, setViewOption, isMarkdownMode = false
 }, ref) => {
     const [mode, setMode] = useState<DiffMode>(initialMode);
     const mergeMode = (config.viewOptions?.mergeMode as 'group' | 'unit') || 'group';
@@ -414,6 +415,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         mergeMode={mergeMode}
                         onMergeModeChange={toggleMergeMode}
                         onShowConfirm={onShowConfirm}
+                        isMarkdownMode={isMarkdownMode}
                     />
                 )}
                 {(mode === 'raw' || mode === 'single') && rawContent && (
@@ -425,6 +427,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         wrap={!!config.viewOptions?.wordWrap}
                         leftPath={leftPathBase ? leftPathBase + '/' + relPath : undefined}
                         rightPath={rightPathBase ? rightPathBase + '/' + relPath : undefined}
+                        isMarkdownMode={isMarkdownMode}
                     />
                 )}
                 {mode === 'combined' && diffData && (
@@ -459,6 +462,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                                 mergeMode={mergeMode}
                                 onMergeModeChange={toggleMergeMode}
                                 onShowConfirm={onShowConfirm}
+                                isMarkdownMode={isMarkdownMode}
                             />
                         </div>
                     </div>

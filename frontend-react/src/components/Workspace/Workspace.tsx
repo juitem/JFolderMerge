@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FileDiff, Bot, Layout, Columns, Rows, FileCode, FileText, WrapText, ChevronsUp, ChevronsDown, Eye, EyeOff, ArrowUpToLine, ArrowDownToLine, Hash } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FileDiff, Bot, Layout, Columns, Rows, FileCode, FileText, WrapText, ChevronsUp, ChevronsDown, Eye, EyeOff, ArrowUpToLine, ArrowDownToLine, Hash, BookOpen } from 'lucide-react';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
 import { FolderTree, type FolderTreeHandle } from '../FolderTree';
 
@@ -77,6 +77,10 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
     const isUnified = props.config?.viewOptions?.folderViewMode === 'unified';
     const isFlat = props.config?.viewOptions?.folderViewMode === 'flat';
     const isFileOpen = !!props.selectedNode;
+
+    const isMarkdownFile = !!(props.selectedNode?.name?.match(/\.(md|mdx)$/i));
+    const [isMarkdownMode, setIsMarkdownMode] = React.useState(false);
+    React.useEffect(() => { if (!isMarkdownFile) setIsMarkdownMode(false); }, [isMarkdownFile]);
 
     const widthPercent = props.leftPanelWidth || 25;
 
@@ -397,6 +401,15 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
                                     <Hash size={16} />
                                 </button>
 
+                                {isMarkdownFile && (
+                                    <>
+                                        <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px' }}></div>
+                                        <button className={`icon-btn ${isMarkdownMode ? 'active' : ''}`} onClick={() => setIsMarkdownMode(v => !v)} title="Toggle Markdown Preview">
+                                            <BookOpen size={16} />
+                                        </button>
+                                    </>
+                                )}
+
                             </div>
                         </div>
 
@@ -420,7 +433,8 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
                                     toggleViewOption: toggleViewOption,
                                     setViewOption: setViewOption,
                                     smoothScroll: props.config?.viewOptions?.smoothScrollFile !== false,
-                                    onShowConfirm: props.onShowConfirm
+                                    onShowConfirm: props.onShowConfirm,
+                                    isMarkdownMode
                                 }
                             })}
                         </div>
