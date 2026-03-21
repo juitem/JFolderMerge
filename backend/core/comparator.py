@@ -12,6 +12,10 @@ def compare_folders(left_path: str, right_path: str, exclude_files: List[str] = 
     # Normalize paths
     left_path = os.path.abspath(left_path)
     right_path = os.path.abspath(right_path)
+
+    # Convert to sets for O(1) lookup
+    exclude_files = set(exclude_files)
+    exclude_folders = set(exclude_folders)
     
     # Base node
     root = {

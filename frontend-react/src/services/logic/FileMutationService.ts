@@ -106,28 +106,36 @@ class FileMutationService {
 
     async mergeBatch(items: { src: string, dest: string, isDir: boolean }[]): Promise<Array<{ path: string, success: boolean, error?: string }>> {
         loggingService.info(this.module, `Starting batch merge of ${items.length} items`);
-        const results = [];
-        for (const item of items) {
-            try {
-                await this.mergeFile(item.src, item.dest, item.isDir);
-                results.push({ path: item.src, success: true });
-            } catch (e: any) {
-                results.push({ path: item.src, success: false, error: e.message });
-            }
+        const CHUNK = 10;
+        const results: Array<{ path: string, success: boolean, error?: string }> = [];
+        for (let i = 0; i < items.length; i += CHUNK) {
+            const chunk = items.slice(i, i + CHUNK);
+            const chunkResults = await Promise.all(
+                chunk.map(item =>
+                    this.mergeFile(item.src, item.dest, item.isDir)
+                        .then(() => ({ path: item.src, success: true }))
+                        .catch((e: any) => ({ path: item.src, success: false, error: e.message }))
+                )
+            );
+            results.push(...chunkResults);
         }
         return results;
     }
 
     async deleteBatch(paths: string[]): Promise<Array<{ path: string, success: boolean, error?: string }>> {
         loggingService.info(this.module, `Starting batch delete of ${paths.length} items`);
-        const results = [];
-        for (const path of paths) {
-            try {
-                await this.deleteItem(path);
-                results.push({ path, success: true });
-            } catch (e: any) {
-                results.push({ path, success: false, error: e.message });
-            }
+        const CHUNK = 10;
+        const results: Array<{ path: string, success: boolean, error?: string }> = [];
+        for (let i = 0; i < paths.length; i += CHUNK) {
+            const chunk = paths.slice(i, i + CHUNK);
+            const chunkResults = await Promise.all(
+                chunk.map(path =>
+                    this.deleteItem(path)
+                        .then(() => ({ path, success: true }))
+                        .catch((e: any) => ({ path, success: false, error: e.message }))
+                )
+            );
+            results.push(...chunkResults);
         }
         return results;
     }

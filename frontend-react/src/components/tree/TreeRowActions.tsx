@@ -16,7 +16,7 @@ interface TreeRowActionsProps {
     focusZone?: 'content' | 'accept' | 'revert';
 }
 
-export const TreeRowActions: React.FC<TreeRowActionsProps> = ({ node, side, actions, showMerge = true, showDelete = true, showHide = true, focusZone = 'content' }) => {
+export const TreeRowActions: React.FC<TreeRowActionsProps> = React.memo(({ node, side, actions, showMerge = true, showDelete = true, showHide = true, focusZone = 'content' }) => {
     // Logic: Always render 4 buttons for alignment, hide irrelevant ones
     const isLeftVisible = (side === 'left' || side === 'unified') && (node.status === 'modified' || node.status === 'removed');
     const isRightVisible = (side === 'right' || side === 'unified') && (node.status === 'modified' || node.status === 'added');
@@ -135,4 +135,4 @@ export const TreeRowActions: React.FC<TreeRowActionsProps> = ({ node, side, acti
             )}
         </div>
     );
-};
+});

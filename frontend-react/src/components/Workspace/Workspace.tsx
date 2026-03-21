@@ -72,7 +72,7 @@ interface WorkspaceProps {
     onOpenExternal?: (node: FileNode) => void;
 }
 
-export const Workspace: React.FC<WorkspaceProps> = (props) => {
+export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
     const { toggleViewOption, setViewOption } = useConfig();
     const isUnified = props.config?.viewOptions?.folderViewMode === 'unified';
     const isFlat = props.config?.viewOptions?.folderViewMode === 'flat';
@@ -444,4 +444,4 @@ export const Workspace: React.FC<WorkspaceProps> = (props) => {
             )}
         </div>
     );
-};
+});
