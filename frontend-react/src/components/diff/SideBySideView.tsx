@@ -1,4 +1,5 @@
 import React from 'react';
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
 
 export const SideBySideView: React.FC<{
@@ -27,11 +28,18 @@ export const SideBySideView: React.FC<{
         if (!leftRows || !rightRows) return <div>No Split Data</div>;
 
         const len = Math.max(leftRows.length, rightRows.length);
-        const rows = Array.from({ length: len });
 
         const getErrorSafeText = (row: any) => {
             if (!row) return "";
             return Array.isArray(row.text) ? row.text.map((t: any) => t.text).join('') : (row.text || "");
+        };
+
+        const isVisible = (rowNode: any) => {
+            if (!rowNode || rowNode.type === 'empty') return false;
+            const t = rowNode.type === 'modified' ? 'modified' :
+                rowNode.type === 'added' ? 'added' :
+                    rowNode.type === 'removed' ? 'removed' : 'same';
+            return filters?.[t] !== false;
         };
 
         const computeBlocks = (targetRows: any[]) => {
@@ -76,49 +84,67 @@ export const SideBySideView: React.FC<{
         const leftBlocks = React.useMemo(() => computeBlocks(leftRows), [leftRows, len]);
         const rightBlocks = React.useMemo(() => computeBlocks(rightRows), [rightRows, len]);
 
-        const [focusedIdx, setFocusedIdx] = React.useState<number>(0);
+        // Pre-filter visible rows for virtualization
+        const visibleData = React.useMemo(() => {
+            const result: { originalIdx: number, l: any, r: any, lBlock: any, rBlock: any }[] = [];
+            for (let i = 0; i < len; i++) {
+                const l = leftRows[i] || { type: 'empty' };
+                const r = rightRows[i] || { type: 'empty' };
+                if (isVisible(l) || isVisible(r)) {
+                    result.push({ originalIdx: i, l, r, lBlock: leftBlocks[i], rBlock: rightBlocks[i] });
+                }
+            }
+            return result;
+        }, [leftRows, rightRows, leftBlocks, rightBlocks, len, filters]);
+
+        const [focusedIdx, setFocusedIdx] = React.useState<number>(0); // index into visibleData
         const [focusZone, setFocusZone] = React.useState<'content' | 'line' | 'block'>('content');
         const [focusSide, setFocusSide] = React.useState<'left' | 'right'>('left');
+        const virtuosoRef = React.useRef<VirtuosoHandle>(null);
+
+        React.useEffect(() => {
+            if (focusedIdx >= 0 && focusedIdx < visibleData.length) {
+                virtuosoRef.current?.scrollToIndex({ index: focusedIdx, behavior: 'smooth', align: 'center' });
+            }
+        }, [focusedIdx]);
+
+        const currentRow = visibleData[focusedIdx];
 
         const triggerMergeDir = (direction: 'left' | 'right') => {
-            // Shift + ArrowLeft -> Accept -> Right to Left (action on Left side)
-            // Shift + ArrowRight -> Revert -> Left to Right (action on Right side)
-            const targetSide = direction === 'left' ? 'left' : 'right';
+            if (!currentRow) return;
+            const { originalIdx, l, r, lBlock, rBlock } = currentRow;
+            const targetSide = direction;
             const sourceSide = direction === 'left' ? 'right' : 'left';
-
-            const row = (sourceSide === 'left' ? leftRows : rightRows)[focusedIdx];
-            const other = (targetSide === 'left' ? leftRows : rightRows)[focusedIdx];
-            const blocks = (sourceSide === 'left' ? leftBlocks : rightBlocks);
-            const otherBlocks = (targetSide === 'left' ? leftBlocks : rightBlocks);
-
-            const block = blocks[focusedIdx];
-            const otherBlock = otherBlocks[focusedIdx];
+            const row = sourceSide === 'left' ? l : r;
+            const other = targetSide === 'left' ? l : r;
+            const block = sourceSide === 'left' ? lBlock : rBlock;
+            const otherBlock = targetSide === 'left' ? lBlock : rBlock;
 
             if (block && block.count > 1) {
                 const actionType = (!other || !other.line) ? 'insert' : 'replace';
-                onMerge?.(block.lines.join('\n'), targetSide, other?.line || null, actionType, focusedIdx);
+                onMerge?.(block.lines.join('\n'), targetSide, other?.line || null, actionType, originalIdx);
             } else if (otherBlock && otherBlock.count > 1 && row?.type === 'empty') {
-                onMerge?.("", targetSide, otherBlock.startLine || null, 'delete', focusedIdx);
+                onMerge?.("", targetSide, otherBlock.startLine || null, 'delete', originalIdx);
             } else {
                 const hasContent = row && row.type !== 'empty' && row.type !== 'same';
                 const isEmptySpacer = row && row.type === 'empty' && other && other.type !== 'empty' && other.type !== 'same';
-
                 if (hasContent || isEmptySpacer) {
                     const actionType = (!other || !other.line) ? 'insert' : (isEmptySpacer ? 'delete' : 'replace');
                     const sourceText = getErrorSafeText(row);
                     const targetLine = other?.line || (actionType === 'delete' ? (other?.line || null) : null);
-                    onMerge?.(sourceText, targetSide, targetLine, actionType, focusedIdx, 1);
+                    onMerge?.(sourceText, targetSide, targetLine, actionType, originalIdx, 1);
                 }
             }
         };
 
         const triggerMergeFocus = () => {
-            // Trigger based on current focused icon
+            if (!currentRow) return;
+            const { originalIdx, l, r, lBlock, rBlock } = currentRow;
             const actionSide = focusSide === 'left' ? 'right' : 'left';
-            const row = (focusSide === 'left' ? leftRows : rightRows)[focusedIdx];
-            const other = (focusSide === 'left' ? rightRows : leftRows)[focusedIdx];
-            const blocks = (focusSide === 'left' ? leftBlocks : rightBlocks);
-            const otherBlocks = (focusSide === 'left' ? rightBlocks : leftBlocks);
+            const row = focusSide === 'left' ? l : r;
+            const other = focusSide === 'left' ? r : l;
+            const block = focusSide === 'left' ? lBlock : rBlock;
+            const otherBlock = focusSide === 'left' ? rBlock : lBlock;
 
             if (focusZone === 'line') {
                 const hasContent = row && row.type !== 'empty' && row.type !== 'same';
@@ -127,16 +153,14 @@ export const SideBySideView: React.FC<{
                     const actionType = (!other || !other.line) ? 'insert' : (isEmptySpacer ? 'delete' : 'replace');
                     const sourceText = getErrorSafeText(row);
                     const targetLine = other?.line || (actionType === 'delete' ? (other?.line || null) : null);
-                    onMerge?.(sourceText, actionSide, targetLine, actionType, focusedIdx, 1);
+                    onMerge?.(sourceText, actionSide, targetLine, actionType, originalIdx, 1);
                 }
             } else if (focusZone === 'block') {
-                const block = blocks[focusedIdx];
-                const otherBlock = otherBlocks[focusedIdx];
                 if (block && block.count > 1) {
                     const actionType = (!other || !other.line) ? 'insert' : 'replace';
-                    onMerge?.(block.lines.join('\n'), actionSide, other?.line || null, actionType, focusedIdx);
+                    onMerge?.(block.lines.join('\n'), actionSide, other?.line || null, actionType, originalIdx);
                 } else if (otherBlock && otherBlock.count > 1 && row?.type === 'empty') {
-                    onMerge?.("", actionSide, otherBlock.startLine || null, 'delete', focusedIdx);
+                    onMerge?.("", actionSide, otherBlock.startLine || null, 'delete', originalIdx);
                 }
             }
         };
@@ -149,26 +173,24 @@ export const SideBySideView: React.FC<{
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 if (mergeMode === 'group') {
-                    let next = focusedIdx + 1;
-                    while (next < len) {
-                        const l = leftRows[next];
-                        const r = rightRows[next];
-                        if ((l && l.type !== 'same' && l.type !== 'empty') || (r && r.type !== 'same' && r.type !== 'empty')) break;
-                        next++;
-                    }
-                    if (next < len) setFocusedIdx(next);
+                    const next = visibleData.findIndex((d, vi) => vi > focusedIdx && (
+                        (d.l && d.l.type !== 'same' && d.l.type !== 'empty') ||
+                        (d.r && d.r.type !== 'same' && d.r.type !== 'empty')
+                    ));
+                    if (next !== -1) setFocusedIdx(next);
                 } else {
-                    setFocusedIdx(prev => Math.min(prev + 1, len - 1));
+                    setFocusedIdx(prev => Math.min(prev + 1, visibleData.length - 1));
                 }
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
                 if (mergeMode === 'group') {
-                    let prev = focusedIdx - 1;
-                    while (prev >= 0) {
-                        const l = leftRows[prev];
-                        const r = rightRows[prev];
-                        if ((l && l.type !== 'same' && l.type !== 'empty') || (r && r.type !== 'same' && r.type !== 'empty')) break;
-                        prev--;
+                    let prev = -1;
+                    for (let vi = focusedIdx - 1; vi >= 0; vi--) {
+                        const d = visibleData[vi];
+                        if ((d.l && d.l.type !== 'same' && d.l.type !== 'empty') ||
+                            (d.r && d.r.type !== 'same' && d.r.type !== 'empty')) {
+                            prev = vi; break;
+                        }
                     }
                     if (prev >= 0) setFocusedIdx(prev);
                 } else {
@@ -223,12 +245,11 @@ export const SideBySideView: React.FC<{
         };
 
         return (
-            <div className="split-diff-container custom-scroll"
-                ref={scrollerRef}
+            <div className="split-diff-container"
                 tabIndex={0}
                 onKeyDown={handleKeyDown}
-                style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'auto', minHeight: 0, outline: 'none' }}>
-                {rows.length === 0 ? (
+                style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', minHeight: 0, outline: 'none' }}>
+                {visibleData.length === 0 ? (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px', color: 'var(--text-secondary)', backgroundColor: 'var(--panel-bg)', borderRadius: 'var(--radius-lg)', margin: '20px', border: '1px solid var(--border-color)' }}>
                         <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.9 }}>
                             <span>✓</span>
@@ -237,37 +258,25 @@ export const SideBySideView: React.FC<{
                         <div style={{ marginTop: '8px', opacity: 0.7, fontSize: '0.9rem' }}>No differences remain in this file.</div>
                     </div>
                 ) : (
-                    rows.map((_, i) => {
-                        const l = leftRows[i] || { type: 'empty' };
-                        const r = rightRows[i] || { type: 'empty' };
-
-                        const isVisible = (rowNode: any) => {
-                            if (rowNode.type === 'empty') return false;
-                            const t = rowNode.type === 'modified' ? 'modified' :
-                                rowNode.type === 'added' ? 'added' :
-                                    rowNode.type === 'removed' ? 'removed' : 'same';
-                            return filters?.[t] !== false;
-                        };
-
-                        const lVis = isVisible(l);
-                        const rVis = isVisible(r);
-
-                        if (!lVis && !rVis) return null;
-
-                        const lBlock = leftBlocks[i];
-                        const rBlock = rightBlocks[i];
-
-                        return (
-                            <div key={i} className={`diff-row-wrapper ${focusedIdx === i ? 'is-focused-row' : ''}`} style={{ display: 'flex', minHeight: '16px', height: 'auto', flexShrink: 0 }}>
+                    <Virtuoso
+                        ref={virtuosoRef}
+                        data={visibleData}
+                        itemContent={(vi, { originalIdx, l, r, lBlock, rBlock }) => (
+                            <div className={`diff-row-wrapper ${focusedIdx === vi ? 'is-focused-row' : ''}`}
+                                style={{ display: 'flex', minHeight: '16px', height: 'auto', flexShrink: 0 }}
+                                onClick={() => setFocusedIdx(vi)}
+                            >
                                 <div className="diff-col left" style={{ flex: '1 1 50%', width: '50%', maxWidth: '50%' }}>
-                                    <DiffRow row={l} side="left" otherRow={r} onMerge={onMerge} index={i} showLineNumber={showLineNumbers} block={lBlock} otherBlock={rBlock} wrap={wrap} focusedZone={focusedIdx === i && focusSide === 'left' ? focusZone : null} />
+                                    <DiffRow row={l} side="left" otherRow={r} onMerge={onMerge} index={originalIdx} showLineNumber={showLineNumbers} block={lBlock} otherBlock={rBlock} wrap={wrap} focusedZone={focusedIdx === vi && focusSide === 'left' ? focusZone : null} />
                                 </div>
                                 <div className="diff-col right" style={{ flex: '1 1 50%', width: '50%', maxWidth: '50%' }}>
-                                    <DiffRow row={r} side="right" otherRow={l} onMerge={onMerge} index={i} showLineNumber={showLineNumbers} block={rBlock} otherBlock={lBlock} wrap={wrap} focusedZone={focusedIdx === i && focusSide === 'right' ? focusZone : null} />
+                                    <DiffRow row={r} side="right" otherRow={l} onMerge={onMerge} index={originalIdx} showLineNumber={showLineNumbers} block={rBlock} otherBlock={lBlock} wrap={wrap} focusedZone={focusedIdx === vi && focusSide === 'right' ? focusZone : null} />
                                 </div>
                             </div>
-                        );
-                    })
+                        )}
+                        style={{ flex: 1 }}
+                        scrollerRef={scrollerRef}
+                    />
                 )}
             </div>
         );
