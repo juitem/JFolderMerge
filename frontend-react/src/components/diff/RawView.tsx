@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Save, Undo, Redo, Eye, EyeOff } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { MarkdownRenderer } from '../MarkdownRenderer';
 import { api } from '../../api';
 
 interface RawViewProps {
@@ -9,8 +9,11 @@ interface RawViewProps {
     mode?: 'raw' | 'single';
     showLineNumbers?: boolean;
     wrap?: boolean;
-    leftPath?: string; // Add path props for saving
+    leftPath?: string;
     rightPath?: string;
+    isMarkdownMode?: boolean;
+    obsidianMode?: boolean;
+    attachmentFolder?: string;
 }
 
 interface EditorProps {
@@ -148,17 +151,26 @@ export const RawView: React.FC<RawViewProps> = ({
     showLineNumbers = true,
     wrap = false,
     leftPath = '',
-    rightPath = ''
+    rightPath = '',
+    isMarkdownMode = false,
+    obsidianMode = false,
+    attachmentFolder = ''
 }) => {
     const [activeSide, setActiveSide] = useState<'left' | 'right'>('right');
     const [history, setHistory] = useState<{ left: string[], right: string[] }>({ left: [], right: [] });
     const [historyIndex, setHistoryIndex] = useState<{ left: number, right: number }>({ left: -1, right: -1 });
     const [isDirty, setIsDirty] = useState<{ left: boolean, right: boolean }>({ left: false, right: false });
     const [showMarkdown, setShowMarkdown] = useState(false);
+    const [mdViewSide, setMdViewSide] = useState<'both' | 'left' | 'right'>('both');
 
     // Track current content separately for left/right to support switching without losing edits
     const [currentLeft, setCurrentLeft] = useState(initialLeft);
     const [currentRight, setCurrentRight] = useState(initialRight);
+
+    // Scroll sync refs for dual markdown mode — must be before any conditional return
+    const leftMdRef = useRef<HTMLDivElement>(null);
+    const rightMdRef = useRef<HTMLDivElement>(null);
+    const isSyncingScroll = useRef(false);
 
     useEffect(() => {
         setCurrentLeft(initialLeft);
@@ -231,10 +243,10 @@ export const RawView: React.FC<RawViewProps> = ({
         }
     };
 
+    const currentBasePath = activeSide === 'left' ? leftPath : rightPath;
+
     const renderMarkdown = (content: string) => (
-        <div className="markdown-preview custom-scroll" style={{ flex: 1, padding: '20px', overflow: 'auto', background: '#0f172a', color: '#e2e8f0' }}>
-            <ReactMarkdown>{content}</ReactMarkdown>
-        </div>
+        <MarkdownRenderer content={content} obsidianMode={obsidianMode} basePath={currentBasePath} attachmentFolder={attachmentFolder} />
     );
 
     if (mode === 'single') {
@@ -330,25 +342,71 @@ export const RawView: React.FC<RawViewProps> = ({
         );
     }
 
+    const handleLeftScroll = () => {
+        if (isSyncingScroll.current || !leftMdRef.current || !rightMdRef.current) return;
+        isSyncingScroll.current = true;
+        const el = leftMdRef.current;
+        const ratio = el.scrollTop / (el.scrollHeight - el.clientHeight || 1);
+        rightMdRef.current.scrollTop = ratio * (rightMdRef.current.scrollHeight - rightMdRef.current.clientHeight);
+        setTimeout(() => { isSyncingScroll.current = false; }, 50);
+    };
+
+    const handleRightScroll = () => {
+        if (isSyncingScroll.current || !leftMdRef.current || !rightMdRef.current) return;
+        isSyncingScroll.current = true;
+        const el = rightMdRef.current;
+        const ratio = el.scrollTop / (el.scrollHeight - el.clientHeight || 1);
+        leftMdRef.current.scrollTop = ratio * (leftMdRef.current.scrollHeight - leftMdRef.current.clientHeight);
+        setTimeout(() => { isSyncingScroll.current = false; }, 50);
+    };
+
+    const btnStyle = (active: boolean): React.CSSProperties => ({
+        border: 'none',
+        background: active ? '#3b82f6' : 'transparent',
+        color: active ? 'white' : '#94a3b8',
+        padding: '3px 10px',
+        borderRadius: '4px',
+        fontSize: '12px',
+        cursor: 'pointer',
+        fontWeight: 600,
+    });
+
+    const isIdentical = isMarkdownMode && currentLeft === currentRight;
+    const effectiveSide = isIdentical && mdViewSide === 'both' ? 'right' : mdViewSide;
+    const showLeft = !isMarkdownMode || effectiveSide !== 'right';
+    const showRight = !isMarkdownMode || effectiveSide !== 'left';
+
     return (
-        <div className="raw-diff-container" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-            <div className="diff-col left" style={{ flex: 1, padding: '0', borderRight: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
-                <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Left</div>
-                <EditorComponent
-                    content={currentLeft}
-                    readOnly={true}
-                    showLineNumbers={showLineNumbers}
-                    wrap={wrap}
-                />
-            </div>
-            <div className="diff-col right" style={{ flex: 1, padding: '0', display: 'flex', flexDirection: 'column' }}>
-                <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Right</div>
-                <EditorComponent
-                    content={currentRight}
-                    readOnly={true}
-                    showLineNumbers={showLineNumbers}
-                    wrap={wrap}
-                />
+        <div className="raw-diff-container" style={{ display: 'flex', flex: 1, minHeight: 0, flexDirection: 'column' }}>
+            {isMarkdownMode && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#0f172a', borderBottom: '1px solid #333', flexShrink: 0, gap: '8px' }}>
+                    {isIdentical && <span style={{ fontSize: '12px', color: '#64748b' }}>Identical</span>}
+                    <div style={{ display: 'flex', background: '#1e293b', padding: '2px', borderRadius: '6px', gap: '2px' }}>
+                        <button style={btnStyle(mdViewSide === 'left')} onClick={() => setMdViewSide('left')}>Left</button>
+                        <button style={btnStyle(mdViewSide === 'both')} onClick={() => setMdViewSide('both')}>Both</button>
+                        <button style={btnStyle(mdViewSide === 'right')} onClick={() => setMdViewSide('right')}>Right</button>
+                    </div>
+                </div>
+            )}
+            <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+                {showLeft && (
+                    <div className="diff-col left" style={{ flex: 1, width: 0, maxWidth: '100%', padding: '0', borderRight: showRight ? '1px solid #333' : 'none', display: 'flex', flexDirection: 'column' }}>
+                        <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Left</div>
+                        {isMarkdownMode
+                            ? <MarkdownRenderer content={currentLeft} obsidianMode={obsidianMode} basePath={leftPath} attachmentFolder={attachmentFolder} innerRef={leftMdRef} onScroll={handleLeftScroll} />
+                            : <EditorComponent content={currentLeft} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
+                        }
+                    </div>
+                )}
+                {showRight && (
+                    <div className="diff-col right" style={{ flex: 1, width: 0, maxWidth: '100%', padding: '0', display: 'flex', flexDirection: 'column' }}>
+                        <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Right</div>
+                        {isMarkdownMode
+                            ? <MarkdownRenderer content={currentRight} obsidianMode={obsidianMode} basePath={rightPath} attachmentFolder={attachmentFolder} innerRef={rightMdRef} onScroll={handleRightScroll} />
+                            : <EditorComponent content={currentRight} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
+                        }
+                    </div>
+                )}
             </div>
         </div>
     );

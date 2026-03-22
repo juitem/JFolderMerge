@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FileDiff, Bot, Layout, Columns, Rows, FileCode, FileText, WrapText, ChevronsUp, ChevronsDown, Eye, EyeOff, ArrowUpToLine, ArrowDownToLine, Hash } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FileDiff, Bot, Layout, Columns, Rows, FileCode, FileText, WrapText, ChevronsUp, ChevronsDown, Eye, EyeOff, ArrowUpToLine, ArrowDownToLine, Hash, BookOpen, Puzzle } from 'lucide-react';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
 import { FolderTree, type FolderTreeHandle } from '../FolderTree';
 
@@ -77,6 +77,13 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
     const isUnified = props.config?.viewOptions?.folderViewMode === 'unified';
     const isFlat = props.config?.viewOptions?.folderViewMode === 'flat';
     const isFileOpen = !!props.selectedNode;
+
+    const isMarkdownFile = !!(props.selectedNode?.name?.match(/\.(md|mdx)$/i));
+    const isImageFile = !!(props.selectedNode?.name?.match(/\.(webp|png|jpg|jpeg|gif|bmp|ico|tiff?|avif)$/i));
+    // isMarkdownMode persisted in config so it survives file switching
+    const isMarkdownMode = isMarkdownFile && !!(props.config?.viewOptions?.markdownMode);
+    const setIsMarkdownMode = (val: boolean) => setViewOption('markdownMode', val);
+    const obsidianMode = !!(props.config?.viewOptions?.obsidianMode);
 
     const widthPercent = props.leftPanelWidth || 25;
 
@@ -366,6 +373,9 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
                                 <button className="icon-btn" onClick={() => props.setIsExpanded(!props.isExpanded)} title={props.isExpanded ? "Restore View" : "Toggle Full Screen"}>
                                     {props.isExpanded ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
                                 </button>
+                                <button className="icon-btn" onClick={() => currentAdapter?.reload?.()} title="Refresh File">
+                                    <RefreshCw size={16} />
+                                </button>
 
                                 {/* File View Modes (Restored) */}
                                 <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px' }}></div>
@@ -397,6 +407,18 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
                                     <Hash size={16} />
                                 </button>
 
+                                {isMarkdownFile && (
+                                    <>
+                                        <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px' }}></div>
+                                        <button className={`icon-btn ${isMarkdownMode ? 'active' : ''}`} onClick={() => setIsMarkdownMode(v => !v)} title="Toggle Markdown Preview">
+                                            <BookOpen size={16} />
+                                        </button>
+                                        <button className={`icon-btn ${obsidianMode ? 'active' : ''}`} onClick={() => setViewOption('obsidianMode', !obsidianMode)} title="Obsidian Compatibility Mode ([[links]], ![[images]])">
+                                            <Puzzle size={16} />
+                                        </button>
+                                    </>
+                                )}
+
                             </div>
                         </div>
 
@@ -420,7 +442,11 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
                                     toggleViewOption: toggleViewOption,
                                     setViewOption: setViewOption,
                                     smoothScroll: props.config?.viewOptions?.smoothScrollFile !== false,
-                                    onShowConfirm: props.onShowConfirm
+                                    onShowConfirm: props.onShowConfirm,
+                                    isMarkdownMode,
+                                    obsidianMode,
+                                    attachmentFolder: (props.config?.viewOptions?.attachmentFolder as string) || '',
+                                    isImageFile
                                 }
                             })}
                         </div>

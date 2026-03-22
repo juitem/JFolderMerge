@@ -26,4 +26,5 @@ export interface ViewerAdapter {
     // If implemented, the container will call these
     isDirty?(): boolean;
     save?(): Promise<void>;
+    reload?(): Promise<void>;
 }

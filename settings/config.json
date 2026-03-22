@@ -1,47 +1,17 @@
 {
-  "defaultLeftPath": "/Users/juitem/Docker/ContainerFolder/JF",
-  "defaultRightPath": "/Users/juitem/Docker/ContainerFolder/FolderComp",
-  "folderFilters": {
-    "same": false,
-    "removed": true,
-    "modified": true,
-    "added": true
-  },
-  "diffFilters": {
-    "same": false,
-    "modified": true,
-    "added": true,
-    "removed": true
-  },
+  "defaultLeftPath": "/Users/juitem/Documents/ObsidianM4mini/AgenticArena",
+  "defaultRightPath": "/Users/juitem/Documents/ObsiDoItNow/202603/SRTS_AgenticArena",
   "viewOptions": {
-    "darkMode": false,
-    "folderViewMode": "unified",
-    "showLineNumbers": true,
-    "diffMode": "agent",
-    "leftPanelWidth_split": 49,
-    "leftPanelWidth_unified": 30,
-    "leftPanelWidth_flat": 25,
-    "confirmMerge": false,
-    "wordWrap": false,
     "layoutMode": "split",
-    "autoScroll": false,
-    "showStatusIcons": true,
-    "statusDisplayMode": 1,
-    "showDeleteIcons": false,
-    "showMergeIcons": true,
-    "smoothScrollFolder": true,
-    "smoothScrollFile": true,
-    "sbsNavMode": "block",
-    "agentMergeMode": "replace",
-    "mergeMode": "group",
-    "showHidden": false,
-    "showHideIcons": false,
-    "lineNumbers": true,
-    "highlightChanges": true,
-    "showSelectionCheckboxes": false
+    "wordWrap": false,
+    "showLineNumbers": true,
+    "folderViewMode": "unified",
+    "obsidianMode": true,
+    "diffMode": "raw",
+    "leftPanelWidth_unified": 20
   },
   "savedExcludes": {
-    "folders": "__pycache__, .git, .idea, .tmp, .venv, .vscode, *_kor, dist, jfoldermerge-vscode, node_modules, ROOTFS, venv",
-    "files": ".tmp, *.pyc, .DS_Store"
+    "folders": "",
+    "files": ""
   }
 }

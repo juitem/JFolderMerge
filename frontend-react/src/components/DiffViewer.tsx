@@ -24,6 +24,10 @@ interface DiffViewerProps {
     smoothScroll?: boolean;
     onShowConfirm?: (title: string, message: string, action: () => void) => void;
     setViewOption?: (key: string, value: any) => void;
+    isMarkdownMode?: boolean;
+    obsidianMode?: boolean;
+    attachmentFolder?: string;
+    isImageFile?: boolean;
 }
 
 export interface DiffViewerHandle {
@@ -34,7 +38,7 @@ export interface DiffViewerHandle {
 }
 
 export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
-    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent, smoothScroll, onShowConfirm, setViewOption
+    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent, smoothScroll, onShowConfirm, setViewOption, isMarkdownMode = false, obsidianMode = false, attachmentFolder = '', isImageFile = false
 }, ref) => {
     const [mode, setMode] = useState<DiffMode>(initialMode);
     const mergeMode = (config.viewOptions?.mergeMode as 'group' | 'unit') || 'group';
@@ -103,7 +107,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
             const fullLeft = leftPathBase + '/' + relPath;
             const fullRight = rightPathBase + '/' + relPath;
 
-            if (mode === 'raw' || mode === 'single') {
+            if (isImageFile || mode === 'raw' || mode === 'single') {
                 // Fetch raw content for both files
                 // We use Promise.allSettled to allow one side to be missing (e.g. added/removed file)
                 const [leftRes, rightRes] = await Promise.allSettled([
@@ -124,7 +128,10 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                     right: getStr(rightRes.status === 'fulfilled' ? rightRes.value : null)
                 });
 
-            } else {
+                if (isImageFile) { setLoading(false); return; }
+            }
+
+            if (!isImageFile && mode !== 'raw' && mode !== 'single') {
                 const data = await api.fetchDiff(fullLeft, fullRight, mode);
                 setDiffData(data);
             }
@@ -340,7 +347,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
             setLoading(false);
         }
     };
-    const hasData = ((mode === 'raw' || mode === 'single') && !!rawContent) || (mode !== 'raw' && mode !== 'single' && !!diffData);
+    const hasData = (isImageFile && !!rawContent) || ((mode === 'raw' || mode === 'single') && !!rawContent) || (mode !== 'raw' && mode !== 'single' && !!diffData);
 
     const agentScrollerRef = useRef<HTMLElement | Window | null>(null);
     const sideBySideScrollerRef = useRef<HTMLElement | Window | null>(null);
@@ -384,6 +391,41 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
     if (error) return <div className="error-diff">Error: {error}</div>;
     if (!hasData) return <div className="empty-diff">Select a file to compare</div>;
 
+    const getImageMime = (path: string) => {
+        const ext = path.split('.').pop()?.toLowerCase() || '';
+        const mimes: Record<string, string> = {
+            webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+            gif: 'image/gif', bmp: 'image/bmp', ico: 'image/x-icon',
+            tiff: 'image/tiff', tif: 'image/tiff', avif: 'image/avif'
+        };
+        return mimes[ext] || 'image/png';
+    };
+
+    if (isImageFile && rawContent) {
+        const mime = getImageMime(relPath);
+        const imgStyle: React.CSSProperties = { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' };
+        return (
+            <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: '1px solid #333' }}>
+                    <div style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333', fontSize: '12px' }}>Left</div>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: '#0f172a', overflow: 'auto' }}>
+                        {rawContent.left
+                            ? <img src={`data:${mime};base64,${rawContent.left}`} alt="left" style={imgStyle} />
+                            : <span style={{ color: '#475569' }}>No file</span>}
+                    </div>
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333', fontSize: '12px' }}>Right</div>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: '#0f172a', overflow: 'auto' }}>
+                        {rawContent.right
+                            ? <img src={`data:${mime};base64,${rawContent.right}`} alt="right" style={imgStyle} />
+                            : <span style={{ color: '#475569' }}>No file</span>}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="diff-component" style={{ position: 'relative' }}>
             {hasData && (
@@ -414,6 +456,8 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         mergeMode={mergeMode}
                         onMergeModeChange={toggleMergeMode}
                         onShowConfirm={onShowConfirm}
+                        isMarkdownMode={isMarkdownMode}
+                        obsidianMode={obsidianMode}
                     />
                 )}
                 {(mode === 'raw' || mode === 'single') && rawContent && (
@@ -425,6 +469,9 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         wrap={!!config.viewOptions?.wordWrap}
                         leftPath={leftPathBase ? leftPathBase + '/' + relPath : undefined}
                         rightPath={rightPathBase ? rightPathBase + '/' + relPath : undefined}
+                        isMarkdownMode={isMarkdownMode}
+                        obsidianMode={obsidianMode}
+                        attachmentFolder={attachmentFolder}
                     />
                 )}
                 {mode === 'combined' && diffData && (
@@ -459,6 +506,8 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                                 mergeMode={mergeMode}
                                 onMergeModeChange={toggleMergeMode}
                                 onShowConfirm={onShowConfirm}
+                                isMarkdownMode={isMarkdownMode}
+                                obsidianMode={obsidianMode}
                             />
                         </div>
                     </div>

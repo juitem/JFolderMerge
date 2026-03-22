@@ -1,10 +1,25 @@
 
 import shutil
 import os
+import base64
+import mimetypes
 from fastapi import APIRouter, HTTPException
 from ..models import CopyRequest, SaveRequest, DeleteRequest, ListDirRequest, BatchCopyRequest, BatchDeleteRequest
 
 router = APIRouter()
+
+IMAGE_EXTENSIONS = {'.webp', '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.tiff', '.tif', '.avif'}
+
+@router.get("/serve")
+def serve_file(path: str):
+    """Serve a file as raw binary with appropriate Content-Type. Used for markdown image embedding."""
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=400, detail="Not a file")
+    mime = mimetypes.guess_type(path)[0] or 'application/octet-stream'
+    from fastapi.responses import FileResponse
+    return FileResponse(path, media_type=mime)
 
 @router.get("/content")
 def get_content(path: str):
@@ -12,12 +27,18 @@ def get_content(path: str):
         raise HTTPException(status_code=404, detail="File not found")
     if not os.path.isfile(path):
         raise HTTPException(status_code=400, detail="path is not a file")
-    
+
+    ext = os.path.splitext(path)[1].lower()
     try:
-        # Detect text encoding or just read as utf-8 replacing errors
-        with open(path, 'r', encoding='utf-8', errors='replace') as f:
-            content = f.read()
-        return {"content": content}
+        if ext in IMAGE_EXTENSIONS:
+            with open(path, 'rb') as f:
+                data = base64.b64encode(f.read()).decode('ascii')
+            mime = mimetypes.guess_type(path)[0] or 'application/octet-stream'
+            return {"content": data, "type": "image", "mime": mime}
+        else:
+            with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+            return {"content": content, "type": "text"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

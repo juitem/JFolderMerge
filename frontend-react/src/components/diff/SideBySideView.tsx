@@ -1,5 +1,8 @@
 import React from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { convertObsidianSyntax } from '../MarkdownRenderer';
 import { ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
 
 export const SideBySideView: React.FC<{
@@ -13,6 +16,8 @@ export const SideBySideView: React.FC<{
     mergeMode?: 'group' | 'unit';
     onMergeModeChange?: () => void;
     onShowConfirm?: (title: string, message: string, action: () => void) => void;
+    isMarkdownMode?: boolean;
+    obsidianMode?: boolean;
 }> = ({
     leftRows = [],
     rightRows = [],
@@ -23,7 +28,9 @@ export const SideBySideView: React.FC<{
     scrollerRef,
     mergeMode = 'unit',
     onMergeModeChange,
-    onShowConfirm
+    onShowConfirm,
+    isMarkdownMode = false,
+    obsidianMode = false
 }) => {
         if (!leftRows || !rightRows) return <div>No Split Data</div>;
 
@@ -267,10 +274,10 @@ export const SideBySideView: React.FC<{
                                 onClick={() => setFocusedIdx(vi)}
                             >
                                 <div className="diff-col left" style={{ flex: '1 1 50%', width: '50%', maxWidth: '50%' }}>
-                                    <DiffRow row={l} side="left" otherRow={r} onMerge={onMerge} index={originalIdx} showLineNumber={showLineNumbers} block={lBlock} otherBlock={rBlock} wrap={wrap} focusedZone={focusedIdx === vi && focusSide === 'left' ? focusZone : null} />
+                                    <DiffRow row={l} side="left" otherRow={r} onMerge={onMerge} index={originalIdx} showLineNumber={showLineNumbers} block={lBlock} otherBlock={rBlock} wrap={wrap} focusedZone={focusedIdx === vi && focusSide === 'left' ? focusZone : null} isMarkdownMode={isMarkdownMode} obsidianMode={obsidianMode} />
                                 </div>
                                 <div className="diff-col right" style={{ flex: '1 1 50%', width: '50%', maxWidth: '50%' }}>
-                                    <DiffRow row={r} side="right" otherRow={l} onMerge={onMerge} index={originalIdx} showLineNumber={showLineNumbers} block={rBlock} otherBlock={lBlock} wrap={wrap} focusedZone={focusedIdx === vi && focusSide === 'right' ? focusZone : null} />
+                                    <DiffRow row={r} side="right" otherRow={l} onMerge={onMerge} index={originalIdx} showLineNumber={showLineNumbers} block={rBlock} otherBlock={lBlock} wrap={wrap} focusedZone={focusedIdx === vi && focusSide === 'right' ? focusZone : null} isMarkdownMode={isMarkdownMode} obsidianMode={obsidianMode} />
                                 </div>
                             </div>
                         )}
@@ -292,8 +299,10 @@ const DiffRow: React.FC<{
     block?: { type: string, lines: string[], count: number, startLine?: number },
     otherBlock?: { type: string, lines: string[], count: number, startLine?: number },
     wrap?: boolean,
-    focusedZone?: 'content' | 'line' | 'block' | null
-}> = ({ row, side, otherRow, onMerge, index, showLineNumber, block, otherBlock, wrap, focusedZone }) => {
+    focusedZone?: 'content' | 'line' | 'block' | null,
+    isMarkdownMode?: boolean,
+    obsidianMode?: boolean
+}> = ({ row, side, otherRow, onMerge, index, showLineNumber, block, otherBlock, wrap, focusedZone, isMarkdownMode, obsidianMode = false }) => {
     const hasContent = row.type !== 'empty' && row.type !== 'same';
     const isEmptySpacer = row.type === 'empty' && otherRow && otherRow.type !== 'empty' && otherRow.type !== 'same';
 
@@ -388,16 +397,27 @@ const DiffRow: React.FC<{
                 )}
             </div>
 
-            <span className={`diff-text ${wrap === false ? 'no-wrap' : ''} ${focusedZone === 'content' ? 'is-focused-text' : ''}`}
-                style={getFocusStyle('content')}>
-                {Array.isArray(row.text) ? (
-                    row.text.map((seg: any, si: number) => (
-                        <span key={si} className={seg.type !== 'same' ? `diff-span-${seg.type}` : ''}>{seg.text}</span>
-                    ))
-                ) : (
-                    row.text || " "
-                )}
-            </span>
+            {isMarkdownMode ? (
+                <div className="markdown-preview" style={{ flex: 1, padding: '4px 8px', overflow: 'hidden', ...getFocusStyle('content') }}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {obsidianMode
+                            ? convertObsidianSyntax(Array.isArray(row.text) ? row.text.map((s: any) => s.text).join('') : (row.text || ''))
+                            : (Array.isArray(row.text) ? row.text.map((s: any) => s.text).join('') : (row.text || ''))
+                        }
+                    </ReactMarkdown>
+                </div>
+            ) : (
+                <span className={`diff-text ${wrap === false ? 'no-wrap' : ''} ${focusedZone === 'content' ? 'is-focused-text' : ''}`}
+                    style={getFocusStyle('content')}>
+                    {Array.isArray(row.text) ? (
+                        row.text.map((seg: any, si: number) => (
+                            <span key={si} className={seg.type !== 'same' ? `diff-span-${seg.type}` : ''}>{seg.text}</span>
+                        ))
+                    ) : (
+                        row.text || " "
+                    )}
+                </span>
+            )}
         </div >
     );
 };
