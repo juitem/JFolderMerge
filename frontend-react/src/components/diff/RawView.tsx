@@ -240,8 +240,10 @@ export const RawView: React.FC<RawViewProps> = ({
         }
     };
 
+    const currentBasePath = activeSide === 'left' ? leftPath : rightPath;
+
     const renderMarkdown = (content: string) => (
-        <MarkdownRenderer content={content} obsidianMode={obsidianMode} />
+        <MarkdownRenderer content={content} obsidianMode={obsidianMode} basePath={currentBasePath} />
     );
 
     if (mode === 'single') {
@@ -360,14 +362,14 @@ export const RawView: React.FC<RawViewProps> = ({
             <div className="diff-col left" style={{ flex: 1, padding: '0', borderRight: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
                 <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Left</div>
                 {isMarkdownMode
-                    ? <MarkdownRenderer content={currentLeft} obsidianMode={obsidianMode} innerRef={leftMdRef} onScroll={handleLeftScroll} />
+                    ? <MarkdownRenderer content={currentLeft} obsidianMode={obsidianMode} basePath={leftPath} innerRef={leftMdRef} onScroll={handleLeftScroll} />
                     : <EditorComponent content={currentLeft} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
                 }
             </div>
             <div className="diff-col right" style={{ flex: 1, padding: '0', display: 'flex', flexDirection: 'column' }}>
                 <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Right</div>
                 {isMarkdownMode
-                    ? <MarkdownRenderer content={currentRight} obsidianMode={obsidianMode} innerRef={rightMdRef} onScroll={handleRightScroll} />
+                    ? <MarkdownRenderer content={currentRight} obsidianMode={obsidianMode} basePath={rightPath} innerRef={rightMdRef} onScroll={handleRightScroll} />
                     : <EditorComponent content={currentRight} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
                 }
             </div>

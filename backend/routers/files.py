@@ -10,6 +10,17 @@ router = APIRouter()
 
 IMAGE_EXTENSIONS = {'.webp', '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.tiff', '.tif', '.avif'}
 
+@router.get("/serve")
+def serve_file(path: str):
+    """Serve a file as raw binary with appropriate Content-Type. Used for markdown image embedding."""
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=400, detail="Not a file")
+    mime = mimetypes.guess_type(path)[0] or 'application/octet-stream'
+    from fastapi.responses import FileResponse
+    return FileResponse(path, media_type=mime)
+
 @router.get("/content")
 def get_content(path: str):
     if not os.path.exists(path):
