@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Save, Undo, Redo, Eye, EyeOff } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { MarkdownRenderer } from '../MarkdownRenderer';
 import { api } from '../../api';
 
 interface RawViewProps {
@@ -12,6 +12,7 @@ interface RawViewProps {
     leftPath?: string;
     rightPath?: string;
     isMarkdownMode?: boolean;
+    obsidianMode?: boolean;
 }
 
 interface EditorProps {
@@ -150,7 +151,8 @@ export const RawView: React.FC<RawViewProps> = ({
     wrap = false,
     leftPath = '',
     rightPath = '',
-    isMarkdownMode = false
+    isMarkdownMode = false,
+    obsidianMode = false
 }) => {
     const [activeSide, setActiveSide] = useState<'left' | 'right'>('right');
     const [history, setHistory] = useState<{ left: string[], right: string[] }>({ left: [], right: [] });
@@ -234,9 +236,7 @@ export const RawView: React.FC<RawViewProps> = ({
     };
 
     const renderMarkdown = (content: string) => (
-        <div className="markdown-preview custom-scroll" style={{ flex: 1, padding: '20px', overflow: 'auto', background: '#0f172a', color: '#e2e8f0' }}>
-            <ReactMarkdown>{content}</ReactMarkdown>
-        </div>
+        <MarkdownRenderer content={content} obsidianMode={obsidianMode} />
     );
 
     if (mode === 'single') {
@@ -359,14 +359,14 @@ export const RawView: React.FC<RawViewProps> = ({
             <div className="diff-col left" style={{ flex: 1, padding: '0', borderRight: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
                 <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Left</div>
                 {isMarkdownMode
-                    ? <div ref={leftMdRef} onScroll={handleLeftScroll} className="markdown-preview custom-scroll" style={{ flex: 1, padding: '20px', overflow: 'auto', background: '#0f172a', color: '#e2e8f0' }}><ReactMarkdown>{currentLeft}</ReactMarkdown></div>
+                    ? <MarkdownRenderer content={currentLeft} obsidianMode={obsidianMode} innerRef={leftMdRef} onScroll={handleLeftScroll} />
                     : <EditorComponent content={currentLeft} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
                 }
             </div>
             <div className="diff-col right" style={{ flex: 1, padding: '0', display: 'flex', flexDirection: 'column' }}>
                 <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Right</div>
                 {isMarkdownMode
-                    ? <div ref={rightMdRef} onScroll={handleRightScroll} className="markdown-preview custom-scroll" style={{ flex: 1, padding: '20px', overflow: 'auto', background: '#0f172a', color: '#e2e8f0' }}><ReactMarkdown>{currentRight}</ReactMarkdown></div>
+                    ? <MarkdownRenderer content={currentRight} obsidianMode={obsidianMode} innerRef={rightMdRef} onScroll={handleRightScroll} />
                     : <EditorComponent content={currentRight} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
                 }
             </div>

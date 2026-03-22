@@ -1,5 +1,15 @@
 [
   {
+    "left_path": "/Users/juitem/Documents/ObsidianM4mini/AgenticArena",
+    "right_path": "/Users/juitem/Documents/ObsiDoItNow/202603/SRTS_AgenticArena",
+    "timestamp": "2026-03-22T08:42:25.979248"
+  },
+  {
+    "left_path": "/Users/juitem/M4mini/PlanEx",
+    "right_path": "/Users/juitem/M4mini/PlanEx2",
+    "timestamp": "2026-03-14T01:38:45.674277"
+  },
+  {
     "left_path": "/Users/juitem/Docker/ContainerFolder/JF",
     "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
     "timestamp": "2026-01-05T01:54:51.029676"
@@ -38,15 +48,5 @@
     "left_path": "test/A",
     "right_path": "test/B",
     "timestamp": "2025-12-31T23:38:45.336065"
-  },
-  {
-    "left_path": "/Users/juitem/Docker/ContainerFolder/FolderComp",
-    "right_path": "/Users/juitem/Docker/ContainerFolder/JF",
-    "timestamp": "2025-12-29T22:27:02.594187"
-  },
-  {
-    "left_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/test/A",
-    "right_path": "/Users/juitem/Docker/ContainerFolder/FolderComp/test/B",
-    "timestamp": "2025-12-29T00:53:13.043681"
   }
 ]

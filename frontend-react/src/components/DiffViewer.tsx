@@ -25,6 +25,7 @@ interface DiffViewerProps {
     onShowConfirm?: (title: string, message: string, action: () => void) => void;
     setViewOption?: (key: string, value: any) => void;
     isMarkdownMode?: boolean;
+    obsidianMode?: boolean;
     isImageFile?: boolean;
 }
 
@@ -36,7 +37,7 @@ export interface DiffViewerHandle {
 }
 
 export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
-    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent, smoothScroll, onShowConfirm, setViewOption, isMarkdownMode = false, isImageFile = false
+    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent, smoothScroll, onShowConfirm, setViewOption, isMarkdownMode = false, obsidianMode = false, isImageFile = false
 }, ref) => {
     const [mode, setMode] = useState<DiffMode>(initialMode);
     const mergeMode = (config.viewOptions?.mergeMode as 'group' | 'unit') || 'group';
@@ -455,6 +456,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         onMergeModeChange={toggleMergeMode}
                         onShowConfirm={onShowConfirm}
                         isMarkdownMode={isMarkdownMode}
+                        obsidianMode={obsidianMode}
                     />
                 )}
                 {(mode === 'raw' || mode === 'single') && rawContent && (
@@ -467,6 +469,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         leftPath={leftPathBase ? leftPathBase + '/' + relPath : undefined}
                         rightPath={rightPathBase ? rightPathBase + '/' + relPath : undefined}
                         isMarkdownMode={isMarkdownMode}
+                        obsidianMode={obsidianMode}
                     />
                 )}
                 {mode === 'combined' && diffData && (
@@ -502,6 +505,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                                 onMergeModeChange={toggleMergeMode}
                                 onShowConfirm={onShowConfirm}
                                 isMarkdownMode={isMarkdownMode}
+                                obsidianMode={obsidianMode}
                             />
                         </div>
                     </div>

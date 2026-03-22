@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FileDiff, Bot, Layout, Columns, Rows, FileCode, FileText, WrapText, ChevronsUp, ChevronsDown, Eye, EyeOff, ArrowUpToLine, ArrowDownToLine, Hash, BookOpen } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, PanelLeftClose, PanelLeftOpen, RefreshCw, ArrowLeft, ArrowRight, FileDiff, Bot, Layout, Columns, Rows, FileCode, FileText, WrapText, ChevronsUp, ChevronsDown, Eye, EyeOff, ArrowUpToLine, ArrowDownToLine, Hash, BookOpen, Puzzle } from 'lucide-react';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
 import { FolderTree, type FolderTreeHandle } from '../FolderTree';
 
@@ -82,6 +82,7 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
     const isImageFile = !!(props.selectedNode?.name?.match(/\.(webp|png|jpg|jpeg|gif|bmp|ico|tiff?|avif)$/i));
     const [isMarkdownMode, setIsMarkdownMode] = React.useState(false);
     React.useEffect(() => { if (!isMarkdownFile) setIsMarkdownMode(false); }, [isMarkdownFile]);
+    const obsidianMode = !!(props.config?.viewOptions?.obsidianMode);
 
     const widthPercent = props.leftPanelWidth || 25;
 
@@ -408,6 +409,9 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
                                         <button className={`icon-btn ${isMarkdownMode ? 'active' : ''}`} onClick={() => setIsMarkdownMode(v => !v)} title="Toggle Markdown Preview">
                                             <BookOpen size={16} />
                                         </button>
+                                        <button className={`icon-btn ${obsidianMode ? 'active' : ''}`} onClick={() => setViewOption('obsidianMode', !obsidianMode)} title="Obsidian Compatibility Mode ([[links]], ![[images]])">
+                                            <Puzzle size={16} />
+                                        </button>
                                     </>
                                 )}
 
@@ -436,6 +440,7 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
                                     smoothScroll: props.config?.viewOptions?.smoothScrollFile !== false,
                                     onShowConfirm: props.onShowConfirm,
                                     isMarkdownMode,
+                                    obsidianMode,
                                     isImageFile
                                 }
                             })}
