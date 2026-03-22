@@ -2,9 +2,16 @@
   "defaultLeftPath": "/Users/juitem/Documents/ObsidianM4mini/AgenticArena",
   "defaultRightPath": "/Users/juitem/Documents/ObsiDoItNow/202603/SRTS_AgenticArena",
   "viewOptions": {
-    "layoutMode": "folder",
+    "layoutMode": "split",
     "wordWrap": false,
     "showLineNumbers": true,
-    "folderViewMode": "unified"
+    "folderViewMode": "unified",
+    "obsidianMode": true,
+    "diffMode": "raw",
+    "leftPanelWidth_unified": 20
+  },
+  "savedExcludes": {
+    "folders": "",
+    "files": ""
   }
 }

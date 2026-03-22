@@ -13,6 +13,7 @@ interface RawViewProps {
     rightPath?: string;
     isMarkdownMode?: boolean;
     obsidianMode?: boolean;
+    attachmentFolder?: string;
 }
 
 interface EditorProps {
@@ -152,7 +153,8 @@ export const RawView: React.FC<RawViewProps> = ({
     leftPath = '',
     rightPath = '',
     isMarkdownMode = false,
-    obsidianMode = false
+    obsidianMode = false,
+    attachmentFolder = ''
 }) => {
     const [activeSide, setActiveSide] = useState<'left' | 'right'>('right');
     const [history, setHistory] = useState<{ left: string[], right: string[] }>({ left: [], right: [] });
@@ -244,7 +246,7 @@ export const RawView: React.FC<RawViewProps> = ({
     const currentBasePath = activeSide === 'left' ? leftPath : rightPath;
 
     const renderMarkdown = (content: string) => (
-        <MarkdownRenderer content={content} obsidianMode={obsidianMode} basePath={currentBasePath} />
+        <MarkdownRenderer content={content} obsidianMode={obsidianMode} basePath={currentBasePath} attachmentFolder={attachmentFolder} />
     );
 
     if (mode === 'single') {
@@ -388,7 +390,7 @@ export const RawView: React.FC<RawViewProps> = ({
                     <div className="diff-col left" style={{ flex: 1, width: 0, maxWidth: '100%', padding: '0', borderRight: showRight ? '1px solid #333' : 'none', display: 'flex', flexDirection: 'column' }}>
                         <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Left</div>
                         {isMarkdownMode
-                            ? <MarkdownRenderer content={currentLeft} obsidianMode={obsidianMode} basePath={leftPath} innerRef={leftMdRef} onScroll={handleLeftScroll} />
+                            ? <MarkdownRenderer content={currentLeft} obsidianMode={obsidianMode} basePath={leftPath} attachmentFolder={attachmentFolder} innerRef={leftMdRef} onScroll={handleLeftScroll} />
                             : <EditorComponent content={currentLeft} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
                         }
                     </div>
@@ -397,7 +399,7 @@ export const RawView: React.FC<RawViewProps> = ({
                     <div className="diff-col right" style={{ flex: 1, width: 0, maxWidth: '100%', padding: '0', display: 'flex', flexDirection: 'column' }}>
                         <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Right</div>
                         {isMarkdownMode
-                            ? <MarkdownRenderer content={currentRight} obsidianMode={obsidianMode} basePath={rightPath} innerRef={rightMdRef} onScroll={handleRightScroll} />
+                            ? <MarkdownRenderer content={currentRight} obsidianMode={obsidianMode} basePath={rightPath} attachmentFolder={attachmentFolder} innerRef={rightMdRef} onScroll={handleRightScroll} />
                             : <EditorComponent content={currentRight} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
                         }
                     </div>

@@ -26,6 +26,7 @@ interface DiffViewerProps {
     setViewOption?: (key: string, value: any) => void;
     isMarkdownMode?: boolean;
     obsidianMode?: boolean;
+    attachmentFolder?: string;
     isImageFile?: boolean;
 }
 
@@ -37,7 +38,7 @@ export interface DiffViewerHandle {
 }
 
 export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
-    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent, smoothScroll, onShowConfirm, setViewOption, isMarkdownMode = false, obsidianMode = false, isImageFile = false
+    leftPathBase, rightPathBase, relPath, initialMode = 'side-by-side', config, onNextFile, onPrevFile, onReload, onStatsUpdate, onSaveFile, onFetchContent, smoothScroll, onShowConfirm, setViewOption, isMarkdownMode = false, obsidianMode = false, attachmentFolder = '', isImageFile = false
 }, ref) => {
     const [mode, setMode] = useState<DiffMode>(initialMode);
     const mergeMode = (config.viewOptions?.mergeMode as 'group' | 'unit') || 'group';
@@ -470,6 +471,7 @@ export const DiffViewer = React.forwardRef<DiffViewerHandle, DiffViewerProps>(({
                         rightPath={rightPathBase ? rightPathBase + '/' + relPath : undefined}
                         isMarkdownMode={isMarkdownMode}
                         obsidianMode={obsidianMode}
+                        attachmentFolder={attachmentFolder}
                     />
                 )}
                 {mode === 'combined' && diffData && (

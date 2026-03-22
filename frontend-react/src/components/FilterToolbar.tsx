@@ -320,6 +320,16 @@ export function FilterToolbar({
                                         <button className={!!config?.viewOptions?.obsidianMode ? 'active' : ''} onClick={() => setViewOption('obsidianMode', true)}><Puzzle size={12} /><span>On</span></button>
                                     </div>
                                 </div>
+                                <div style={{ marginBottom: '10px' }}>
+                                    <div style={{ fontSize: '9px', fontWeight: 700, color: '#475569', marginBottom: '4px', letterSpacing: '0.05em' }}>ATTACHMENT FOLDER</div>
+                                    <input
+                                        type="text"
+                                        placeholder="_rsrc_"
+                                        value={(config?.viewOptions?.attachmentFolder as string) || ''}
+                                        onChange={e => setViewOption('attachmentFolder', e.target.value)}
+                                        style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', color: '#e2e8f0', padding: '4px 8px', fontSize: '12px', boxSizing: 'border-box' }}
+                                    />
+                                </div>
                             </div>
                         </div>
                     )}

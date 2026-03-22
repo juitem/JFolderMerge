@@ -30,7 +30,27 @@ function resolveImageSrc(src: string, basePath: string): string {
     if (src.startsWith('/api/')) return src;
     // relative path: resolve against basePath (directory of the current file)
     const dir = basePath.replace(/\/[^/]*$/, ''); // strip filename if basePath includes it
+    // If src already contains a path separator, use as-is relative to dir
+    // Otherwise, prepend attachment folder if provided
     const resolved = dir ? `${dir}/${src}` : src;
+    return `/api/serve?path=${encodeURIComponent(resolved)}`;
+}
+
+/**
+ * Build image src: try attachmentFolder first, then fallback to same dir.
+ * attachmentFolder e.g. "_rsrc_" means look in dir/_rsrc_/filename
+ */
+function resolveObsidianImageSrc(src: string, basePath: string, attachmentFolder: string): string {
+    if (!src) return src;
+    if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:')) return src;
+    if (src.startsWith('/api/')) return src;
+    const dir = basePath.replace(/\/[^/]*$/, '');
+    // If src already has a slash, treat as relative path directly
+    if (src.includes('/')) {
+        return `/api/serve?path=${encodeURIComponent(dir ? `${dir}/${src}` : src)}`;
+    }
+    // Use attachment folder if set, otherwise same directory
+    const resolved = attachmentFolder ? `${dir}/${attachmentFolder}/${src}` : `${dir}/${src}`;
     return `/api/serve?path=${encodeURIComponent(resolved)}`;
 }
 
@@ -39,6 +59,8 @@ interface MarkdownRendererProps {
     obsidianMode?: boolean;
     /** Absolute path to the directory (or file) containing the markdown, for resolving relative images */
     basePath?: string;
+    /** Obsidian attachment subfolder name, e.g. "_rsrc_" */
+    attachmentFolder?: string;
     style?: React.CSSProperties;
     className?: string;
     innerRef?: React.Ref<HTMLDivElement>;
@@ -49,6 +71,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     content,
     obsidianMode = false,
     basePath = '',
+    attachmentFolder = '',
     style,
     className = 'markdown-preview custom-scroll',
     innerRef,
@@ -58,7 +81,11 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
     const components = {
         img: ({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => {
-            const resolved = basePath ? resolveImageSrc(src || '', basePath) : src;
+            const resolved = basePath
+                ? (obsidianMode
+                    ? resolveObsidianImageSrc(src || '', basePath, attachmentFolder)
+                    : resolveImageSrc(src || '', basePath))
+                : src;
             return <img src={resolved} alt={alt} style={{ maxWidth: '100%', borderRadius: '4px' }} {...props} />;
         }
     };

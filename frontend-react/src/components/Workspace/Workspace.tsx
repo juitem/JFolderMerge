@@ -80,8 +80,9 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
 
     const isMarkdownFile = !!(props.selectedNode?.name?.match(/\.(md|mdx)$/i));
     const isImageFile = !!(props.selectedNode?.name?.match(/\.(webp|png|jpg|jpeg|gif|bmp|ico|tiff?|avif)$/i));
-    const [isMarkdownMode, setIsMarkdownMode] = React.useState(false);
-    React.useEffect(() => { if (!isMarkdownFile) setIsMarkdownMode(false); }, [isMarkdownFile]);
+    // isMarkdownMode persisted in config so it survives file switching
+    const isMarkdownMode = isMarkdownFile && !!(props.config?.viewOptions?.markdownMode);
+    const setIsMarkdownMode = (val: boolean) => setViewOption('markdownMode', val);
     const obsidianMode = !!(props.config?.viewOptions?.obsidianMode);
 
     const widthPercent = props.leftPanelWidth || 25;
@@ -441,6 +442,7 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
                                     onShowConfirm: props.onShowConfirm,
                                     isMarkdownMode,
                                     obsidianMode,
+                                    attachmentFolder: (props.config?.viewOptions?.attachmentFolder as string) || '',
                                     isImageFile
                                 }
                             })}
