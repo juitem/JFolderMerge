@@ -159,6 +159,7 @@ export const RawView: React.FC<RawViewProps> = ({
     const [historyIndex, setHistoryIndex] = useState<{ left: number, right: number }>({ left: -1, right: -1 });
     const [isDirty, setIsDirty] = useState<{ left: boolean, right: boolean }>({ left: false, right: false });
     const [showMarkdown, setShowMarkdown] = useState(false);
+    const [mdViewSide, setMdViewSide] = useState<'both' | 'left' | 'right'>('both');
 
     // Track current content separately for left/right to support switching without losing edits
     const [currentLeft, setCurrentLeft] = useState(initialLeft);
@@ -357,21 +358,50 @@ export const RawView: React.FC<RawViewProps> = ({
         setTimeout(() => { isSyncingScroll.current = false; }, 50);
     };
 
+    const btnStyle = (active: boolean): React.CSSProperties => ({
+        border: 'none',
+        background: active ? '#3b82f6' : 'transparent',
+        color: active ? 'white' : '#94a3b8',
+        padding: '3px 10px',
+        borderRadius: '4px',
+        fontSize: '12px',
+        cursor: 'pointer',
+        fontWeight: 600,
+    });
+
+    const showLeft = !isMarkdownMode || mdViewSide !== 'right';
+    const showRight = !isMarkdownMode || mdViewSide !== 'left';
+
     return (
-        <div className="raw-diff-container" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-            <div className="diff-col left" style={{ flex: 1, padding: '0', borderRight: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
-                <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Left</div>
-                {isMarkdownMode
-                    ? <MarkdownRenderer content={currentLeft} obsidianMode={obsidianMode} basePath={leftPath} innerRef={leftMdRef} onScroll={handleLeftScroll} />
-                    : <EditorComponent content={currentLeft} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
-                }
-            </div>
-            <div className="diff-col right" style={{ flex: 1, padding: '0', display: 'flex', flexDirection: 'column' }}>
-                <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Right</div>
-                {isMarkdownMode
-                    ? <MarkdownRenderer content={currentRight} obsidianMode={obsidianMode} basePath={rightPath} innerRef={rightMdRef} onScroll={handleRightScroll} />
-                    : <EditorComponent content={currentRight} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
-                }
+        <div className="raw-diff-container" style={{ display: 'flex', flex: 1, minHeight: 0, flexDirection: 'column' }}>
+            {isMarkdownMode && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#0f172a', borderBottom: '1px solid #333', flexShrink: 0, gap: '4px' }}>
+                    <div style={{ display: 'flex', background: '#1e293b', padding: '2px', borderRadius: '6px', gap: '2px' }}>
+                        <button style={btnStyle(mdViewSide === 'left')} onClick={() => setMdViewSide('left')}>Left</button>
+                        <button style={btnStyle(mdViewSide === 'both')} onClick={() => setMdViewSide('both')}>Both</button>
+                        <button style={btnStyle(mdViewSide === 'right')} onClick={() => setMdViewSide('right')}>Right</button>
+                    </div>
+                </div>
+            )}
+            <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+                {showLeft && (
+                    <div className="diff-col left" style={{ flex: 1, padding: '0', borderRight: showRight ? '1px solid #333' : 'none', display: 'flex', flexDirection: 'column' }}>
+                        <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Left</div>
+                        {isMarkdownMode
+                            ? <MarkdownRenderer content={currentLeft} obsidianMode={obsidianMode} basePath={leftPath} innerRef={leftMdRef} onScroll={handleLeftScroll} />
+                            : <EditorComponent content={currentLeft} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
+                        }
+                    </div>
+                )}
+                {showRight && (
+                    <div className="diff-col right" style={{ flex: 1, padding: '0', display: 'flex', flexDirection: 'column' }}>
+                        <div className="diff-header" style={{ color: '#888', padding: '10px', background: '#0f172a', borderBottom: '1px solid #333' }}>Right</div>
+                        {isMarkdownMode
+                            ? <MarkdownRenderer content={currentRight} obsidianMode={obsidianMode} basePath={rightPath} innerRef={rightMdRef} onScroll={handleRightScroll} />
+                            : <EditorComponent content={currentRight} readOnly={true} showLineNumbers={showLineNumbers} wrap={wrap} />
+                        }
+                    </div>
+                )}
             </div>
         </div>
     );
