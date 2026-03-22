@@ -371,13 +371,16 @@ export const RawView: React.FC<RawViewProps> = ({
         fontWeight: 600,
     });
 
-    const showLeft = !isMarkdownMode || mdViewSide !== 'right';
-    const showRight = !isMarkdownMode || mdViewSide !== 'left';
+    const isIdentical = isMarkdownMode && currentLeft === currentRight;
+    const effectiveSide = isIdentical && mdViewSide === 'both' ? 'right' : mdViewSide;
+    const showLeft = !isMarkdownMode || effectiveSide !== 'right';
+    const showRight = !isMarkdownMode || effectiveSide !== 'left';
 
     return (
         <div className="raw-diff-container" style={{ display: 'flex', flex: 1, minHeight: 0, flexDirection: 'column' }}>
             {isMarkdownMode && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#0f172a', borderBottom: '1px solid #333', flexShrink: 0, gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#0f172a', borderBottom: '1px solid #333', flexShrink: 0, gap: '8px' }}>
+                    {isIdentical && <span style={{ fontSize: '12px', color: '#64748b' }}>Identical</span>}
                     <div style={{ display: 'flex', background: '#1e293b', padding: '2px', borderRadius: '6px', gap: '2px' }}>
                         <button style={btnStyle(mdViewSide === 'left')} onClick={() => setMdViewSide('left')}>Left</button>
                         <button style={btnStyle(mdViewSide === 'both')} onClick={() => setMdViewSide('both')}>Both</button>

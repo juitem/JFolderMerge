@@ -1,6 +1,6 @@
-import React, { useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
 import type { ViewerAdapter, ViewerProps } from '../ViewerAdapter';
-import { DiffViewer } from '../../components/DiffViewer';
+import { DiffViewer, type DiffViewerHandle } from '../../components/DiffViewer';
 import type { FileNode } from '../../types';
 import { api } from '../../api';
 
@@ -21,6 +21,7 @@ const DiffViewerWrapper = forwardRef<any, ViewerProps & { adapter: DiffViewerAda
 
     const legacyProps = props.content as any;
 
+    const diffViewerRef = useRef<DiffViewerHandle>(null);
     const [dirtyState, setDirtyState] = useState<{ [path: string]: string }>({});
 
     const handleSaveFile = async (path: string, content: string) => {
@@ -67,11 +68,13 @@ const DiffViewerWrapper = forwardRef<any, ViewerProps & { adapter: DiffViewerAda
             setDirtyState({}); // Clear dirty
             if (props.onDirtyChange) props.onDirtyChange(false);
         },
-        hasChanges: () => Object.keys(dirtyState).length > 0
+        hasChanges: () => Object.keys(dirtyState).length > 0,
+        reload: async () => { await diffViewerRef.current?.reload(); }
     }));
 
     return (
         <DiffViewer
+            ref={diffViewerRef}
             {...legacyProps}
             onSaveFile={handleSaveFile}
             onFetchContent={handleFetchContent}
@@ -99,5 +102,9 @@ export class DiffViewerAdapterImpl implements ViewerAdapter {
 
     async save(): Promise<void> {
         return this.ref.current?.save();
+    }
+
+    async reload(): Promise<void> {
+        return this.ref.current?.reload();
     }
 }

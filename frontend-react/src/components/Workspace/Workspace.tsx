@@ -373,6 +373,9 @@ export const Workspace: React.FC<WorkspaceProps> = React.memo((props) => {
                                 <button className="icon-btn" onClick={() => props.setIsExpanded(!props.isExpanded)} title={props.isExpanded ? "Restore View" : "Toggle Full Screen"}>
                                     {props.isExpanded ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
                                 </button>
+                                <button className="icon-btn" onClick={() => currentAdapter?.reload?.()} title="Refresh File">
+                                    <RefreshCw size={16} />
+                                </button>
 
                                 {/* File View Modes (Restored) */}
                                 <div style={{ width: '1px', height: '16px', background: '#ccc', margin: '0 4px' }}></div>
