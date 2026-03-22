@@ -164,6 +164,11 @@ export const RawView: React.FC<RawViewProps> = ({
     const [currentLeft, setCurrentLeft] = useState(initialLeft);
     const [currentRight, setCurrentRight] = useState(initialRight);
 
+    // Scroll sync refs for dual markdown mode — must be before any conditional return
+    const leftMdRef = useRef<HTMLDivElement>(null);
+    const rightMdRef = useRef<HTMLDivElement>(null);
+    const isSyncingScroll = useRef(false);
+
     useEffect(() => {
         setCurrentLeft(initialLeft);
         setCurrentRight(initialRight);
@@ -331,10 +336,6 @@ export const RawView: React.FC<RawViewProps> = ({
             </div>
         );
     }
-
-    const leftMdRef = useRef<HTMLDivElement>(null);
-    const rightMdRef = useRef<HTMLDivElement>(null);
-    const isSyncingScroll = useRef(false);
 
     const handleLeftScroll = () => {
         if (isSyncingScroll.current || !leftMdRef.current || !rightMdRef.current) return;
