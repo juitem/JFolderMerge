@@ -32,6 +32,25 @@
     --radius-lg: 12px;
 }
 
+body.light-mode {
+    --bg-color: #f1f5f9;
+    --panel-bg: rgba(255, 255, 255, 0.7);
+    --border-color: rgba(0, 0, 0, 0.1);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --accent-color: #2563eb;
+    --accent-hover: #1d4ed8;
+    --glass-bg: rgba(255, 255, 255, 0.6);
+    --glass-border: 1px solid rgba(0, 0, 0, 0.08);
+    --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+    --hover-bg: rgba(0, 0, 0, 0.05);
+    --selected-bg: rgba(37, 99, 235, 0.12);
+    --input-bg: rgba(0, 0, 0, 0.05);
+    --diff-added-bg: rgba(16, 185, 129, 0.12);
+    --diff-removed-bg: rgba(239, 68, 68, 0.12);
+    --diff-modified-bg: rgba(245, 158, 11, 0.12);
+}
+
 html,
 body {
     margin: 0;
@@ -103,6 +122,13 @@ h3 {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
+}
+
+.header-filepath {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .beta-badge {
