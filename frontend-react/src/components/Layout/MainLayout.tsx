@@ -79,27 +79,24 @@ export const MainLayout: React.FC<MainLayoutProps> = (props) => {
 
                     </h1>
                 </div>
+                {props.selectedFilePath && (
+                    <div className="header-filepath" style={{
+                        textAlign: 'right',
+                        marginRight: '8px',
+                        fontFamily: 'monospace',
+                        textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                        lineHeight: '1.2',
+                        wordBreak: 'break-all'
+                    }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-primary)', opacity: 0.7, fontWeight: 500 }}>
+                            {props.selectedFilePath.substring(0, props.selectedFilePath.lastIndexOf('/') + 1)}
+                        </span>
+                        <span style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent-color)', fontStyle: 'italic' }}>
+                            {props.selectedFilePath.substring(props.selectedFilePath.lastIndexOf('/') + 1)}
+                        </span>
+                    </div>
+                )}
                 <div className="header-actions">
-                    {/* File Name Display */}
-                    {props.selectedFilePath && (
-                        <div style={{
-                            display: 'block',
-                            textAlign: 'right',
-                            marginRight: '24px',
-                            fontFamily: 'monospace',
-                            textShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                            maxWidth: '600px',
-                            lineHeight: '1.2',
-                            wordBreak: 'break-all'
-                        }}>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-primary)', opacity: 0.7, fontWeight: 500 }}>
-                                {props.selectedFilePath.substring(0, props.selectedFilePath.lastIndexOf('/') + 1)}
-                            </span>
-                            <span style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent-color)', fontStyle: 'italic' }}>
-                                {props.selectedFilePath.substring(props.selectedFilePath.lastIndexOf('/') + 1)}
-                            </span>
-                        </div>
-                    )}
                     <button className="icon-btn" title={`Zoom In (${Math.round(zoomLevel * 100)}%)`} onClick={() => setZoomLevel((z) => Math.min(z + 0.1, 2.0))}>
                         <ZoomIn size={18} />
                     </button>
