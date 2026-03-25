@@ -1,6 +1,13 @@
 backend/__pycache__/
 frontend/__pycache__/
 *__pycache__/
+*.pyc
+*.pyo
 venv/
 test/test_left/
 test/test_right/
+.env
+.DS_Store
+*.log
+.pytest_cache/
+.mypy_cache/
