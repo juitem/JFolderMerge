@@ -1,17 +1,24 @@
 {
   "defaultLeftPath": "/Users/juitem/Documents/ObsidianM4mini/AgenticArena",
-  "defaultRightPath": "/Users/juitem/Documents/ObsiDoItNow/202603/SRTS_AgenticArena",
+  "defaultRightPath": "/Users/juitem/TEMPSYNC/ObsiDoItNow/202603/SRTS_AgenticArena",
+  "folderFilters": {
+    "same": true
+  },
   "viewOptions": {
-    "layoutMode": "split",
+    "layoutMode": "folder",
     "wordWrap": false,
     "showLineNumbers": true,
     "folderViewMode": "unified",
     "obsidianMode": true,
     "diffMode": "raw",
-    "leftPanelWidth_unified": 20
+    "leftPanelWidth_unified": 50,
+    "darkMode": true
   },
   "savedExcludes": {
     "folders": "",
     "files": ""
+  },
+  "diffFilters": {
+    "same": true
   }
 }
