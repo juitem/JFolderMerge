@@ -3,6 +3,7 @@ import shutil
 import os
 import base64
 import mimetypes
+import platform as sys_platform
 from fastapi import APIRouter, HTTPException
 from ..models import CopyRequest, SaveRequest, DeleteRequest, ListDirRequest, BatchCopyRequest, BatchDeleteRequest
 
@@ -173,17 +174,40 @@ def delete_item(req: DeleteRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+def _list_windows_drives():
+    """Return available drive letters on Windows (e.g. ['C:', 'D:', 'Z:'])"""
+    drives = []
+    for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+        drive = f"{letter}:\\"
+        if os.path.exists(drive):
+            drives.append(f"{letter}:")
+    return drives
+
 @router.post("/list-dirs")
 def list_dirs(req: ListDirRequest):
     path = req.path
+    is_windows = sys_platform.system() == "Windows"
+
+    # Windows virtual root: show drive list
+    if is_windows and (not path or path in ("/", "\\")):
+        drives = _list_windows_drives()
+        return {
+            "current": "/",
+            "parent": None,
+            "dirs": drives,
+            "files": [],
+            "platform": "windows",
+            "is_drive_list": True
+        }
+
     if not path:
         path = os.path.expanduser("~")
-    
+
     path = os.path.abspath(path)
-    
+
     if not os.path.exists(path) or not os.path.isdir(path):
         raise HTTPException(status_code=400, detail="Invalid directory path")
-    
+
     dirs = []
     files = []
     try:
@@ -197,8 +221,19 @@ def list_dirs(req: ListDirRequest):
                     files.append(entry.name)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-        
+
     dirs.sort()
     files.sort()
     parent = os.path.dirname(path)
-    return {"current": path, "parent": parent, "dirs": dirs, "files": files}
+
+    # On Windows, if parent == path we're at drive root (e.g. C:\) — signal to go to drive list
+    is_drive_root = is_windows and (parent == path)
+
+    return {
+        "current": path,
+        "parent": "/" if is_drive_root else parent,
+        "dirs": dirs,
+        "files": files,
+        "platform": sys_platform.system().lower(),
+        "is_drive_list": False
+    }

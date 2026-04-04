@@ -52,6 +52,8 @@ export interface ListDirResult {
     parent: string;
     dirs: string[];
     files: string[];
+    platform?: string;
+    is_drive_list?: boolean;
 }
 
 export interface HistoryItem {

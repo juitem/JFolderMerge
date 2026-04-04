@@ -26,6 +26,7 @@ export const BrowseModal: React.FC<BrowseModalProps> = ({ isOpen, onClose, onSel
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<string | null>(null);
+    const [isDriveList, setIsDriveList] = useState(false);
 
     // Initialization on Open
     useEffect(() => {
@@ -50,23 +51,33 @@ export const BrowseModal: React.FC<BrowseModalProps> = ({ isOpen, onClose, onSel
         setSelectedFile(null);
     }, [currentPath]); // Run when user navigates
 
+    const joinPath = (base: string, name: string): string => {
+        // Windows drive from drive list: e.g. base="/" name="C:" → "C:\"
+        if (base === "/" && /^[A-Za-z]:$/.test(name)) return name + "\\";
+        // Windows path: use backslash separator
+        if (/^[A-Za-z]:[\\\/]/.test(base)) return base.replace(/[\\\/]+$/, '') + "\\" + name;
+        // Unix path
+        return (base === "/" ? "/" : base) + "/" + name;
+    };
+
     const loadDir = async (path: string) => {
         setLoading(true);
         setError(null); // Clear error on new load attempt
         try {
             const res = await api.listDirs(path, true); // Always include files now so we can see them
             setCurrentPath(res.current); // Normalize path
+            setIsDriveList(!!res.is_drive_list);
 
             // Map strings to FileItems
             const dirItems: FileItem[] = res.dirs.map(d => ({
                 name: d,
-                path: `${res.current}/${d}`.replace('//', '/'),
+                path: joinPath(res.current, d),
                 is_dir: true
             }));
 
             const fileItems: FileItem[] = res.files.map(f => ({
                 name: f,
-                path: `${res.current}/${f}`.replace('//', '/'),
+                path: joinPath(res.current, f),
                 is_dir: false
             }));
 
@@ -82,26 +93,39 @@ export const BrowseModal: React.FC<BrowseModalProps> = ({ isOpen, onClose, onSel
     };
 
     const handleUp = () => {
+        // Already at drive list (Windows virtual root)
+        if (isDriveList) return;
+
         // Restriction Check
         if (restrictTo) {
-            // Normalize paths for comparison (remove trailing slashes)
-            const cur = currentPath.replace(/\/$/, '');
-            const res = restrictTo.replace(/\/$/, '');
-            if (cur === res) return; // Already at root of restriction
-            if (cur.length <= res.length) return; // Should not happen if logic is correct
+            const cur = currentPath.replace(/[\\\/]+$/, '');
+            const res = restrictTo.replace(/[\\\/]+$/, '');
+            if (cur === res) return;
+            if (cur.length <= res.length) return;
         }
 
-        // Use parent from API would be better if available, but string manip works for now
-        // const parent = currentPath.split('/').slice(0, -1).join('/') || '/';
-        // Better: Use '..' relative path logic with API? No, API takes absolute.
-        // Simple string manipulation:
+        // Windows: at drive root like "C:\" → go to drive list
+        if (/^[A-Za-z]:[\\\/]?$/.test(currentPath)) {
+            loadDir('/');
+            return;
+        }
+
+        // Windows path navigation
+        if (/^[A-Za-z]:[\\\/]/.test(currentPath)) {
+            const normalized = currentPath.replace(/[\\\/]+$/, '');
+            const parts = normalized.split(/[\\\/]/);
+            if (parts.length <= 1) { loadDir('/'); return; }
+            const parent = parts.slice(0, -1).join('\\') || parts[0] + '\\';
+            if (restrictTo && parent.length < restrictTo.replace(/[\\\/]+$/, '').length) return;
+            setCurrentPath(parent);
+            return;
+        }
+
+        // Unix path navigation
         const parts = currentPath.split('/').filter(p => p);
         if (parts.length === 0) return;
         const parent = '/' + parts.slice(0, -1).join('/');
-
-        // Final sanity check for restriction
         if (restrictTo && parent.length < restrictTo.replace(/\/$/, '').length) return;
-
         setCurrentPath(parent || '/');
     };
 
@@ -135,7 +159,7 @@ export const BrowseModal: React.FC<BrowseModalProps> = ({ isOpen, onClose, onSel
             <div className="browse-container" style={{ display: 'flex', flexDirection: 'column', height: '500px' }}>
                 {/* Path Bar */}
                 <div className="browse-header" style={{ padding: '10px', display: 'flex', gap: '10px' }}>
-                    <button className="icon-btn" onClick={handleUp} title="Up Level">
+                    <button className="icon-btn" onClick={handleUp} title="Up Level" disabled={isDriveList}>
                         <ArrowUp size={18} />
                     </button>
                     <input
