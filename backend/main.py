@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 import uvicorn
 import argparse
 from .global_state import GlobalState
@@ -40,9 +39,6 @@ async def log_full_url(request: Request, call_next):
 app.include_router(comparison.router, prefix="/api")
 app.include_router(files.router, prefix="/api")
 app.include_router(system.router, prefix="/api")
-
-# Mount Static Files (Frontend)
-app.mount("/", StaticFiles(directory="frontend", html=True), name="static")
 
 if __name__ == "__main__":
     uvicorn.run("backend.main:app", host=args.host, port=args.port, reload=True)
