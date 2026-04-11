@@ -11,3 +11,5 @@ test/test_right/
 *.log
 .pytest_cache/
 .mypy_cache/
+settings/config.json
+settings/history.json

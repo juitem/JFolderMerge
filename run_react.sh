@@ -32,6 +32,22 @@ elif [ "$#" -ge 2 ]; then
     EXTRA_ARGS="--left $LEFT_ABS --right $RIGHT_ABS"
 fi
 
+# Kill any existing backend.main process on the same port
+PIDS=$(lsof -ti:$PORT)
+if [ ! -z "$PIDS" ]; then
+    for PID in $PIDS; do
+        PROC_INFO=$(ps -ww -p $PID 2>/dev/null)
+        if [[ "$PROC_INFO" == *"backend.main"* ]]; then
+            echo "[RunReact] Stopping existing backend (PID $PID)..."
+            kill -9 $PID
+        else
+            echo "[RunReact] WARNING: Port $PORT is in use by another process (PID $PID). Aborting."
+            exit 1
+        fi
+    done
+    while lsof -ti:$PORT >/dev/null; do sleep 0.1; done
+fi
+
 # Start Backend
 echo "[RunReact] Starting Backend on http://localhost:$PORT..."
 if [ -n "$EXTRA_ARGS" ]; then
