@@ -13,7 +13,7 @@ fi
 
 # Argument parsing logic
 # usage: ./run_react.sh [LEFT] [RIGHT] [PORT]
-DEFAULT_PORT=8000
+DEFAULT_PORT=8084
 PORT=$DEFAULT_PORT
 EXTRA_ARGS=""
 
@@ -75,7 +75,7 @@ sleep 2
 
 # Start Frontend
 echo "[RunReact] Starting Frontend..."
-echo "[RunReact] Access the App at http://localhost:5173"
+echo "[RunReact] Access the App at http://localhost:1774"
 
 cd frontend-react
 # Check for node_modules and install if missing
